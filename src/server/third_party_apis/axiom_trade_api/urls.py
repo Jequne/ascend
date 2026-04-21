@@ -23,3 +23,4 @@ class AxiomTradeApiUrls:
     SUBSCRIBE_NEW_TOKENS = f"/ws/subscribe/new-tokens"
     SUBSCRIBE_ORDERS = f"/ws/subscribe/orders"
     SUBSCRIBE_POSITIONS = f"/ws/subscribe/positions"
+    PAIR_CHART_V2 = f"/pair-chart-v2?"

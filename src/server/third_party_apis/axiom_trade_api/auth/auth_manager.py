@@ -74,7 +74,7 @@ class AuthManager:
                     return 
             else:
                 logger.warning(
-                    "❌ refresh auth access token response: %s", 
+                    "🟨 refresh auth access token response: %s", 
                     response.status_code
                 )
                 return 
@@ -130,7 +130,7 @@ class AuthManager:
             ) -> bool:
         access_token = agent_data.cookies.auth_access_token
         if not access_token:
-            logger.warning(
+            logger.debug(
                 "🟨 %s don't have auth_access_token",
                 agent_data.agent_name
                 )
@@ -139,7 +139,7 @@ class AuthManager:
         auth_access_token_expired_at = access_token.expires_at
         
         if not auth_access_token_expired_at:
-            logger.warning(
+            logger.debug(
                 "🟨 %s don't have auth_access_token", 
                 agent_data.agent_name
                 )
