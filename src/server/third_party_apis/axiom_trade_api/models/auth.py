@@ -21,7 +21,10 @@ class AxiomCookies(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     auth_refresh_token: AxiomCookie = Field(..., alias="auth-refresh-token")
-    auth_access_token: Optional[AxiomCookie] = Field(None, alias="auth-access-token")
+    auth_access_token: Optional[AxiomCookie] = Field(
+        None, 
+        alias="auth-access-token"
+        )
 
     @model_validator(mode="after")
     def set_refresh_token_expiry(self):

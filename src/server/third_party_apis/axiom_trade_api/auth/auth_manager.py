@@ -31,8 +31,16 @@ class AuthManager:
                 }
         )
         self._base_url = random.choice(AAllBaseUrls.URLS)
+        self._agent_locks: Dict[str, asyncio.Lock] = {}
 
-    async def refresh_auth_access_token(
+    def _get_agent_lock(self, auth_refresh_token: str) -> asyncio.Lock:
+        lock = self._agent_locks.get(auth_refresh_token)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._agent_locks[auth_refresh_token] = lock
+        return lock
+
+    async def _refresh_auth_access_token(
             self, 
             agent_data: AxiomAgentData
             ) -> Optional[str]:
@@ -146,10 +154,30 @@ class AuthManager:
                 )
             return False
         else:
-            logger.debug("✅ %s auth_access_token is valid", agent_data.agent_name)
+            logger.debug(
+                "✅ %s auth_access_token is valid", agent_data.agent_name
+                )
             return True
         
-    
+    async def ensure_validation(self, agent_data: AxiomAgentData) -> bool:
+        auth_refresh_token = agent_data.cookies.auth_refresh_token.cookie
+        agent_lock = self._get_agent_lock(auth_refresh_token)
+
+        async with agent_lock:
+            is_access_token_valid = \
+                await self._is_auth_access_token_valid(agent_data)
+            
+            if is_access_token_valid:
+                return True
+            
+            auth_access_token = \
+                await self._refresh_auth_access_token(agent_data)
+            
+            self._save_access_token_age(agent_data, auth_access_token)
+            return await self._is_auth_access_token_valid(agent_data)
+            
+
+
     
             
             
