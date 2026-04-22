@@ -53,7 +53,7 @@ class PairChartV2Bar(BaseModel):
     
     @model_validator(mode="before")
     @classmethod
-    def name_fields_from_bar_list(cls, data: List):
+    def name_fields_from_bar_list(cls, data: List) -> dict:
         if not isinstance(data, list):
             raise ValueError(f"{data} is not a list")
         

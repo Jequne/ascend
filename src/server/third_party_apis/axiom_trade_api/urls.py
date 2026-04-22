@@ -10,7 +10,7 @@ class AAllBaseUrls:
         "https://api8.axiom.trade",
         "https://api9.axiom.trade",
         "https://api10.axiom.trade",
-        "https://api.axiom.trade",
+        # "https://api.axiom.trade",
    ]
    
   
@@ -24,3 +24,4 @@ class AxiomTradeApiUrls:
     SUBSCRIBE_ORDERS = f"/ws/subscribe/orders"
     SUBSCRIBE_POSITIONS = f"/ws/subscribe/positions"
     PAIR_CHART_V2 = f"/pair-chart-v2?"
+    DEV_TOKENS_V3 = f"/dev-tokens-v3?devAddress="
