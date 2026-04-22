@@ -25,3 +25,4 @@ class AxiomTradeApiUrls:
     SUBSCRIBE_POSITIONS = f"/ws/subscribe/positions"
     PAIR_CHART_V2 = f"/pair-chart-v2?"
     DEV_TOKENS_V3 = f"/dev-tokens-v3?devAddress="
+    TOKEN_INFO = f"/token-info?pairAddress="
