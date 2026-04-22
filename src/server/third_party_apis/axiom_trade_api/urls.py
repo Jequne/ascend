@@ -13,7 +13,11 @@ class AAllBaseUrls:
         # "https://api.axiom.trade",
    ]
    
-  
+
+class AxiomWssUrls:
+    WSS_URL1 = f"wss://cluster2.axiom.trade"
+
+
 class AxiomTradeApiUrls:
     LOGIN_STEP1 = f"/login-password-v2"
     LOGIN_STEP2 = f"/login-otp"

@@ -55,7 +55,8 @@ class AxiomTradeEndpoints:
                     headers=agent_data.headers.model_dump(by_alias=True),
                     cookies=agent_data.cookies.get_cookies_for_request(),
                     timeout=15,
-                    impersonate="chrome124"
+                    impersonate="chrome124",
+                    proxy=agent_data.proxy
                 )
             
             if response.status_code == 200:
@@ -99,7 +100,8 @@ class AxiomTradeEndpoints:
                     headers=agent_data.headers.model_dump(by_alias=True),
                     cookies=agent_data.cookies.get_cookies_for_request(),
                     timeout=15,
-                    impersonate="chrome124"
+                    impersonate="chrome124",
+                    proxy=agent_data.proxy
                 )
             
             if response.status_code == 200:
@@ -143,7 +145,8 @@ class AxiomTradeEndpoints:
                     headers=agent_data.headers.model_dump(by_alias=True),
                     cookies=agent_data.cookies.get_cookies_for_request(),
                     timeout=15,
-                    impersonate="chrome124"
+                    impersonate="chrome124",
+                    proxy=agent_data.proxy
                 )
             
             if response.status_code == 200:
@@ -187,7 +190,8 @@ class AxiomTradeEndpoints:
                     headers=agent_data.headers.model_dump(by_alias=True),
                     cookies=agent_data.cookies.get_cookies_for_request(),
                     timeout=15,
-                    impersonate="chrome124"
+                    impersonate="chrome124",
+                    proxy=agent_data.proxy
                 )
             
             if response.status_code == 200:
