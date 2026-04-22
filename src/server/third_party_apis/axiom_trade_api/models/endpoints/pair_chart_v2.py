@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict, model_validator, model_serializer
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from datetime import datetime, timedelta
 import time
 
@@ -43,7 +43,33 @@ class PairChartV2Params(BaseModel):
         return sep.join(f"{k}={v}" for k, v in data.items())
 
 
-class PairChartV2Response(BaseModel):
-    model_config=ConfigDict(extra="allow", populate_by_name=True)
-
+class PairChartV2Bar(BaseModel):
+    time: int
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
     
+    @model_validator(mode="before")
+    @classmethod
+    def name_fields_from_bar_list(cls, data: List):
+        if not isinstance(data, list):
+            raise ValueError(f"{data} is not a list")
+        
+        if len(data) != 6:
+            raise ValueError(f"Expected 6 values, got {len(data)}: {data}")
+
+        result = {}
+        
+        for field_name, value_from_data \
+            in zip(cls.model_fields.keys(), data):
+            result[field_name] = value_from_data
+        
+        return result
+
+
+class PairChartV2Response(BaseModel):
+    model_config=ConfigDict(extra="ignore", populate_by_name=True)
+
+    bars: List[PairChartV2Bar]

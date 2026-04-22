@@ -7,7 +7,7 @@ import json
 
 from ..auth.auth_manager import AuthManager
 from ..models.auth import AxiomAgentData
-from ..models.endpoints.pair_chart_v2 import PairChartV2Params
+from ..models.endpoints.pair_chart_v2 import PairChartV2Params, PairChartV2Response
 from ..urls import AAllBaseUrls, AxiomTradeApiUrls
 
 
@@ -34,7 +34,7 @@ class AxiomTradeEndpoints:
             self, 
             agent_data: AxiomAgentData,
             pair_chart_v2_params: PairChartV2Params
-            ) -> Optional[Dict]:
+            ) -> Optional[PairChartV2Response]:
         if not await self._auth_manager.ensure_validation(agent_data):
             return
         logger.debug(
@@ -61,15 +61,16 @@ class AxiomTradeEndpoints:
                     "✅ %s successfully get response: \n%s",
                     agent_data.agent_name, json.dumps(json_data, indent=2)
                     )
-                pass
+                pair_chart_v2_response = PairChartV2Response(**json_data)
+                return pair_chart_v2_response
 
             else:
                 logger.warning(
-                    "🟨 %s response: %s",
-                    agent_data.agent_name, response.status_code
+                    "🟨 %s status code: %s\n",
+                    agent_data.agent_name, 
+                    response.status_code, 
                     )
-            
-            return json_data
+                return
         
         except Exception as e:
             logger.warning(
