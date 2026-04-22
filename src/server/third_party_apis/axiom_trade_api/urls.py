@@ -3,7 +3,7 @@ class AAllBaseUrls:
       #   "https://api.axiomtrade.com",
         "https://api2.axiom.trade",
         "https://api3.axiom.trade",
-        "https://api4.axiom.trade",
+        # "https://api4.axiom.trade",
       #   "https://api5.axiom.trade",
         "https://api6.axiom.trade",
         "https://api7.axiom.trade",
@@ -26,3 +26,4 @@ class AxiomTradeApiUrls:
     PAIR_CHART_V2 = f"/pair-chart-v2?"
     DEV_TOKENS_V3 = f"/dev-tokens-v3?devAddress="
     TOKEN_INFO = f"/token-info?pairAddress="
+    PAIR_INFO = f"/pair-info?pairAddress="
