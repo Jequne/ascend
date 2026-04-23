@@ -13,16 +13,16 @@ class DevWalletFunding(BaseModel):
 
 
 class Extra(BaseModel):
-    migrated_to: str = Field(..., alias="migratedTo")
+    migrated_from: str = Field(..., alias="migratedFrom")
 
 
 class ProtocolDetails(BaseModel):
-    associated_bonding_curve: str = Field(..., alias="associatedBondingCurve")
+    # associated_bonding_curve: str = Field(..., alias="associatedBondingCurve")
     cashback: bool
     creator: str
     is_mayhem: bool = Field(..., alias="isMayhem")
     is_offchain: bool = Field(..., alias="isOffchain")
-    token_program: int = Field(..., alias="tokenProgram")
+    token_program: str = Field(..., alias="tokenProgram")
 
 
 class PairInfoResponse(BaseModel):

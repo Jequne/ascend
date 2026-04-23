@@ -56,8 +56,8 @@ class AxiomTradeClient:
 
     def connect_websocket(
             self,
-            rooms: List[Literal["new_pairs", "sol_price"]] = \
-                ["new_pairs", "sol_price"]
+            rooms: List[Literal["new_pairs", "sol_price", "migrations"]] = \
+                ["new_pairs", "sol_price", "migrations"]
             ) -> None:
         """Connect to WebSocket and run stream in background"""
         agents = self._get_agents_with_socks5()

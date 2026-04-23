@@ -79,7 +79,7 @@ class AxiomTradeWebsocket():
                 result = callback(data)
                 if asyncio.iscoroutine(result):
                     async_tasks.append(result)
-                    
+
             except Exception as e:
                 logger.error(
                     "🟨 callback error for room %s: %s",
@@ -206,7 +206,7 @@ class AxiomTradeWebsocket():
     async def start(
             self, 
             agent_data: AxiomAgentData,
-            rooms: List = ["new_pairs", "sol_price"],
+            rooms: List = ["new_pairs", "sol_price", "migrations"],
             reconnecting_time_in_sec: int = 2
             ):
         while True:

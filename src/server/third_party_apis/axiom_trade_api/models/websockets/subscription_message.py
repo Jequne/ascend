@@ -6,4 +6,4 @@ import time
 
 class BaseSubscribeMessage(BaseModel):
     action: str = "join"
-    room: Literal["new_pairs", "sol_price"]
+    room: Literal["new_pairs", "sol_price", "migrations"]
