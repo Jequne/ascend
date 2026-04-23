@@ -26,6 +26,7 @@ class Token(BaseModel):
     created_at: datetime
     is_migrated: bool
     current_price_in_sol: Union[float, int]  
+    ath_mcap_in_usd: float
 
     @model_validator(mode="before")
     @classmethod
@@ -46,6 +47,7 @@ class Token(BaseModel):
         result["created_at"] = data[8]
         result["is_migrated"] = data[9]
         result["current_price_in_sol"] = data[13]
+        result["ath_mcap_in_usd"] = data[14]
 
         return result
 
