@@ -1,0 +1,4 @@
+include README.md
+include LICENSE
+recursive-include axiom_trade_api *.py
+recursive-include axiom_trade_api *.typed
