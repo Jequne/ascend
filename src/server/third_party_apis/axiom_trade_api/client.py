@@ -9,6 +9,9 @@ from .auth.auth_manager import AuthManager
 from .endpoints.ws import AxiomTradeWebsocket
 from .endpoints.endpoints import AxiomTradeEndpoints
 from .models.endpoints.pair_chart_v2 import PairChartV2Params, PairChartV2Response
+from .models.endpoints.dev_tokens_v3 import DevTokensV3Response
+from .models.endpoints.token_info import TokenInfoResponse
+from .models.endpoints.pair_info import PairInfoResponse
 
 
 FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
@@ -88,6 +91,42 @@ class AxiomTradeClient:
             agent_data=random_agent, 
             pair_chart_v2_params=pair_chart_v2_params
             )
+    
+    async def dev_tokens_v3(
+            self,
+            dev_address: str
+    ) -> Optional[DevTokensV3Response]:
+        self._ensure_agents_configured()
+
+        random_agent = random.choice(self._agents)
+        return await self._endpoints.dev_tokens_v3(
+            agent_data=random_agent,
+            dev_address=dev_address
+        )
+    
+    async def token_info(
+            self,
+            pair_address: str
+    ) -> Optional[TokenInfoResponse]:
+        self._ensure_agents_configured()
+
+        random_agent = random.choice(self._agents)
+        return await self._endpoints.token_info(
+            agent_data=random_agent,
+            pair_address=pair_address
+        )
+    
+    async def pair_info(
+            self,
+            pair_address: str
+    ) -> Optional[PairInfoResponse]:
+        self._ensure_agents_configured()
+
+        random_agent = random.choice(self._agents)
+        return await self._endpoints.pair_info(
+            agent_data=random_agent,
+            pair_address=pair_address
+        )
     
     async def close(self) -> None:
         """Close all connections"""
