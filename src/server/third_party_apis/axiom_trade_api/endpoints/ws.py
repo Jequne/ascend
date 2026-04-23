@@ -73,8 +73,22 @@ class AxiomTradeWebsocket():
         if not callbacks:
             return
 
-        tasks = [callback(data) for callback in callbacks]
-        await asyncio.gather(*tasks, return_exceptions=True)
+        async_tasks = []
+        for callback in callbacks:
+            try:
+                result = callback(data)
+                if asyncio.iscoroutine(result):
+                    async_tasks.append(result)
+                    
+            except Exception as e:
+                logger.error(
+                    "🟨 callback error for room %s: %s",
+                    room,
+                    e
+                )
+        
+        if async_tasks:
+            await asyncio.gather(*async_tasks, return_exceptions=True)
 
     async def connect(
             self,
@@ -132,9 +146,7 @@ class AxiomTradeWebsocket():
                 logger.error("🟨 can't close websocket connection: %s", e)
                 return False
         
-        else:
-            logger.info("✅ websocket connection closed")
-            return True
+        return True
 
     async def _messages_handler(self) -> None:
         if not self._wsocket:

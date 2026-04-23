@@ -130,34 +130,19 @@ class AuthManager:
             ) -> bool:
         access_token = agent_data.cookies.auth_access_token
         if not access_token:
-            logger.debug(
-                "🟨 %s don't have auth_access_token",
-                agent_data.agent_name
-                )
             return False
 
         auth_access_token_expired_at = access_token.expires_at
         
         if not auth_access_token_expired_at:
-            logger.debug(
-                "🟨 %s don't have auth_access_token", 
-                agent_data.agent_name
-                )
             return False
 
         current_time = int(datetime.now().timestamp())
 
         if auth_access_token_expired_at - current_time < token_alive_gap:
-            logger.debug(
-                "🟨 %s auth_access_token is expired", 
-                agent_data.agent_name
-                )
             return False
-        else:
-            logger.debug(
-                "✅ %s auth_access_token is valid", agent_data.agent_name
-                )
-            return True
+        
+        return True
         
     async def ensure_validation(self, agent_data: AxiomAgentData) -> bool:
         auth_refresh_token = agent_data.cookies.auth_refresh_token.cookie
