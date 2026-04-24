@@ -4,6 +4,7 @@ import asyncio
 from typing import Protocol
 
 from app.schemas import DeployedToken, TokenFeedSol
+from app.schemas.token_feed_request import TokenFeedBuildRequest
 from third_party_apis.axiom_trade_api.models.endpoints.dev_tokens_v3 import (
     DevTokensV3Response,
 )
@@ -16,7 +17,7 @@ from third_party_apis.axiom_trade_api.models.websockets.subscription_message imp
 class TokenFeedProvider(Protocol):
     provider_name: str
 
-    async def build_sol_token_feed(self, new_pair: NewPairsRoomContent) -> TokenFeedSol | None:
+    async def build_sol_token_feed(self, request: TokenFeedBuildRequest) -> TokenFeedSol | None:
         """Build TokenFeedSol from provider-specific data sources."""
 
 
@@ -160,7 +161,8 @@ class AxiomTradeTokenFeedBuilder(TokenFeedBuilderUtils):
 
         return enriched_tokens
 
-    async def build_sol_token_feed(self, new_pair: NewPairsRoomContent) -> TokenFeedSol | None:
+    async def build_sol_token_feed(self, request: TokenFeedBuildRequest) -> TokenFeedSol | None:
+        new_pair = NewPairsRoomContent.model_validate(request.payload)
         dev_address = new_pair.deployer_address
         if not dev_address:
             raise ValueError("new_pairs payload is missing deployer_address")
@@ -230,9 +232,13 @@ class TokenFeedProviderRegistry:
         except KeyError as exc:
             raise KeyError(f"no token feed provider registered for '{normalized_provider}'") from exc
 
-    async def build_sol_token_feed(self, provider_name: str, new_pair: NewPairsRoomContent) -> TokenFeedSol | None:
+    async def build_sol_token_feed(
+        self,
+        request: TokenFeedBuildRequest,
+    ) -> TokenFeedSol | None:
+        provider_name = request.provider_name
         provider = self.get(provider_name)
-        return await provider.build_sol_token_feed(new_pair)
+        return await provider.build_sol_token_feed(request)
 
 
 class TokenFeedService(TokenFeedProviderRegistry):

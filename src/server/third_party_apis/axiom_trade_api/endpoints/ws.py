@@ -16,11 +16,6 @@ from ..models.websockets.subscription_message import (
 )
 
 FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
-logging.basicConfig(
-    level=logging.DEBUG,
-    format=FORMAT,
-    datefmt="%d.%m.%Y %H:%M:%S"
-)
 logger = logging.getLogger(__name__)
 
 

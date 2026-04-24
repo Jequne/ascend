@@ -11,6 +11,7 @@ from .exceptions import (
 )
 from .hashers import ApiKeyCodec, ParsedApiKey, SecretHasher
 from .token_feed import AxiomTradeTokenFeedBuilder, TokenFeedProvider, TokenFeedProviderRegistry, TokenFeedService
+from ..schemas import TokenFeedBuildRequest
 
 __all__ = [
     "AccessKeyService",
@@ -28,5 +29,6 @@ __all__ = [
     "AxiomTradeTokenFeedBuilder",
     "TokenFeedProvider",
     "TokenFeedProviderRegistry",
+    "TokenFeedBuildRequest",
     "TokenFeedService",
 ]

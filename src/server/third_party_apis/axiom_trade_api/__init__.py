@@ -21,7 +21,11 @@ Usage:
     await client.close()
 """
 
+import logging
+
 __version__ = "0.1.0"
+
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 from .client import AxiomTradeClient
 from .models.auth import AxiomAgentData

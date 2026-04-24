@@ -7,6 +7,7 @@ from .auth import (
     ScopeCheckRequest,
 )
 from .token_feed import DeployedToken, TokenFeedBsc, TokenFeedBase, TokenFeedSol
+from .token_feed_request import TokenFeedBuildRequest
 
 __all__ = [
     "AccessKeyCreateRequest",
@@ -16,6 +17,7 @@ __all__ = [
     "IssuedAccessKey",
     "ScopeCheckRequest",
     "DeployedToken",
+    "TokenFeedBuildRequest",
     "TokenFeedBsc",
     "TokenFeedBase",
     "TokenFeedSol",
