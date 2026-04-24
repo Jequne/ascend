@@ -1,19 +1,16 @@
 import logging
 import asyncio
-from typing import Optional, Dict, Set, Callable, Any, List
+from typing import Dict, Callable, Any, List
 from curl_cffi import AsyncSession, exceptions
-import random
 import json
-from pydantic import ValidationError
 
 from ..auth.auth_manager import AuthManager
 from ..models.auth import AxiomAgentData
-from ..urls import AAllBaseUrls, AxiomTradeApiUrls, AxiomWssUrls
+from ..urls import AxiomWssUrls
 from ..models.websockets.subscription_message import (
-    NewPairsRoomMessage,
     RoomSubscribeRequest,
-    SolPriceRoomMessage,
 )
+from .ws_router import WebsocketMessageRouter
 
 FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
 logger = logging.getLogger(__name__)
@@ -28,7 +25,7 @@ class AxiomTradeWebsocket():
         self._async_http_session = async_http_session
         self._auth_manager = auth_manager
         self._wsocket = None
-        self._callbacks: Dict[str, Set[Callable[[Any], Any]]] = {}
+        self._message_router = WebsocketMessageRouter()
 
     def on(self, room: str):
         """Decorator to register callback for a room.
@@ -38,82 +35,21 @@ class AxiomTradeWebsocket():
             async def handle_sol_price(data):
                 pass
         """
-        def decorator(callback: Callable[[Any], Any]) -> Callable:
-            self._callbacks.setdefault(room, set()).add(callback)
-            return callback
-        return decorator
+        return self._message_router.on(room)
 
     def register_callback(
             self,
             room: str,
             callback: Callable[[Any], Any]
             ) -> None:
-        self._callbacks.setdefault(room, set()).add(callback)
+        self._message_router.register_callback(room, callback)
 
     def unregister_callback(
             self,
             room: str,
             callback: Callable[[Any], Any]
             ) -> None:
-        callbacks = self._callbacks.get(room)
-        if not callbacks:
-            return
-
-        callbacks.discard(callback)
-        if not callbacks:
-            self._callbacks.pop(room, None)
-
-    async def _dispatch_message(self, data: Any) -> None:
-        room = data.room if hasattr(data, "room") else data.get("room")
-        if not room:
-            return
-
-        callbacks = self._callbacks.get(room)
-        if not callbacks:
-            return
-
-        async_tasks = []
-        for callback in callbacks:
-            try:
-                result = callback(data)
-                if asyncio.iscoroutine(result):
-                    async_tasks.append(result)
-
-            except Exception as e:
-                logger.error(
-                    "🟨 callback error for room %s: %s",
-                    room,
-                    e
-                )
-        
-        if async_tasks:
-            await asyncio.gather(*async_tasks, return_exceptions=True)
-
-    def _validate_room_message(
-            self,
-            data: Dict[str, Any]
-            ) -> Optional[Any]:
-        room = data.get("room")
-        model = None
-        match room:
-            case "sol_price":
-                model = SolPriceRoomMessage
-            case "new_pairs":
-                model = NewPairsRoomMessage
-            case _:
-                return data
-
-        try:
-            validated_message = model.model_validate(data)
-            return validated_message
-
-        except ValidationError as e:
-            logger.warning(
-                "🟨 Skip invalid websocket message for room %s: %s",
-                room,
-                e,
-            )
-            return None
+        self._message_router.unregister_callback(room, callback)
 
     async def connect(
             self,
@@ -191,11 +127,11 @@ class AxiomTradeWebsocket():
                         )
                     continue
 
-                validated_data = self._validate_room_message(data)
+                validated_data = self._message_router.validate_room_message(data)
                 if not validated_data:
                     continue
 
-                await self._dispatch_message(validated_data)
+                await self._message_router.dispatch_message(validated_data)
         
         except exceptions.SessionClosed as e:
             logger.warning("❌ websocket connection closed: %s", e)
