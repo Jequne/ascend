@@ -1,6 +1,5 @@
 import logging
-import asyncio
-from typing import Optional, Dict, Set
+from typing import Optional, Dict, TypeVar, Type
 from curl_cffi import AsyncSession
 import random
 
@@ -15,6 +14,7 @@ from ..urls import AAllBaseUrls, AxiomTradeApiUrls
 
 FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
 logger = logging.getLogger(__name__)
+ResponseModelT = TypeVar("ResponseModelT")
 
 
 def _response_summary(json_data: Dict) -> str:
@@ -61,13 +61,42 @@ class AxiomTradeEndpoints:
             )
             return
 
+    async def __get_response_model(
+            self,
+            agent_data: AxiomAgentData,
+            url: str,
+            response_model: Type[ResponseModelT],
+            endpoint_name: str,
+            ) -> Optional[ResponseModelT]:
+        if not await self._auth_manager.ensure_validation(agent_data):
+            return
+
+        response = await self.__get_request(agent_data, url)
+        if not response:
+            return
+
+        if response.status_code != 200:
+            logger.warning(
+                "🟨 %s status code: %s\n",
+                agent_data.agent_name,
+                response.status_code,
+            )
+            return
+
+        json_data: Dict = response.json()
+        logger.debug(
+            "✅ %s %s response summary: %s",
+            agent_data.agent_name,
+            endpoint_name,
+            _response_summary(json_data),
+        )
+        return response_model(**json_data)
+
     async def pair_chart_v2(
             self, 
             agent_data: AxiomAgentData,
             pair_chart_v2_params: PairChartV2Params
             ) -> Optional[PairChartV2Response]:
-        if not await self._auth_manager.ensure_validation(agent_data):
-            return
         logger.debug(
             "pair_chart_v2 params string: \n%s",
             pair_chart_v2_params.to_http_query_string()
@@ -75,124 +104,51 @@ class AxiomTradeEndpoints:
         
         url = self._base_url + AxiomTradeApiUrls.PAIR_CHART_V2 + \
             pair_chart_v2_params.to_http_query_string()
-        
-        response = await self.__get_request(agent_data, url)
-        if not response:
-            return
-
-        if response.status_code == 200:
-            json_data: Dict = response.json()
-            logger.debug(
-                "✅ %s pair_chart_v2 response summary: %s",
-                agent_data.agent_name,
-                _response_summary(json_data),
-                )
-            pair_chart_v2_response = PairChartV2Response(**json_data)
-            return pair_chart_v2_response
-
-        else:
-            logger.warning(
-                "🟨 %s status code: %s\n",
-                agent_data.agent_name, 
-                response.status_code, 
-                )
-            return
+        return await self.__get_response_model(
+            agent_data=agent_data,
+            url=url,
+            response_model=PairChartV2Response,
+            endpoint_name="pair_chart_v2",
+        )
             
     async def dev_tokens_v3(
             self, 
             agent_data: AxiomAgentData, 
             dev_address: str
             ) -> Optional[DevTokensV3Response]:
-        if not await self._auth_manager.ensure_validation(agent_data):
-            return
-        
         url = self._base_url + AxiomTradeApiUrls.DEV_TOKENS_V3 + dev_address
-
-        response = await self.__get_request(agent_data, url)
-        if not response:
-            return
-
-        if response.status_code == 200:
-            json_data: Dict = response.json()
-            logger.debug(
-                "✅ %s dev_tokens_v3 response summary: %s",
-                agent_data.agent_name,
-                _response_summary(json_data),
-                )
-            dev_tokens_v3 = DevTokensV3Response(**json_data)
-            return dev_tokens_v3
-
-        else:
-            logger.warning(
-                "🟨 %s status code: %s\n",
-                agent_data.agent_name, 
-                response.status_code, 
-                )
-            return
+        return await self.__get_response_model(
+            agent_data=agent_data,
+            url=url,
+            response_model=DevTokensV3Response,
+            endpoint_name="dev_tokens_v3",
+        )
         
     async def token_info(
             self, 
             agent_data: AxiomAgentData, 
             pair_address: str
             ) -> Optional[TokenInfoResponse]:
-        if not await self._auth_manager.ensure_validation(agent_data):
-            return
-        
         url = self._base_url + AxiomTradeApiUrls.TOKEN_INFO + pair_address
-
-        response = await self.__get_request(agent_data, url)
-        if not response:
-            return
-
-        if response.status_code == 200:
-            json_data: Dict = response.json()
-            logger.debug(
-                "✅ %s token_info response summary: %s",
-                agent_data.agent_name,
-                _response_summary(json_data),
-                )
-            token_info = TokenInfoResponse(**json_data)
-            return token_info
-        
-        else:
-            logger.warning(
-                "🟨 %s status code: %s\n",
-                agent_data.agent_name, 
-                response.status_code, 
-                )
-            return
+        return await self.__get_response_model(
+            agent_data=agent_data,
+            url=url,
+            response_model=TokenInfoResponse,
+            endpoint_name="token_info",
+        )
 
     async def pair_info(
             self,
             agent_data: AxiomAgentData,
             pair_address: str
         ) -> Optional[PairInfoResponse]:
-        if not await self._auth_manager.ensure_validation(agent_data):
-            return
-        
         url = self._base_url + AxiomTradeApiUrls.PAIR_INFO + pair_address
-
-        response = await self.__get_request(agent_data, url)
-        if not response:
-            return
-
-        if response.status_code == 200:
-            json_data: Dict = response.json()
-            logger.debug(
-                "✅ %s pair_info response summary: %s",
-                agent_data.agent_name,
-                _response_summary(json_data),
-                )
-            token_info = PairInfoResponse(**json_data)
-            return token_info
-        
-        else:
-            logger.warning(
-                "🟨 %s status code: %s\n",
-                agent_data.agent_name, 
-                response.status_code, 
-                )
-            return
+        return await self.__get_response_model(
+            agent_data=agent_data,
+            url=url,
+            response_model=PairInfoResponse,
+            endpoint_name="pair_info",
+        )
 
         
                 

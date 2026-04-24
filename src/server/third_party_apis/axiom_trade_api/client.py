@@ -1,11 +1,11 @@
 from curl_cffi import AsyncSession
 from typing import List, Literal, Optional
 import logging
-import random
 import asyncio
 
 from .models.auth import AxiomAgentData
 from .auth.auth_manager import AuthManager
+from .agent_selector import AgentSelector
 from .endpoints.ws import AxiomTradeWebsocket
 from .endpoints.endpoints import AxiomTradeEndpoints
 from .models.endpoints.pair_chart_v2 import PairChartV2Params, PairChartV2Response
@@ -19,42 +19,29 @@ logger = logging.getLogger(__name__)
 
 
 class AxiomTradeClient:
-    def __init__(self, session: AsyncSession = None):
+    def __init__(
+            self,
+            session: Optional[AsyncSession] = None,
+            auth_manager: Optional[AuthManager] = None,
+            endpoints: Optional[AxiomTradeEndpoints] = None,
+            websocket: Optional[AxiomTradeWebsocket] = None,
+            agent_selector: Optional[AgentSelector] = None,
+            ):
         self._session = session or AsyncSession()
-        self._auth_manager = AuthManager()
-        self._agents: List[AxiomAgentData] = []
-        self._wsocket = AxiomTradeWebsocket(self._session, self._auth_manager)
-        self._endpoints = AxiomTradeEndpoints(self._session, self._auth_manager)
+        self._auth_manager = auth_manager or AuthManager()
+        self._agent_selector = agent_selector or AgentSelector()
+        self._wsocket = websocket or AxiomTradeWebsocket(
+            self._session,
+            self._auth_manager
+        )
+        self._endpoints = endpoints or AxiomTradeEndpoints(
+            self._session,
+            self._auth_manager
+        )
         self._ws_task = None
 
     def add_agents(self, agents: List[AxiomAgentData]) -> None:
-        self._agents.extend(agents)
-
-    def _ensure_agents_configured(self) -> None:
-        """Check that agents are added"""
-        if not self._agents:
-            raise Exception("🟨 No agents configured. Use add_agents() first")
-
-    def _get_agents_with_socks5(self) -> List[AxiomAgentData]:
-        """Get agents with SOCKS5 proxy, fallback to any agents if not available"""
-        self._ensure_agents_configured()
-        
-        has_any_proxy = any(a.proxy for a in self._agents)
-        agents = [a for a in self._agents 
-                  if a.proxy and a.proxy.startswith("socks5")]
-        
-        if agents:
-            logger.info("✅ Using agents with SOCKS5 proxy")
-            return agents
-        
-        if has_any_proxy:
-            logger.warning(
-                "🟨 Proxy configured, but no SOCKS5 agents available; falling back to all agents"
-            )
-        else:
-            logger.info("✅ No proxy configured; using all agents")
-
-        return list(self._agents)
+        self._agent_selector.add_agents(agents)
 
     def connect_websocket(
             self,
@@ -62,8 +49,7 @@ class AxiomTradeClient:
                 ["new_pairs", "sol_price", "migrations"]
             ) -> None:
         """Connect to WebSocket and run stream in background"""
-        agents = self._get_agents_with_socks5()
-        random_agent = random.choice(agents)
+        random_agent = self._agent_selector.random_websocket_agent()
         
         self._ws_task = asyncio.create_task(
             self._wsocket.start(agent_data=random_agent, rooms=rooms)
@@ -84,9 +70,7 @@ class AxiomTradeClient:
             last_transaction_time: int
             ) -> Optional[PairChartV2Response]:
         """Get chart data for a pair"""
-        self._ensure_agents_configured()
-        
-        random_agent = random.choice(self._agents)
+        random_agent = self._agent_selector.random_agent()
         pair_chart_v2_params = PairChartV2Params(
             pair_address=pair_address,
             open_trading=open_trading,
@@ -102,9 +86,7 @@ class AxiomTradeClient:
             self,
             dev_address: str
     ) -> Optional[DevTokensV3Response]:
-        self._ensure_agents_configured()
-
-        random_agent = random.choice(self._agents)
+        random_agent = self._agent_selector.random_agent()
         return await self._endpoints.dev_tokens_v3(
             agent_data=random_agent,
             dev_address=dev_address
@@ -114,9 +96,7 @@ class AxiomTradeClient:
             self,
             pair_address: str
     ) -> Optional[TokenInfoResponse]:
-        self._ensure_agents_configured()
-
-        random_agent = random.choice(self._agents)
+        random_agent = self._agent_selector.random_agent()
         return await self._endpoints.token_info(
             agent_data=random_agent,
             pair_address=pair_address
@@ -126,9 +106,7 @@ class AxiomTradeClient:
             self,
             pair_address: str
     ) -> Optional[PairInfoResponse]:
-        self._ensure_agents_configured()
-
-        random_agent = random.choice(self._agents)
+        random_agent = self._agent_selector.random_agent()
         return await self._endpoints.pair_info(
             agent_data=random_agent,
             pair_address=pair_address
