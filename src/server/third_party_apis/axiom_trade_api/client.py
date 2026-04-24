@@ -1,5 +1,5 @@
 from curl_cffi import AsyncSession
-from typing import Any, Callable, List, Literal, Optional
+from typing import Any, Awaitable, Callable, List, Literal, Optional, TypeVar
 import logging
 import asyncio
 
@@ -16,6 +16,7 @@ from .models.endpoints.pair_info import PairInfoResponse
 
 FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
 logger = logging.getLogger(__name__)
+ResponseModelT = TypeVar("ResponseModelT")
 
 
 class AxiomTradeClient:
@@ -63,6 +64,14 @@ class AxiomTradeClient:
         """Register callback for new pairs response messages"""
         self._wsocket.register_callback("new_pairs", callback)
 
+    async def _call_with_random_agent(
+            self,
+            endpoint_method: Callable[..., Awaitable[Optional[ResponseModelT]]],
+            **kwargs: Any,
+            ) -> Optional[ResponseModelT]:
+        random_agent = self._agent_selector.random_agent()
+        return await endpoint_method(agent_data=random_agent, **kwargs)
+
     async def pair_chart_v2(
             self,
             pair_address: str,
@@ -70,25 +79,23 @@ class AxiomTradeClient:
             last_transaction_time: int
             ) -> Optional[PairChartV2Response]:
         """Get chart data for a pair"""
-        random_agent = self._agent_selector.random_agent()
         pair_chart_v2_params = PairChartV2Params(
             pair_address=pair_address,
             open_trading=open_trading,
             last_transaction_time=last_transaction_time
         )
         
-        return await self._endpoints.pair_chart_v2(
-            agent_data=random_agent, 
+        return await self._call_with_random_agent(
+            self._endpoints.pair_chart_v2,
             pair_chart_v2_params=pair_chart_v2_params
-            )
+        )
     
     async def dev_tokens_v3(
             self,
             dev_address: str
     ) -> Optional[DevTokensV3Response]:
-        random_agent = self._agent_selector.random_agent()
-        return await self._endpoints.dev_tokens_v3(
-            agent_data=random_agent,
+        return await self._call_with_random_agent(
+            self._endpoints.dev_tokens_v3,
             dev_address=dev_address
         )
     
@@ -96,9 +103,8 @@ class AxiomTradeClient:
             self,
             pair_address: str
     ) -> Optional[TokenInfoResponse]:
-        random_agent = self._agent_selector.random_agent()
-        return await self._endpoints.token_info(
-            agent_data=random_agent,
+        return await self._call_with_random_agent(
+            self._endpoints.token_info,
             pair_address=pair_address
         )
     
@@ -106,9 +112,8 @@ class AxiomTradeClient:
             self,
             pair_address: str
     ) -> Optional[PairInfoResponse]:
-        random_agent = self._agent_selector.random_agent()
-        return await self._endpoints.pair_info(
-            agent_data=random_agent,
+        return await self._call_with_random_agent(
+            self._endpoints.pair_info,
             pair_address=pair_address
         )
     
