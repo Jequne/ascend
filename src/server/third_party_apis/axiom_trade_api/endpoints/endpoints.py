@@ -3,7 +3,6 @@ import asyncio
 from typing import Optional, Dict, Set
 from curl_cffi import AsyncSession
 import random
-import json
 
 from ..auth.auth_manager import AuthManager
 from ..models.auth import AxiomAgentData
@@ -21,6 +20,18 @@ logging.basicConfig(
     datefmt="%d.%m.%Y %H:%M:%S"
 )
 logger = logging.getLogger(__name__)
+
+
+def _response_summary(json_data: Dict) -> str:
+    keys = sorted(json_data.keys())
+    tokens_count = len(json_data.get("tokens", [])) if isinstance(json_data.get("tokens"), list) else None
+    points_count = len(json_data.get("points", [])) if isinstance(json_data.get("points"), list) else None
+    details = [f"keys={keys}"]
+    if tokens_count is not None:
+        details.append(f"tokens={tokens_count}")
+    if points_count is not None:
+        details.append(f"points={points_count}")
+    return ", ".join(details)
 
 
 class AxiomTradeEndpoints:
@@ -62,8 +73,9 @@ class AxiomTradeEndpoints:
             if response.status_code == 200:
                 json_data: Dict = response.json()
                 logger.debug(
-                    "✅ %s successfully get response pair_chart_v2: \n%s",
-                    agent_data.agent_name, json.dumps(json_data, indent=2)
+                    "✅ %s pair_chart_v2 response summary: %s",
+                    agent_data.agent_name,
+                    _response_summary(json_data),
                     )
                 pair_chart_v2_response = PairChartV2Response(**json_data)
                 return pair_chart_v2_response
@@ -107,8 +119,9 @@ class AxiomTradeEndpoints:
             if response.status_code == 200:
                 json_data: Dict = response.json()
                 logger.debug(
-                    "✅ %s successfully get response dev_tokens_v3: \n%s",
-                    agent_data.agent_name, json.dumps(json_data, indent=2)
+                    "✅ %s dev_tokens_v3 response summary: %s",
+                    agent_data.agent_name,
+                    _response_summary(json_data),
                     )
                 dev_tokens_v3 = DevTokensV3Response(**json_data)
                 return dev_tokens_v3
@@ -152,8 +165,9 @@ class AxiomTradeEndpoints:
             if response.status_code == 200:
                 json_data: Dict = response.json()
                 logger.debug(
-                    "✅ %s successfully get response token_info: \n%s",
-                    agent_data.agent_name, json.dumps(json_data, indent=2)
+                    "✅ %s token_info response summary: %s",
+                    agent_data.agent_name,
+                    _response_summary(json_data),
                     )
                 token_info = TokenInfoResponse(**json_data)
                 return token_info
@@ -197,8 +211,9 @@ class AxiomTradeEndpoints:
             if response.status_code == 200:
                 json_data: Dict = response.json()
                 logger.debug(
-                    "✅ %s successfully get response pair_info: \n%s",
-                    agent_data.agent_name, json.dumps(json_data, indent=2)
+                    "✅ %s pair_info response summary: %s",
+                    agent_data.agent_name,
+                    _response_summary(json_data),
                     )
                 token_info = PairInfoResponse(**json_data)
                 return token_info

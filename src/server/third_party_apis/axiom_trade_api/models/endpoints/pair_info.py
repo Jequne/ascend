@@ -18,11 +18,12 @@ class Extra(BaseModel):
 
 class ProtocolDetails(BaseModel):
     # associated_bonding_curve: str = Field(..., alias="associatedBondingCurve")
-    cashback: bool
-    creator: str
-    is_mayhem: bool = Field(..., alias="isMayhem")
-    is_offchain: bool = Field(..., alias="isOffchain")
-    token_program: str = Field(..., alias="tokenProgram")
+    # cashback: bool
+    # creator: str
+    # is_mayhem: bool = Field(..., alias="isMayhem")
+    # is_offchain: bool = Field(..., alias="isOffchain")
+    # token_program: str = Field(..., alias="tokenProgram")
+    pass
 
 
 class PairInfoResponse(BaseModel):
@@ -42,7 +43,7 @@ class PairInfoResponse(BaseModel):
     supply: float
     telegram: Optional[str]
     token_address: str = Field(..., alias="tokenAddress")
-    token_image: str = Field(..., alias="tokenImage")
+    token_image: Optional[str] = Field(..., alias="tokenImage")
     token_name: str = Field(..., alias="tokenName")
     token_ticker: str = Field(..., alias="tokenTicker")
     token_uri: str = Field(..., alias="tokenUri")

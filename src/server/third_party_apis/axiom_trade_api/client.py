@@ -44,6 +44,7 @@ class AxiomTradeClient:
         """Get agents with SOCKS5 proxy, fallback to any agents if not available"""
         self._ensure_agents_configured()
         
+        has_any_proxy = any(a.proxy for a in self._agents)
         agents = [a for a in self._agents 
                   if a.proxy and a.proxy.startswith("socks5")]
         
@@ -51,7 +52,13 @@ class AxiomTradeClient:
             logger.info("✅ Using agents with SOCKS5 proxy")
             return agents
         
-        logger.warning("🟨 No SOCKS5 agents available, falling back to all agents")
+        if has_any_proxy:
+            logger.warning(
+                "🟨 Proxy configured, but no SOCKS5 agents available; falling back to all agents"
+            )
+        else:
+            logger.info("✅ No proxy configured; using all agents")
+
         return list(self._agents)
 
     def connect_websocket(
