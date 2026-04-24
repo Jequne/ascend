@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from ..models.auth import AccessKeyStatus, normalize_scopes
+from ...models.auth import AccessKeyStatus, normalize_scopes
 
 
 class AccessKeyCreateRequest(BaseModel):

@@ -1,36 +1,14 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Protocol
 
-from app.schemas import DeployedToken, TokenFeedSol
-from app.schemas.token_feed_request import TokenFeedBuildRequest
-from third_party_apis.axiom_trade_api.models.endpoints.dev_tokens_v3 import (
-    DevTokensV3Response,
-)
+from app.schemas.token_feed import DeployedToken, TokenFeedBuildRequest, TokenFeedSol
 from third_party_apis.axiom_trade_api.models.endpoints.pair_info import PairInfoResponse
 from third_party_apis.axiom_trade_api.models.websockets.subscription_message import (
     NewPairsRoomContent,
 )
 
-
-class TokenFeedProvider(Protocol):
-    provider_name: str
-
-    async def build_sol_token_feed(self, request: TokenFeedBuildRequest) -> TokenFeedSol | None:
-        """Build TokenFeedSol from provider-specific data sources."""
-
-
-class DeployedTokenSourceItem(Protocol):
-    pair_address: str
-    token_address: str
-    token_ticker: str
-    token_name: str
-    token_image_link: str
-    current_protocol: str
-    created_at: object
-    is_migrated: bool
-    ath_mcap_in_usd: float
+from .contracts import AxiomTradeTokenFeedClient, DeployedTokenSourceItem
 
 
 class TokenFeedBuilderUtils:
@@ -78,14 +56,6 @@ class TokenFeedBuilderUtils:
             )
             for token in tokens
         ]
-
-
-class AxiomTradeTokenFeedClient(Protocol):
-    async def dev_tokens_v3(self, dev_address: str) -> DevTokensV3Response | None:
-        """Return developer token history for the given wallet address."""
-
-    async def pair_info(self, pair_address: str) -> PairInfoResponse | None:
-        """Return pair metadata for the current token."""
 
 
 class AxiomTradeTokenFeedBuilder(TokenFeedBuilderUtils):
@@ -206,40 +176,3 @@ class AxiomTradeTokenFeedBuilder(TokenFeedBuilderUtils):
             migrated_tokens_count=dev_tokens.counts.migrated_count,
             all_tokens_count=dev_tokens.counts.total_count,
         )
-
-
-class TokenFeedProviderRegistry:
-    def __init__(self, providers: list[TokenFeedProvider] | None = None):
-        self._providers: dict[str, TokenFeedProvider] = {}
-        for provider in providers or []:
-            self.register(provider)
-
-    def register(self, provider: TokenFeedProvider) -> None:
-        provider_name = provider.provider_name.strip().lower()
-        if not provider_name:
-            raise ValueError("provider_name must not be empty")
-        if provider_name in self._providers:
-            raise ValueError(f"token feed provider already registered for '{provider_name}'")
-        self._providers[provider_name] = provider
-
-    def get(self, provider_name: str) -> TokenFeedProvider:
-        normalized_provider = provider_name.strip().lower()
-        if not normalized_provider:
-            raise ValueError("provider_name must not be empty")
-
-        try:
-            return self._providers[normalized_provider]
-        except KeyError as exc:
-            raise KeyError(f"no token feed provider registered for '{normalized_provider}'") from exc
-
-    async def build_sol_token_feed(
-        self,
-        request: TokenFeedBuildRequest,
-    ) -> TokenFeedSol | None:
-        provider_name = request.provider_name
-        provider = self.get(provider_name)
-        return await provider.build_sol_token_feed(request)
-
-
-class TokenFeedService(TokenFeedProviderRegistry):
-    """Backward-compatible alias for registry usage from app services."""

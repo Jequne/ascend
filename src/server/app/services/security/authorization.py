@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from ..models.auth import AuthContext, normalize_scopes
-from .exceptions import AuthorizationError
+from ...models.auth import AuthContext, normalize_scopes
+from .auth_exceptions import AuthorizationError
 
 
 class AuthorizationService:

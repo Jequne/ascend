@@ -5,19 +5,19 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from ..config import settings
-from ..models.access_keys import AccessKeys
-from ..models.auth import AccessKeyStatus, AuthContext, AuthMethod, PrincipalType, normalize_scopes
-from ..repositories.access_keys import AccessKeyRepository
-from ..schemas.auth import AccessKeyCreateRequest, AccessKeyRead, AccessKeyRotateResponse, IssuedAccessKey
-from .exceptions import (
+from ...config import settings
+from ...models.access_keys import AccessKeys
+from ...models.auth import AccessKeyStatus, AuthContext, AuthMethod, PrincipalType, normalize_scopes
+from ...repositories.access_keys import AccessKeyRepository
+from ...schemas.security.auth_models import AccessKeyCreateRequest, AccessKeyRead, AccessKeyRotateResponse, IssuedAccessKey
+from .api_key_crypto import ApiKeyCodec, ParsedApiKey, SecretHasher
+from .auth_exceptions import (
     AccessKeyExpiredError,
     AccessKeyFormatError,
     AccessKeyInactiveError,
     AccessKeyNotFoundError,
     AuthenticationError,
 )
-from .hashers import ApiKeyCodec, ParsedApiKey, SecretHasher
 
 
 class AccessKeyService:
