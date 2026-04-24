@@ -40,15 +40,28 @@ class AuthManager:
             agent_data: AxiomAgentData
             ) -> Optional[str]:
         url = self._base_url + AxiomTradeApiUrls.REFRESH_TOKEN
+        request_kwargs = dict(
+            url=url,
+            headers=agent_data.headers.model_dump(by_alias=True),
+            cookies=agent_data.cookies.get_cookies_for_request(),
+            timeout=15,
+        )
+
+        if agent_data.proxy:
+            logger.debug(
+                "✅ %s refresh request using proxy: %s",
+                agent_data.agent_name,
+                agent_data.proxy,
+            )
+            request_kwargs["proxies"] = {
+                "http": agent_data.proxy,
+                "https": agent_data.proxy,
+            }
 
         try:
             response = await asyncio.to_thread(
                 self._scraper.post,
-                url=url,
-                headers=agent_data.headers.model_dump(by_alias=True),
-                cookies=agent_data.cookies.get_cookies_for_request(),
-                timeout=15
-                # proxy=agent_data.proxy,
+                **request_kwargs,
             )
             if response.status_code == 200:
                 logger.info(

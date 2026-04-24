@@ -39,6 +39,28 @@ class AxiomTradeEndpoints:
         self._auth_manager = auth_manager
         self._base_url = random.choice(AAllBaseUrls.URLS)
 
+    async def __get_request(
+            self, 
+            agent_data: AxiomAgentData,
+            url: str
+            ):
+        try:
+            return await self._async_http_session.get(
+                url=url,
+                headers=agent_data.headers.model_dump(by_alias=True),
+                cookies=agent_data.cookies.get_cookies_for_request(),
+                timeout=15,
+                impersonate="chrome124",
+                proxy=agent_data.proxy,
+            )
+
+        except Exception as e:
+            logger.warning(
+                "❌ %s problem with request: %s",
+                agent_data.agent_name, e
+            )
+            return
+
     async def pair_chart_v2(
             self, 
             agent_data: AxiomAgentData,
@@ -54,39 +76,25 @@ class AxiomTradeEndpoints:
         url = self._base_url + AxiomTradeApiUrls.PAIR_CHART_V2 + \
             pair_chart_v2_params.to_http_query_string()
         
-        try:
-            response = await \
-                self._async_http_session.get(
-                    url=url,
-                    headers=agent_data.headers.model_dump(by_alias=True),
-                    cookies=agent_data.cookies.get_cookies_for_request(),
-                    timeout=15,
-                    impersonate="chrome124",
-                    proxy=agent_data.proxy
-                )
-            
-            if response.status_code == 200:
-                json_data: Dict = response.json()
-                logger.debug(
-                    "✅ %s pair_chart_v2 response summary: %s",
-                    agent_data.agent_name,
-                    _response_summary(json_data),
-                    )
-                pair_chart_v2_response = PairChartV2Response(**json_data)
-                return pair_chart_v2_response
+        response = await self.__get_request(agent_data, url)
+        if not response:
+            return
 
-            else:
-                logger.warning(
-                    "🟨 %s status code: %s\n",
-                    agent_data.agent_name, 
-                    response.status_code, 
-                    )
-                return
-        
-        except Exception as e:
+        if response.status_code == 200:
+            json_data: Dict = response.json()
+            logger.debug(
+                "✅ %s pair_chart_v2 response summary: %s",
+                agent_data.agent_name,
+                _response_summary(json_data),
+                )
+            pair_chart_v2_response = PairChartV2Response(**json_data)
+            return pair_chart_v2_response
+
+        else:
             logger.warning(
-                "❌ %s problem with request: %s",
-                agent_data.agent_name, e
+                "🟨 %s status code: %s\n",
+                agent_data.agent_name, 
+                response.status_code, 
                 )
             return
             
@@ -100,39 +108,25 @@ class AxiomTradeEndpoints:
         
         url = self._base_url + AxiomTradeApiUrls.DEV_TOKENS_V3 + dev_address
 
-        try:
-            response = await \
-                self._async_http_session.get(
-                    url=url,
-                    headers=agent_data.headers.model_dump(by_alias=True),
-                    cookies=agent_data.cookies.get_cookies_for_request(),
-                    timeout=15,
-                    impersonate="chrome124",
-                    proxy=agent_data.proxy
+        response = await self.__get_request(agent_data, url)
+        if not response:
+            return
+
+        if response.status_code == 200:
+            json_data: Dict = response.json()
+            logger.debug(
+                "✅ %s dev_tokens_v3 response summary: %s",
+                agent_data.agent_name,
+                _response_summary(json_data),
                 )
-            
-            if response.status_code == 200:
-                json_data: Dict = response.json()
-                logger.debug(
-                    "✅ %s dev_tokens_v3 response summary: %s",
-                    agent_data.agent_name,
-                    _response_summary(json_data),
-                    )
-                dev_tokens_v3 = DevTokensV3Response(**json_data)
-                return dev_tokens_v3
+            dev_tokens_v3 = DevTokensV3Response(**json_data)
+            return dev_tokens_v3
 
-            else:
-                logger.warning(
-                    "🟨 %s status code: %s\n",
-                    agent_data.agent_name, 
-                    response.status_code, 
-                    )
-                return
-
-        except Exception as e:
+        else:
             logger.warning(
-                "❌ %s problem with request: %s",
-                agent_data.agent_name, e
+                "🟨 %s status code: %s\n",
+                agent_data.agent_name, 
+                response.status_code, 
                 )
             return
         
@@ -146,39 +140,25 @@ class AxiomTradeEndpoints:
         
         url = self._base_url + AxiomTradeApiUrls.TOKEN_INFO + pair_address
 
-        try:
-            response = await \
-                self._async_http_session.get(
-                    url=url,
-                    headers=agent_data.headers.model_dump(by_alias=True),
-                    cookies=agent_data.cookies.get_cookies_for_request(),
-                    timeout=15,
-                    impersonate="chrome124",
-                    proxy=agent_data.proxy
-                )
-            
-            if response.status_code == 200:
-                json_data: Dict = response.json()
-                logger.debug(
-                    "✅ %s token_info response summary: %s",
-                    agent_data.agent_name,
-                    _response_summary(json_data),
-                    )
-                token_info = TokenInfoResponse(**json_data)
-                return token_info
-            
-            else:
-                logger.warning(
-                    "🟨 %s status code: %s\n",
-                    agent_data.agent_name, 
-                    response.status_code, 
-                    )
-                return
+        response = await self.__get_request(agent_data, url)
+        if not response:
+            return
 
-        except Exception as e:
+        if response.status_code == 200:
+            json_data: Dict = response.json()
+            logger.debug(
+                "✅ %s token_info response summary: %s",
+                agent_data.agent_name,
+                _response_summary(json_data),
+                )
+            token_info = TokenInfoResponse(**json_data)
+            return token_info
+        
+        else:
             logger.warning(
-                "❌ %s problem with request: %s",
-                agent_data.agent_name, e
+                "🟨 %s status code: %s\n",
+                agent_data.agent_name, 
+                response.status_code, 
                 )
             return
 
@@ -192,39 +172,25 @@ class AxiomTradeEndpoints:
         
         url = self._base_url + AxiomTradeApiUrls.PAIR_INFO + pair_address
 
-        try:
-            response = await \
-                self._async_http_session.get(
-                    url=url,
-                    headers=agent_data.headers.model_dump(by_alias=True),
-                    cookies=agent_data.cookies.get_cookies_for_request(),
-                    timeout=15,
-                    impersonate="chrome124",
-                    proxy=agent_data.proxy
-                )
-            
-            if response.status_code == 200:
-                json_data: Dict = response.json()
-                logger.debug(
-                    "✅ %s pair_info response summary: %s",
-                    agent_data.agent_name,
-                    _response_summary(json_data),
-                    )
-                token_info = PairInfoResponse(**json_data)
-                return token_info
-            
-            else:
-                logger.warning(
-                    "🟨 %s status code: %s\n",
-                    agent_data.agent_name, 
-                    response.status_code, 
-                    )
-                return
+        response = await self.__get_request(agent_data, url)
+        if not response:
+            return
 
-        except Exception as e:
+        if response.status_code == 200:
+            json_data: Dict = response.json()
+            logger.debug(
+                "✅ %s pair_info response summary: %s",
+                agent_data.agent_name,
+                _response_summary(json_data),
+                )
+            token_info = PairInfoResponse(**json_data)
+            return token_info
+        
+        else:
             logger.warning(
-                "❌ %s problem with request: %s",
-                agent_data.agent_name, e
+                "🟨 %s status code: %s\n",
+                agent_data.agent_name, 
+                response.status_code, 
                 )
             return
 
