@@ -71,6 +71,10 @@ class AxiomTradeClient:
         """Register callback for SOL price updates"""
         self._wsocket.register_callback("sol_price", callback)
 
+    def on_new_pairs(self, callback) -> None:
+        """Register callback for new pairs response messages"""
+        self._wsocket.register_callback("new_pairs", callback)
+
     async def pair_chart_v2(
             self,
             pair_address: str,

@@ -9,7 +9,11 @@ from pydantic import ValidationError
 from ..auth.auth_manager import AuthManager
 from ..models.auth import AxiomAgentData
 from ..urls import AAllBaseUrls, AxiomTradeApiUrls, AxiomWssUrls
-from ..models.websockets.subscription_message import BaseSubscribeMessage
+from ..models.websockets.subscription_message import (
+    NewPairsRoomMessage,
+    RoomSubscribeRequest,
+    SolPriceRoomMessage,
+)
 
 FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
 logging.basicConfig(
@@ -29,7 +33,7 @@ class AxiomTradeWebsocket():
         self._async_http_session = async_http_session
         self._auth_manager = auth_manager
         self._wsocket = None
-        self._callbacks: Dict[str, Set[Callable[[Dict[str, Any]], Any]]] = {}
+        self._callbacks: Dict[str, Set[Callable[[Any], Any]]] = {}
 
     def on(self, room: str):
         """Decorator to register callback for a room.
@@ -39,7 +43,7 @@ class AxiomTradeWebsocket():
             async def handle_sol_price(data):
                 pass
         """
-        def decorator(callback: Callable[[Dict[str, Any]], Any]) -> Callable:
+        def decorator(callback: Callable[[Any], Any]) -> Callable:
             self._callbacks.setdefault(room, set()).add(callback)
             return callback
         return decorator
@@ -47,14 +51,14 @@ class AxiomTradeWebsocket():
     def register_callback(
             self,
             room: str,
-            callback: Callable[[Dict[str, Any]], Any]
+            callback: Callable[[Any], Any]
             ) -> None:
         self._callbacks.setdefault(room, set()).add(callback)
 
     def unregister_callback(
             self,
             room: str,
-            callback: Callable[[Dict[str, Any]], Any]
+            callback: Callable[[Any], Any]
             ) -> None:
         callbacks = self._callbacks.get(room)
         if not callbacks:
@@ -64,8 +68,8 @@ class AxiomTradeWebsocket():
         if not callbacks:
             self._callbacks.pop(room, None)
 
-    async def _dispatch_message(self, data: Dict[str, Any]) -> None:
-        room = data.get("room")
+    async def _dispatch_message(self, data: Any) -> None:
+        room = data.room if hasattr(data, "room") else data.get("room")
         if not room:
             return
 
@@ -89,6 +93,32 @@ class AxiomTradeWebsocket():
         
         if async_tasks:
             await asyncio.gather(*async_tasks, return_exceptions=True)
+
+    def _validate_room_message(
+            self,
+            data: Dict[str, Any]
+            ) -> Optional[Any]:
+        room = data.get("room")
+        model = None
+        match room:
+            case "sol_price":
+                model = SolPriceRoomMessage
+            case "new_pairs":
+                model = NewPairsRoomMessage
+            case _:
+                return data
+
+        try:
+            validated_message = model.model_validate(data)
+            return validated_message
+
+        except ValidationError as e:
+            logger.warning(
+                "🟨 Skip invalid websocket message for room %s: %s",
+                room,
+                e,
+            )
+            return None
 
     async def connect(
             self,
@@ -166,7 +196,11 @@ class AxiomTradeWebsocket():
                         )
                     continue
 
-                await self._dispatch_message(data)
+                validated_data = self._validate_room_message(data)
+                if not validated_data:
+                    continue
+
+                await self._dispatch_message(validated_data)
         
         except exceptions.SessionClosed as e:
             logger.warning("❌ websocket connection closed: %s", e)
@@ -180,7 +214,7 @@ class AxiomTradeWebsocket():
 
     async def subscribe(
             self, 
-            subscription_message: BaseSubscribeMessage
+            subscription_message: RoomSubscribeRequest
             ) -> bool:
         if not self._wsocket:
             logger.warning(
@@ -218,7 +252,7 @@ class AxiomTradeWebsocket():
                 
                 all_subscribed = True
                 for room in rooms:
-                    subscription_message = BaseSubscribeMessage(room=room)
+                    subscription_message = RoomSubscribeRequest(room=room)
                     is_subscribed = await self.subscribe(subscription_message)
                     if not is_subscribed:
                         all_subscribed = False
