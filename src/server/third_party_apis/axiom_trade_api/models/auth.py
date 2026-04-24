@@ -1,7 +1,13 @@
 from pydantic import BaseModel, Field, ConfigDict, model_validator
-from typing import Optional, Dict
+from typing import Optional, Dict, TypedDict
 from datetime import datetime, timedelta
 import time
+
+
+class AxiomHttpRequestContext(TypedDict, total=False):
+    headers: Dict[str, str]
+    cookies: Dict[str, str]
+    proxy: str
 
 
 class AxiomHeaders(BaseModel):
@@ -27,7 +33,7 @@ class AxiomCookies(BaseModel):
         )
 
     @model_validator(mode="after")
-    def set_refresh_token_expiry(self):
+    def set_refresh_token_expiry(self) -> "AxiomCookies":
         if self.auth_refresh_token and not self.auth_refresh_token.expires_at:
             expires_at = datetime.now() + timedelta(days=90)
             self.auth_refresh_token.expires_at = int(expires_at.timestamp())
@@ -84,5 +90,16 @@ class AxiomAgentData(BaseModel):
             ),
             proxy=proxy,
         )
+
+    def get_http_request_context(self) -> AxiomHttpRequestContext:
+        context: AxiomHttpRequestContext = {
+            "headers": self.headers.model_dump(by_alias=True),
+            "cookies": self.cookies.get_cookies_for_request(),
+        }
+
+        if self.proxy:
+            context["proxy"] = self.proxy
+
+        return context
 
 

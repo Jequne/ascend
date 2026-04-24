@@ -1,7 +1,5 @@
-from pydantic import BaseModel, Field, ConfigDict, model_validator, model_serializer
-from typing import Optional, Dict, List
-from datetime import datetime, timedelta
-import time
+from pydantic import BaseModel, Field, ConfigDict, model_validator
+from typing import Any, Optional, List
 
 
 class PairChartV2Params(BaseModel):
@@ -18,7 +16,7 @@ class PairChartV2Params(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def set_chart_range_defaults(cls, data):
+    def set_chart_range_defaults(cls, data: Any) -> Any:
         if not isinstance(data, dict):
             return data
 
@@ -53,7 +51,7 @@ class PairChartV2Bar(BaseModel):
     
     @model_validator(mode="before")
     @classmethod
-    def name_fields_from_bar_list(cls, data: List) -> dict:
+    def name_fields_from_bar_list(cls, data: list[Any]) -> dict[str, Any]:
         if not isinstance(data, list):
             raise ValueError(f"{data} is not a list")
         

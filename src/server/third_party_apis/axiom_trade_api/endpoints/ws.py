@@ -1,6 +1,6 @@
 import logging
 import asyncio
-from typing import Dict, Callable, Any, List
+from typing import Any, Optional
 from curl_cffi import AsyncSession, exceptions
 import json
 
@@ -10,7 +10,11 @@ from ..urls import AxiomWssUrls
 from ..models.websockets.subscription_message import (
     RoomSubscribeRequest,
 )
-from .ws_router import WebsocketMessageRouter
+from .ws_router import (
+    MessageCallback,
+    MessageCallbackDecorator,
+    WebsocketMessageRouter,
+)
 
 FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
 logger = logging.getLogger(__name__)
@@ -21,13 +25,13 @@ class AxiomTradeWebsocket():
             self, 
             async_http_session: AsyncSession,
             auth_manager: AuthManager
-            ):
+            ) -> None:
         self._async_http_session = async_http_session
         self._auth_manager = auth_manager
-        self._wsocket = None
+        self._wsocket: Optional[Any] = None
         self._message_router = WebsocketMessageRouter()
 
-    def on(self, room: str):
+    def on(self, room: str) -> MessageCallbackDecorator:
         """Decorator to register callback for a room.
         
         Usage:
@@ -40,14 +44,14 @@ class AxiomTradeWebsocket():
     def register_callback(
             self,
             room: str,
-            callback: Callable[[Any], Any]
+            callback: MessageCallback
             ) -> None:
         self._message_router.register_callback(room, callback)
 
     def unregister_callback(
             self,
             room: str,
-            callback: Callable[[Any], Any]
+            callback: MessageCallback
             ) -> None:
         self._message_router.unregister_callback(room, callback)
 
@@ -119,7 +123,7 @@ class AxiomTradeWebsocket():
         try:
             async for message in self._wsocket:
                 try:
-                    data: Dict = json.loads(message)
+                    data: dict[str, Any] = json.loads(message)
                 except json.JSONDecodeError:
                     logger.warning(
                         "🟨 Skip non-JSON websocket message: %s",
@@ -171,9 +175,9 @@ class AxiomTradeWebsocket():
     async def start(
             self, 
             agent_data: AxiomAgentData,
-            rooms: List = ["new_pairs", "sol_price", "migrations"],
+            rooms: list[str] = ["new_pairs", "sol_price", "migrations"],
             reconnecting_time_in_sec: int = 2
-            ):
+            ) -> None:
         while True:
             try:
                 connect = await self.connect(agent_data)

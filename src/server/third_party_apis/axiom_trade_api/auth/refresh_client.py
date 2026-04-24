@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import random
-from typing import Optional
+from typing import Any, Optional
 
 import cloudscraper
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class AuthRefreshClient:
-    def __init__(self):
+    def __init__(self) -> None:
         self._scraper = cloudscraper.create_scraper(
             browser={
                 "browser": "chrome",
@@ -28,7 +28,7 @@ class AuthRefreshClient:
             agent_data: AxiomAgentData,
             ) -> Optional[str]:
         url = self._base_url + AxiomTradeApiUrls.REFRESH_TOKEN
-        request_kwargs = dict(
+        request_kwargs: dict[str, Any] = dict(
             url=url,
             headers=agent_data.headers.model_dump(by_alias=True),
             cookies=agent_data.cookies.get_cookies_for_request(),

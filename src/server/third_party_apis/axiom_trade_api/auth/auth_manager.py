@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class AuthManager:
-    def __init__(self):
+    def __init__(self) -> None:
         self._refresh_client = AuthRefreshClient()
         self._token_state_service = AuthTokenStateService()
         self._agent_locks: Dict[str, asyncio.Lock] = {}

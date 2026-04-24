@@ -1,5 +1,5 @@
 from curl_cffi import AsyncSession
-from typing import List, Literal, Optional
+from typing import Any, Callable, List, Literal, Optional
 import logging
 import asyncio
 
@@ -38,7 +38,7 @@ class AxiomTradeClient:
             self._session,
             self._auth_manager
         )
-        self._ws_task = None
+        self._ws_task: Optional[asyncio.Task[Any]] = None
 
     def add_agents(self, agents: List[AxiomAgentData]) -> None:
         self._agent_selector.add_agents(agents)
@@ -55,11 +55,11 @@ class AxiomTradeClient:
             self._wsocket.start(agent_data=random_agent, rooms=rooms)
         )
     
-    def on_sol_price(self, callback) -> None:
+    def on_sol_price(self, callback: Callable[[Any], Any]) -> None:
         """Register callback for SOL price updates"""
         self._wsocket.register_callback("sol_price", callback)
 
-    def on_new_pairs(self, callback) -> None:
+    def on_new_pairs(self, callback: Callable[[Any], Any]) -> None:
         """Register callback for new pairs response messages"""
         self._wsocket.register_callback("new_pairs", callback)
 
@@ -122,10 +122,10 @@ class AxiomTradeClient:
                 pass
         await self._session.close()
     
-    async def __aenter__(self):
+    async def __aenter__(self) -> "AxiomTradeClient":
         return self
     
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: object) -> None:
         await self.close()
     
 

@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Optional, Dict, Set, Callable, Any
+from typing import Awaitable, Optional, Dict, Set, Callable, Any, TypeAlias
 
 from pydantic import ValidationError
 
@@ -11,16 +11,18 @@ from ..models.websockets.subscription_message import (
 
 
 logger = logging.getLogger(__name__)
+MessageCallback: TypeAlias = Callable[[Any], Any]
+MessageCallbackDecorator: TypeAlias = Callable[[MessageCallback], MessageCallback]
 
 
 class WebsocketMessageRouter:
-    def __init__(self):
-        self._callbacks: Dict[str, Set[Callable[[Any], Any]]] = {}
+    def __init__(self) -> None:
+        self._callbacks: Dict[str, Set[MessageCallback]] = {}
 
-    def on(self, room: str):
+    def on(self, room: str) -> MessageCallbackDecorator:
         """Decorator to register callback for a room."""
 
-        def decorator(callback: Callable[[Any], Any]) -> Callable:
+        def decorator(callback: MessageCallback) -> MessageCallback:
             self._callbacks.setdefault(room, set()).add(callback)
             return callback
 
@@ -29,14 +31,14 @@ class WebsocketMessageRouter:
     def register_callback(
             self,
             room: str,
-            callback: Callable[[Any], Any],
+            callback: MessageCallback,
             ) -> None:
         self._callbacks.setdefault(room, set()).add(callback)
 
     def unregister_callback(
             self,
             room: str,
-            callback: Callable[[Any], Any],
+            callback: MessageCallback,
             ) -> None:
         callbacks = self._callbacks.get(room)
         if not callbacks:
@@ -78,7 +80,7 @@ class WebsocketMessageRouter:
         if not callbacks:
             return
 
-        async_tasks = []
+        async_tasks: list[Awaitable[Any]] = []
         for callback in callbacks:
             try:
                 result = callback(data)

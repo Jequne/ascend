@@ -1,7 +1,6 @@
-from pydantic import BaseModel, Field, ConfigDict, model_validator, model_serializer
-from typing import Optional, Dict, List, Union
-from datetime import datetime, timedelta
-import time
+from pydantic import BaseModel, Field, model_validator
+from typing import Any, Optional, List, Union
+from datetime import datetime
 
 
 class Counts(BaseModel):
@@ -30,7 +29,7 @@ class Token(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def set_model_fields_from_list(cls, data: List):
+    def set_model_fields_from_list(cls, data: list[Any]) -> dict[str, Any]:
         if not isinstance(data, list):
             raise ValueError(f"{data} is not a list")
 

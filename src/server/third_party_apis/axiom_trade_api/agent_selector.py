@@ -1,6 +1,6 @@
 import logging
 import random
-from typing import List
+from typing import Sequence
 
 from .models.auth import AxiomAgentData
 
@@ -9,10 +9,10 @@ logger = logging.getLogger(__name__)
 
 
 class AgentSelector:
-    def __init__(self):
-        self._agents: List[AxiomAgentData] = []
+    def __init__(self) -> None:
+        self._agents: list[AxiomAgentData] = []
 
-    def add_agents(self, agents: List[AxiomAgentData]) -> None:
+    def add_agents(self, agents: Sequence[AxiomAgentData]) -> None:
         self._agents.extend(agents)
 
     def require_agents(self) -> None:
