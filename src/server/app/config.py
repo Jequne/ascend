@@ -52,17 +52,6 @@ class Settings(BaseSettings):
             "http://127.0.0.1:3000",
         ]
     )
-    auth_api_key_header: str = "X-API-Key"
-    auth_api_key_prefix: str = "ak"
-    auth_api_key_secret_bytes: int = 32
-    auth_api_key_hash_iterations: int = 210_000
-    auth_api_key_default_ttl_days: int = 90
-    auth_jwt_secret: str = "change-me"
-    auth_jwt_algorithm: str = "HS256"
-    auth_jwt_issuer: str = "ascend"
-    auth_jwt_audience: str = "ascend-clients"
-    auth_jwt_access_ttl_minutes: int = 15
-    auth_jwt_refresh_ttl_days: int = 30
 
     class Config:
         env_file = ".env"
