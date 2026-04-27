@@ -95,4 +95,10 @@ class WebsocketMessageRouter:
                 )
 
         if async_tasks:
-            await asyncio.gather(*async_tasks, return_exceptions=True)
+            result = await asyncio.gather(*async_tasks, return_exceptions=True)
+
+            for callback, res in zip(callbacks, result):
+                if isinstance(res, Exception):
+                    logger.exception(
+                        "🟨 exception is callback: %s", callback, exc_info=res
+                        )
