@@ -2,6 +2,7 @@ import logging
 from typing import Optional, Dict, TypeVar, Type
 from curl_cffi import AsyncSession
 import random
+from pydantic import ValidationError
 
 from ..auth.auth_manager import AuthManager
 from ..models.auth import AxiomAgentData
@@ -77,9 +78,12 @@ class AxiomTradeEndpoints:
 
         if response.status_code != 200:
             logger.warning(
-                "🟨 %s status code: %s\n",
+                "🟨 %s status code for %s: %s\n"
+                "url for request: %s\n",
                 agent_data.agent_name,
+                endpoint_name,
                 response.status_code,
+                url
             )
             return
 
@@ -90,7 +94,12 @@ class AxiomTradeEndpoints:
             endpoint_name,
             _response_summary(json_data),
         )
-        return response_model(**json_data)
+        try:
+            return response_model(**json_data)
+        
+        except ValidationError:
+            logger.warning("⚠️ validating %s response problem", endpoint_name)
+            return
 
     async def pair_chart_v2(
             self, 

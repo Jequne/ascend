@@ -13,7 +13,7 @@ class DevWalletFunding(BaseModel):
 
 
 class Extra(BaseModel):
-    migrated_from: str = Field(..., alias="migratedFrom")
+    migrated_from: Optional[str] = Field(None, alias="migratedFrom")
 
 
 class ProtocolDetails(BaseModel):
@@ -43,7 +43,7 @@ class PairInfoResponse(BaseModel):
     supply: float
     telegram: Optional[str]
     token_address: str = Field(..., alias="tokenAddress")
-    token_image: Optional[str] = Field(..., alias="tokenImage")
+    token_image: Optional[str] = Field(None, alias="tokenImage")
     token_name: str = Field(..., alias="tokenName")
     token_ticker: str = Field(..., alias="tokenTicker")
     token_uri: str = Field(..., alias="tokenUri")

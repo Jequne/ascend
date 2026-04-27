@@ -6,13 +6,13 @@ class PairChartV2Params(BaseModel):
     model_config=ConfigDict(extra="allow", populate_by_name=True)
 
     pair_address: str = Field(..., alias="pairAddress")
-    chart_from: Optional[int] = Field(default=None, alias="from")
-    chart_to: Optional[int] = Field(default=None, alias="to")
+    chart_from: int = Field(..., alias="from")
+    chart_to: int = Field(..., alias="to")
     currency: str = Field(default="USD")
     interval: str = Field(default="24h")
     count_bars: int = Field(default=500, alias="countBars")
-    open_trading: int = Field(..., alias="openTrading")
-    last_transaction_time: int = Field(..., alias="lastTransactionTime")
+    open_trading: Optional[int] = Field(None, alias="openTrading")
+    last_transaction_time: Optional[int] = Field(None, alias="lastTransactionTime")
 
     @model_validator(mode="before")
     @classmethod
@@ -32,7 +32,7 @@ class PairChartV2Params(BaseModel):
                     "to", data.get("chart_to")
                     )
             if chart_to is not None:
-                data["to"] = chart_to
+                data["lastTransactionTime"] = chart_to
 
         return data
 
