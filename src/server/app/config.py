@@ -2,23 +2,44 @@ from pydantic_settings import BaseSettings
 from pydantic import Field
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Optional
+import logging
+
 from third_party_apis.axiom_trade_api.models.auth import AxiomAgentData
 
+
+def logging_configuration():
+    FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
+
+    stream_handler = logging.StreamHandler()
+
+    logging.basicConfig(
+        format=FORMAT,
+        # handlers=[stream_handler],
+        level=logging.DEBUG
+    )
+
 class AxiomTradeConfig(BaseSettings):
-    agents_file: str = "users_fingerprints.json"
+    agents_file_json: Optional[str] = "axiom_users_fingerprints.json"
+    agents_file_txt: Optional[str] = "axiom_users_fingerprints.txt"
 
     class Config:
         env_prefix = "USERS_FINGERPRINTS"
         env_file = ".env"
 
-    def load_axiom_api_agents(self) -> List[AxiomAgentData]:
-        agents_path = Path(self.agents_file)
+    def _check_users_fingerprints_file_path(self, agents_path: Path):
+        agents_path = Path(self.agents_file_json)
 
         if not agents_path.exists():
             raise FileNotFoundError(
-                f"❌ {self.agents_file} not found"
+                f"❌ {self.agents_file_json} not found"
             )
+        return agents_path
+
+    def load_axiom_api_agents(self) -> List[AxiomAgentData]:
+        agents_path = self._check_users_fingerprints_file_path(
+           self.agents_file_json
+           )
         
         try:
             with open(agents_path, 'r', encoding="utf-8") as f:
@@ -34,10 +55,10 @@ class AxiomTradeConfig(BaseSettings):
             return agents
 
         except json.JSONDecodeError as e:
-            raise ValueError(f"❌ parsing error: {e}")
+            raise json.JSONDecodeError(f"❌ parsing error: {e}")
 
         except Exception as e:
-            raise ValueError(f"❌ loading agents error: {e}")       
+            raise Exception(f"❌ loading agents error: {e}")     
 
 
 class Settings(BaseSettings):
@@ -57,6 +78,7 @@ class Settings(BaseSettings):
         env_file = ".env"
 
     axiom_api_config: AxiomTradeConfig = AxiomTradeConfig()
+    logging_configuration()
 
 
 settings = Settings()
