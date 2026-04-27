@@ -22,6 +22,7 @@ ResponseModelT = TypeVar("ResponseModelT")
 class AxiomTradeClient:
     def __init__(
             self,
+            agents: List[AxiomAgentData],
             session: Optional[AsyncSession] = None,
             auth_manager: Optional[AuthManager] = None,
             endpoints: Optional[AxiomTradeEndpoints] = None,
@@ -40,6 +41,8 @@ class AxiomTradeClient:
             self._auth_manager
         )
         self._ws_task: Optional[asyncio.Task[Any]] = None
+
+        self.add_agents(agents=agents)
 
     def add_agents(self, agents: List[AxiomAgentData]) -> None:
         self._agent_selector.add_agents(agents)
@@ -75,14 +78,14 @@ class AxiomTradeClient:
     async def pair_chart_v2(
             self,
             pair_address: str,
-            open_trading: int,
-            last_transaction_time: int
+            chart_from: int,
+            chart_to: int
             ) -> Optional[PairChartV2Response]:
         """Get chart data for a pair"""
         pair_chart_v2_params = PairChartV2Params(
             pair_address=pair_address,
-            open_trading=open_trading,
-            last_transaction_time=last_transaction_time
+            chart_from=chart_from,
+            chart_to=chart_to
         )
         
         return await self._call_with_random_agent(

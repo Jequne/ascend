@@ -20,18 +20,19 @@ class PairChartV2Params(BaseModel):
         if not isinstance(data, dict):
             return data
 
-        if data.get("from") is None and data.get("chart_from") is None:
-            open_trading = data.get("openTrading", data.get("open_trading"))
-            if open_trading is not None:
-                data["from"] = open_trading
+        if data.get("open_trading") is None and data.get("openTrading") is None:
+            chart_from = data.get("from", data.get("chart_from"))
+            if chart_from is not None:
+                data["openTrading"] = chart_from
 
-        if data.get("to") is None and data.get("chart_to") is None:
-            last_transaction_time = \
+        if data.get("last_transaction_time") is None \
+            and data.get("lastTransactionTime") is None:
+            chart_to = \
                 data.get(
-                    "lastTransactionTime", data.get("last_transaction_time")
+                    "to", data.get("chart_to")
                     )
-            if last_transaction_time is not None:
-                data["to"] = last_transaction_time
+            if chart_to is not None:
+                data["to"] = chart_to
 
         return data
 
