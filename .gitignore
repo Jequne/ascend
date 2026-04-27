@@ -3,4 +3,4 @@ __pycache__
 tests
 users_fingerprints.json
 logs.txt
-axiom_users_fingerprints
+axiom_users_fingerprints.json
