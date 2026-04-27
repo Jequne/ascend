@@ -14,6 +14,11 @@ class SolPriceRoomMessage(BaseModel):
     content: float
 
 
+class Extra(BaseModel):
+    alt_deployer_address: str = Field(..., alias="altDeployerAddress")
+    migrated_from: str = Field(..., alias="migratedFrom")
+
+
 class NewPairsRoomContent(BaseModel):
     model_config = ConfigDict(extra="allow", populate_by_name=True)
 
