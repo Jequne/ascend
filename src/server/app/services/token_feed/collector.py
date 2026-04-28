@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class TokenFeedCollector():
-    tokens_feed = asyncio.Queue()
+    tokens_feed: asyncio.Queue[TokenFeedBase] = asyncio.Queue()
     _lock = asyncio.Lock()
 
     def __init__(self, token_feed_sources: List[TokenFeedPreparer]):
@@ -46,16 +46,14 @@ class TokenFeedCollector():
     async def _add_to_tokens_feed(
             cls,
             prepared_token_feed: TokenFeedBase,
-            ttl_in_minutes: float = 0.2
+            ttl_in_minutes: float = 1
             ):
-        async with cls._lock:
-            await cls.tokens_feed.put(prepared_token_feed)
+        await cls.tokens_feed.put(prepared_token_feed)
 
         async def expire_prepared_token_feed_task():
             await asyncio.sleep(ttl_in_minutes*60)
 
-            async with cls._lock:
-                await cls.tokens_feed.get()
+            await cls.tokens_feed.get()
 
         asyncio.create_task(expire_prepared_token_feed_task())
 

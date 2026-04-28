@@ -22,3 +22,5 @@ class SlidingWindowLimiter:
 
 
 validate_key_limiter = SlidingWindowLimiter()
+
+ws_connect_limiter = SlidingWindowLimiter()

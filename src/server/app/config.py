@@ -15,12 +15,12 @@ def logging_configuration():
     file_handler.setLevel(level=logging.WARNING)
 
     stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.INFO)
+    stream_handler.setLevel(logging.DEBUG)
 
     logging.basicConfig(
         format=FORMAT,
         handlers=[file_handler, stream_handler],
-        level=logging.DEBUG
+        level=logging.INFO
     )
 
 class AxiomTradeConfig(BaseSettings):
