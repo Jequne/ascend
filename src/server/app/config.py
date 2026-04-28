@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 from pydantic_settings import BaseSettings
 from pydantic import Field
 import json
 from pathlib import Path
 from typing import List, Optional
 import logging
-
-from third_party_apis.axiom_trade_api.models.auth import AxiomAgentData
 
 
 def logging_configuration():
@@ -40,7 +40,9 @@ class AxiomTradeConfig(BaseSettings):
             )
         return agents_path
 
-    def load_axiom_api_agents(self) -> List[AxiomAgentData]:
+    def load_axiom_api_agents(self) -> List:
+        from third_party_apis.axiom_trade_api.models.auth import AxiomAgentData
+
         agents_path = self._check_users_fingerprints_file_path(
            self.agents_file_json
            )
@@ -69,6 +71,10 @@ class Settings(BaseSettings):
     app_name: str = "Ascend"
     debug: bool = True
     database_url: str = "sqlite:///./ascend.db"
+    """Перец для хэша API-ключей (рекомендуется задать в .env на проде)."""
+    api_key_pepper: str = ""
+    """Секрет для вызова POST /api/v1/admin/keys (заголовок X-Admin-Secret)."""
+    admin_secret: str = "supersecret"
     cors_origins: list[str] = Field(
         default_factory=lambda: [
             "http://localhost:5173",
