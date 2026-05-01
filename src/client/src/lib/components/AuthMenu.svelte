@@ -1,6 +1,7 @@
 <script>
     import { validateApiKey } from "$lib/api/auth.js";
     import { parseErrorMessage } from "$lib/core/errors/index.js";
+    import { TextInput, PrimaryButton } from "$lib/components/index.js";
 
     let apiKey = $state("");
     let isLoading = $state(false);
@@ -19,9 +20,7 @@
 
         try {
             const response = await validateApiKey(apiKey);
-            console.log("Authorization successful:", response);
-
-            // TODO: Store auth state and redirect user to main application
+            console.log("Authorization response:", response);
         } catch (error) {
             errorMessage = parseErrorMessage(
                 error,
@@ -33,8 +32,8 @@
         }
     }
 
-    function handleKeyPress(event) {
-        if (event.key === "Enter" && !isLoading && apiKey.trim()) {
+    function handleEnter() {
+        if (!isLoading && apiKey.trim()) {
             handleActivate();
         }
     }
@@ -50,20 +49,20 @@
     </div>
 
     <div class="auth-menu-input-field">
-        <input
-            type="text"
+        <TextInput
             placeholder="XXXXXXXX-XXXX-XXXXXXXX-XXXX"
             bind:value={apiKey}
-            onkeypress={handleKeyPress}
+            on:enter={handleEnter}
             disabled={isDisabled}
-            aria-label="API Key input"
+            ariaLabel="API key input"
         />
-        <button
-            onclick={handleActivate}
+        <PrimaryButton
+            label="Activate"
+            loadingLabel="Activating..."
+            loading={isLoading}
             disabled={isDisabled || !apiKey.trim()}
-        >
-            {isLoading ? "Activating..." : "Activate"}
-        </button>
+            on:click={handleActivate}
+        />
 
         {#if errorMessage}
             <div class="error-text" role="alert">{errorMessage}</div>
@@ -108,49 +107,8 @@
         margin-bottom: 24px;
     }
 
-    .auth-menu-input-field input {
-        width: 100%;
-        padding: 12px;
-        background-color: #1e2029;
-        border: 1px solid #333;
-        border-radius: 8px;
-        color: #fff;
-        text-align: center;
-        outline: none;
-        transition: border-color 0.2s;
-        box-sizing: border-box;
-    }
-
-    .auth-menu-input-field input:focus {
-        border-color: #3f4494;
-    }
-
-    .auth-menu-input-field input:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
-    }
-
-    .auth-menu-input-field button {
-        width: 100%;
-        background-color: #3f4494;
-        border: none;
-        border-radius: 8px;
+    .auth-menu-input-field :global(.primary-button) {
         margin-top: 15px;
-        cursor: pointer;
-        padding: 12px;
-        color: #fff;
-        font-weight: 600;
-        transition: background-color 0.2s;
-    }
-
-    .auth-menu-input-field button:hover:not(:disabled) {
-        background-color: #4c52ab;
-    }
-
-    .auth-menu-input-field button:disabled {
-        background-color: #2a2d64;
-        color: #6b7280;
-        cursor: not-allowed;
     }
 
     .error-text {
