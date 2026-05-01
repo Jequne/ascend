@@ -26,8 +26,6 @@ def create_api_key(
     db: Session = Depends(get_db),
     x_admin_secret: str | None = Header(None, alias="X-Admin-Secret"),
 ) -> AdminCreateKeyResponse:
-    logger.info(f"x_admin_secret: {x_admin_secret}")
-    logger.info(f"settings.admin_secret: {settings.admin_secret}")
     if not settings.admin_secret:
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
