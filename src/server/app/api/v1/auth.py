@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Body, Depends, Header, Request
+from fastapi import APIRouter, Body, Depends, Header, Request, Response, status
 from sqlalchemy.orm import Session
 
 from ...core.rate_limit import validate_key_limiter
@@ -16,6 +16,7 @@ router = APIRouter()
 @router.post("/auth/validate-key", response_model=ValidateKeyResponse)
 def validate_key(
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
     body: ValidateKeyRequest | None = Body(None),
     authorization: str | None = Header(None),
@@ -27,6 +28,7 @@ def validate_key(
         limit=40,
         window_seconds=60.0,
     ):
+        response.status_code = status.HTTP_429_TOO_MANY_REQUESTS
         return ValidateKeyResponse(status="rate_limited")
 
     raw = extract_raw_api_key(
@@ -35,9 +37,14 @@ def validate_key(
         x_api_key=x_api_key,
     )
     if not raw:
+        response.status_code = status.HTTP_401_UNAUTHORIZED
         return ValidateKeyResponse(status="invalid")
 
     result = validate_api_key(db, raw)
+
+    if result.status != "valid":
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+
     return ValidateKeyResponse(
         status=result.status,  
         kid=result.kid,
