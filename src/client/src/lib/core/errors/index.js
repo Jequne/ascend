@@ -24,11 +24,20 @@ export class ValidationError extends Error {
 
 export function parseErrorMessage(error, defaultMessage = 'An error occurred') {
     if (error instanceof APIError) {
-        return error.message;
+        if (error.details && error.details.status) {
+            const statusMessages = {
+                'invalid': 'Invalid API key. Please check and try again.',
+                'expired': 'This API key has expired.',
+                'revoked': 'This API key has been revoked by the administrator.',
+                'rate_limited': 'Too many attempts. Please wait a moment.'
+            };
+            return statusMessages[error.details.status] || error.message || defaultMessage;
+        }
+        return error.message || defaultMessage;
     }
 
     if (error instanceof NetworkError) {
-        return 'Network error. Please check your connection.';
+        return 'Network connection problem. Please check your internet.';
     }
 
     if (error instanceof ValidationError) {

@@ -2,6 +2,7 @@
     import { validateApiKey } from "$lib/api/auth.js";
     import { parseErrorMessage } from "$lib/core/errors/index.js";
     import { TextInput, PrimaryButton } from "$lib/components/index.js";
+    import { setApiKey } from "$lib/auth/storage.js";
 
     let apiKey = $state("");
     let isLoading = $state(false);
@@ -20,7 +21,14 @@
 
         try {
             const response = await validateApiKey(apiKey);
-            console.log("Authorization response:", response);
+
+            if (response.status === "valid") {
+                // Save key and reload to show MainInterface
+                setApiKey(apiKey.trim());
+                window.location.reload();
+            } else {
+                errorMessage = "Unexpected authorization status.";
+            }
         } catch (error) {
             errorMessage = parseErrorMessage(
                 error,
