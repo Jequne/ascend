@@ -42,10 +42,6 @@ app.add_middleware(
 app.include_router(api_v1_router, prefix="/api/v1")
 app.include_router(ws_router)
 
-templates = Jinja2Templates(directory="app/templates")
-
-posts = ["num1", "num2"]
-
 
 @app.get("/health")
 def health():
