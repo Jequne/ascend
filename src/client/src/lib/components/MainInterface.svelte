@@ -18,9 +18,7 @@
         window.location.reload();
     }
 
-    function clearFead() {
-        
-    }
+    function clearFead() {}
 </script>
 
 <div class="main-container">
@@ -28,7 +26,11 @@
         <div class="left-group">
             <ConnectionStatus connected={isConnected} />
             <div class="passed-filters-counter">
-                <img src="/icons/filters.svg" alt="Filters" class="icon blue-icon" />
+                <img
+                    src="/icons/filters.svg"
+                    alt="Filters"
+                    class="icon blue-icon"
+                />
                 <span>0</span>
             </div>
         </div>
@@ -37,7 +39,11 @@
             <button class="settings-button" title="Settings">
                 <img src="/icons/settings.svg" alt="Settings" class="icon" />
             </button>
-            <button class="clear-feed-button" title="Clear Feed" onclick={clearFead}>
+            <button
+                class="clear-feed-button"
+                title="Clear Feed"
+                onclick={clearFead}
+            >
                 <img src="/icons/trash.svg" alt="Clear Feed" class="icon" />
             </button>
         </div>
@@ -66,12 +72,16 @@
         padding: 12px 20px;
         background-color: #161922;
         border-bottom: 1px solid #232733;
+        flex-wrap: wrap;
+        gap: 12px;
     }
 
-    .left-group, .right-group {
+    .left-group,
+    .right-group {
         display: flex;
         align-items: center;
         gap: 12px;
+        flex-wrap: wrap;
     }
 
     .passed-filters-counter {
@@ -86,6 +96,7 @@
         color: #60a5fa;
         font-size: 14px;
         font-weight: 500;
+        white-space: nowrap;
     }
 
     .settings-button,
@@ -100,18 +111,20 @@
         border-radius: 8px;
         cursor: pointer;
         transition: all 0.2s ease;
+        flex-shrink: 0;
     }
 
     .settings-button .icon,
     .clear-feed-button .icon {
-        filter: invert(74%) sepia(8%) saturate(1001%) hue-rotate(182deg) brightness(88%) contrast(85%); /* #9ca3af */
+        filter: invert(74%) sepia(8%) saturate(1001%) hue-rotate(182deg)
+            brightness(88%) contrast(85%); /* #9ca3af */
     }
 
     .settings-button:hover,
     .clear-feed-button:hover {
         background-color: #2e3547;
     }
-    
+
     .settings-button:hover .icon,
     .clear-feed-button:hover .icon {
         filter: invert(100%);
@@ -122,7 +135,8 @@
     }
 
     .clear-feed-button:hover .icon {
-        filter: invert(36%) sepia(85%) saturate(1209%) hue-rotate(323deg) brightness(97%) contrast(93%); /* #ef4444 */
+        filter: invert(36%) sepia(85%) saturate(1209%) hue-rotate(323deg)
+            brightness(97%) contrast(93%); /* #ef4444 */
     }
 
     .icon {
@@ -131,12 +145,25 @@
     }
 
     .blue-icon {
-        filter: invert(61%) sepia(93%) saturate(1178%) hue-rotate(188deg) brightness(101%) contrast(97%); /* #60a5fa */
+        filter: invert(61%) sepia(93%) saturate(1178%) hue-rotate(188deg)
+            brightness(101%) contrast(97%); /* #60a5fa */
     }
 
     .feed-block {
         flex: 1;
         overflow-y: auto;
         padding: 20px;
+        min-height: 200px;
+    }
+
+    @media (max-width: 480px) {
+        .info-block {
+            padding: 8px 12px;
+        }
+
+        .passed-filters-counter {
+            padding: 0 10px;
+            font-size: 12px;
+        }
     }
 </style>
