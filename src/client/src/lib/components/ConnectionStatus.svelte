@@ -6,12 +6,16 @@
      */
 
     /** @type {Props} */
-    let { connected = false, ontoggle } = $props();
+    let { connected = false} = $props();
+
+    function toggleConnection() {
+        connected = !connected;
+    }
 </script>
 
 <button
     class="connection-status {connected ? 'connected' : 'disconnected'}"
-    onclick={ontoggle}
+    onclick={toggleConnection}
     title={connected ? "Disconnect" : "Connect"}
 >
     <img

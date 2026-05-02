@@ -9,10 +9,6 @@
         apiKey = getApiKey() || "";
     }
 
-    function toggleConnection() {
-        isConnected = !isConnected;
-    }
-
     if (typeof window !== "undefined") {
         loadApiKey();
     }
@@ -30,7 +26,7 @@
 <div class="main-container">
     <div class="info-block">
         <div class="left-group">
-            <ConnectionStatus connected={isConnected} ontoggle={toggleConnection} />
+            <ConnectionStatus connected={isConnected} />
             <div class="passed-filters-counter">
                 <img src="/icons/filters.svg" alt="Filters" class="icon blue-icon" />
                 <span>0</span>
