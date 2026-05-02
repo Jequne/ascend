@@ -1,21 +1,42 @@
 <script>
+    import { connectWs, disconnectWs, isWsConnected } from "$lib/api/ws";
+    import { onMount } from "svelte";
+
     /**
      * @typedef {Object} Props
      * @property {boolean} connected
-     * @property {function} ontoggle
      */
 
     /** @type {Props} */
-    let { connected = false} = $props();
+    let { connected = $bindable(false) } = $props();
 
-    function toggleConnection() {
-        connected = !connected;
+    function handleToggle() {
+        if (connected) {
+            disconnectWs();
+        } else {
+            connectWs({
+                onOpen: () => {
+                    connected = true;
+                },
+                onClose: () => {
+                    connected = false;
+                },
+                onError: () => {
+                    connected = false;
+                },
+            });
+        }
     }
+
+    onMount(() => {
+        // Update local state if already connected
+        connected = isWsConnected();
+    });
 </script>
 
 <button
     class="connection-status {connected ? 'connected' : 'disconnected'}"
-    onclick={toggleConnection}
+    onclick={handleToggle}
     title={connected ? "Disconnect" : "Connect"}
 >
     <img
