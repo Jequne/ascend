@@ -1,13 +1,18 @@
 <script>
     import { getApiKey, clearApiKey } from "$lib/auth/storage.js";
+    import ConnectionStatus from "./ConnectionStatus.svelte";
 
     let apiKey = $state("");
+    let isConnected = $state(false);
 
     function loadApiKey() {
         apiKey = getApiKey() || "";
     }
 
-    // Load API key on component mount
+    function toggleConnection() {
+        isConnected = !isConnected;
+    }
+
     if (typeof window !== "undefined") {
         loadApiKey();
     }
@@ -16,29 +21,35 @@
         clearApiKey();
         window.location.reload();
     }
+
+    function clearFead() {
+        
+    }
 </script>
 
 <div class="main-container">
-    <header class="header">
-        <div class="header-content">
-            <h1>Ascend Trenches</h1>
-            <button class="logout-btn" onclick={handleLogout}> Logout </button>
-        </div>
-    </header>
-
-    <main class="content">
-        <section class="welcome-section">
-            <h2>Welcome to Ascend Trenches</h2>
-            <p>Token feed monitoring system</p>
-        </section>
-
-        <section class="main-section">
-            <!-- Main interface content will be added here -->
-            <div class="placeholder">
-                <p>Main interface content coming soon...</p>
+    <div class="info-block">
+        <div class="left-group">
+            <ConnectionStatus connected={isConnected} ontoggle={toggleConnection} />
+            <div class="passed-filters-counter">
+                <img src="/icons/filters.svg" alt="Filters" class="icon blue-icon" />
+                <span>0</span>
             </div>
-        </section>
-    </main>
+        </div>
+
+        <div class="right-group">
+            <button class="settings-button" title="Settings">
+                <img src="/icons/settings.svg" alt="Settings" class="icon" />
+            </button>
+            <button class="clear-feed-button" title="Clear Feed" onclick={clearFead}>
+                <img src="/icons/trash.svg" alt="Clear Feed" class="icon" />
+            </button>
+        </div>
+    </div>
+
+    <div class="feed-block">
+        <!-- Feed tokens will be here -->
+    </div>
 </div>
 
 <style>
@@ -47,91 +58,89 @@
         height: 100vh;
         display: flex;
         flex-direction: column;
-        background-color: #12141c;
-        color: white;
+        background-color: #0f1117;
+        color: #e5e7eb;
+        overflow: hidden;
     }
 
-    .header {
-        background-color: #1e2029;
-        padding: 16px 24px;
-        border-bottom: 1px solid #2a2d35;
-    }
-
-    .header-content {
+    .info-block {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        max-width: 1200px;
-        margin: 0 auto;
-        width: 100%;
+        justify-content: space-between;
+        padding: 12px 20px;
+        background-color: #161922;
+        border-bottom: 1px solid #232733;
     }
 
-    h1 {
-        margin: 0;
-        font-size: 24px;
-        font-weight: 600;
+    .left-group, .right-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
 
-    .logout-btn {
-        background-color: #ef4444;
-        color: white;
-        border: none;
-        padding: 8px 16px;
+    .passed-filters-counter {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 16px;
+        height: 40px;
+        background-color: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
         border-radius: 8px;
+        color: #60a5fa;
         font-size: 14px;
         font-weight: 500;
+    }
+
+    .settings-button,
+    .clear-feed-button {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #1e2330;
+        border: 1px solid #2e3547;
+        border-radius: 8px;
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: all 0.2s ease;
     }
 
-    .logout-btn:hover {
-        background-color: #dc2626;
+    .settings-button .icon,
+    .clear-feed-button .icon {
+        filter: invert(74%) sepia(8%) saturate(1001%) hue-rotate(182deg) brightness(88%) contrast(85%); /* #9ca3af */
     }
 
-    .logout-btn:active {
-        background-color: #b91c1c;
+    .settings-button:hover,
+    .clear-feed-button:hover {
+        background-color: #2e3547;
+    }
+    
+    .settings-button:hover .icon,
+    .clear-feed-button:hover .icon {
+        filter: invert(100%);
     }
 
-    .content {
+    .clear-feed-button:hover {
+        border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .clear-feed-button:hover .icon {
+        filter: invert(36%) sepia(85%) saturate(1209%) hue-rotate(323deg) brightness(97%) contrast(93%); /* #ef4444 */
+    }
+
+    .icon {
+        width: 20px;
+        height: 20px;
+    }
+
+    .blue-icon {
+        filter: invert(61%) sepia(93%) saturate(1178%) hue-rotate(188deg) brightness(101%) contrast(97%); /* #60a5fa */
+    }
+
+    .feed-block {
         flex: 1;
-        padding: 40px 24px;
         overflow-y: auto;
-    }
-
-    .welcome-section {
-        text-align: center;
-        margin-bottom: 40px;
-    }
-
-    .welcome-section h2 {
-        font-size: 28px;
-        font-weight: 600;
-        margin: 0 0 8px;
-    }
-
-    .welcome-section p {
-        font-size: 16px;
-        color: #9ca3af;
-        margin: 0;
-    }
-
-    .main-section {
-        max-width: 1200px;
-        margin: 0 auto;
-        width: 100%;
-    }
-
-    .placeholder {
-        background-color: #1e2029;
-        border: 1px solid #2a2d35;
-        border-radius: 12px;
-        padding: 40px;
-        text-align: center;
-        color: #6b7280;
-    }
-
-    .placeholder p {
-        margin: 0;
-        font-size: 16px;
+        padding: 20px;
     }
 </style>
