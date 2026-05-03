@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from fastapi import Header
 from sqlalchemy.orm import Session
 
-from ...core.security import hash_api_key, parse_prefixed_api_key
+from ...core.access_keys_helpers import hash_api_key, parse_prefixed_api_key
 from ...models.access_key import ApiKey
 from ...repositories.access_keys import get_api_key_by_kid
 

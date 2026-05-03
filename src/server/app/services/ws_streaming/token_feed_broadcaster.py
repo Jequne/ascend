@@ -6,6 +6,7 @@ import logging
 
 from ..token_feed.collector import TokenFeedCollector
 from .manager import ConnectionManager
+from ...schemas.ws_streaming import WsStreamingResponse
 
 
 logger = logging.getLogger(__name__)
@@ -28,14 +29,23 @@ async def token_feed_broadcaster(
         except Exception as e:
             logger.error("ERORR NIGGER: %s", e)
 
-        message = {
-            "type": "token_feed",
-            "payload": item.model_dump(mode="json"),
-        }
-        logger.debug(
-            "message type: %s\n 'payload' type: %s", 
-            type(message),
-            type(message["payload"])
+        ws_streaming_response = WsStreamingResponse(
+            type="token_feed",
+            payload=item
+        )
+
+        await manager.broadcast_json(
+            ws_streaming_response.model_dump(mode="json")
             )
-        await manager.broadcast_json(message)
+
+        # message = {
+        #     "type": "token_feed",
+        #     "payload": item.model_dump(mode="json"),
+        # }
+        # logger.debug(
+        #     "message type: %s\n 'payload' type: %s", 
+        #     type(message),
+        #     type(message["payload"])
+        #     )
+        # await manager.broadcast_json(message)
 
