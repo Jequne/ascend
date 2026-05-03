@@ -1,20 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-from fastapi import APIRouter, Body, Depends, Header, Request, Response, status
+from fastapi import APIRouter, Body, Depends, Header, Request, Response
 from sqlalchemy.orm import Session
 
-from ...core.rate_limit import validate_key_limiter
-from ...services.auth.authenticator import extract_raw_api_key, validate_api_key
 from ...database import get_db
 from ...schemas.auth import ValidateKeyRequest, ValidateKeyResponse
+from ...services.auth import AuthServicer
 
 router = APIRouter()
 
 
 @router.post("/auth/validate-key", response_model=ValidateKeyResponse)
-def validate_key(
+async def validate_key(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
@@ -22,33 +19,13 @@ def validate_key(
     authorization: str | None = Header(None),
     x_api_key: str | None = Header(None, alias="X-API-Key"),
 ) -> ValidateKeyResponse:
-    client_host = request.client.host if request.client else "unknown"
-    if not validate_key_limiter.allow(
-        f"validate:{client_host}",
-        limit=40,
-        window_seconds=60.0,
-    ):
-        response.status_code = status.HTTP_429_TOO_MANY_REQUESTS
-        return ValidateKeyResponse(status="rate_limited")
 
-    raw = extract_raw_api_key(
-        body_key=body.api_key if body else None,
+    return AuthServicer.validate_key(
+        request=request,
+        response=response,
+        db=db,
+        body=body,
         authorization=authorization,
-        x_api_key=x_api_key,
+        x_api_key=x_api_key
     )
-    if not raw:
-        response.status_code = status.HTTP_401_UNAUTHORIZED
-        return ValidateKeyResponse(status="invalid")
 
-    result = validate_api_key(db, raw)
-
-    if result.status != "valid":
-        response.status_code = status.HTTP_401_UNAUTHORIZED
-
-    return ValidateKeyResponse(
-        status=result.status,  
-        kid=result.kid,
-        expires_at=result.expires_at,
-        max_active_sessions=result.max_active_sessions,
-        label=result.label,
-    )
