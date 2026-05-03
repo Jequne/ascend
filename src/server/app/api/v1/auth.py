@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, Depends, Header, Request, Response, status
 from sqlalchemy.orm import Session
 
 from ...core.rate_limit import validate_key_limiter
-from ...services.auth.api_keys import extract_raw_api_key, validate_api_key
+from ...services.auth.authenticator import extract_raw_api_key, validate_api_key
 from ...database import get_db
 from ...schemas.auth import ValidateKeyRequest, ValidateKeyResponse
 

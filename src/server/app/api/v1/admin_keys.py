@@ -9,7 +9,7 @@ import logging
 from ...config import settings
 from ...core.security import generate_api_key, hash_api_key
 from ...database import get_db
-from ...models.api_key import ApiKey
+from ...models.access_key import ApiKey
 from ...schemas.auth import AdminCreateKeyRequest, AdminCreateKeyResponse
 
 router = APIRouter()

@@ -6,7 +6,7 @@ from fastapi import APIRouter, WebSocket
 from sqlalchemy.orm import Session
 
 from ...database import SessionLocal
-from ...services.ws_streaming.ws_auth import (
+from ...services.auth.ws_logic import (
     extract_ws_api_key,
     is_ws_connect_rate_limited,
     map_validation_status_to_ws_reason,

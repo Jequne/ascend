@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from fastapi import WebSocket
 from sqlalchemy.orm import Session
 
-from ..auth.api_keys import extract_raw_api_key, validate_api_key
+from .authenticator import extract_raw_api_key, validate_api_key
 from ...core.rate_limit import ws_connect_limiter
 
 

@@ -4,8 +4,8 @@ import asyncio
 from datetime import datetime, timezone
 import logging
 
-from .collector import TokenFeedCollector
-from ..ws_streaming.manager import ConnectionManager
+from ..token_feed.collector import TokenFeedCollector
+from .manager import ConnectionManager
 
 
 logger = logging.getLogger(__name__)
