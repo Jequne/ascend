@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from ...schemas.auth import ValidateKeyRequest, ValidateKeyResponse
 from ...core.rate_limit import validate_key_limiter
-from ...services.auth.authenticator import extract_raw_api_key, validate_api_key
+from ...core.authenticator import extract_raw_api_key, validate_api_key
 
 
 class AuthServicer:

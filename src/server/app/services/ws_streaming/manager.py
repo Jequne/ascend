@@ -52,3 +52,4 @@ class ConnectionManager:
                 logger.warning("🔔 Problem sending message: %s", e)
                 
 
+manager = ConnectionManager()

@@ -38,14 +38,3 @@ async def token_feed_broadcaster(
             ws_streaming_response.model_dump(mode="json")
             )
 
-        # message = {
-        #     "type": "token_feed",
-        #     "payload": item.model_dump(mode="json"),
-        # }
-        # logger.debug(
-        #     "message type: %s\n 'payload' type: %s", 
-        #     type(message),
-        #     type(message["payload"])
-        #     )
-        # await manager.broadcast_json(message)
-
