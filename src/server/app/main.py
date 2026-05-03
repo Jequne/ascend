@@ -9,7 +9,7 @@ from .config import settings
 from .database import init_db
 from .services.token_feed.collector import TokenFeedCollector
 from .services.token_feed.axiom_dev_token_data import AxiomDevTokenData
-from .api.ws.router import router as ws_router, manager as ws_manager
+from .api.ws.streaming_close import router as ws_router, manager as ws_manager
 from .services.token_feed.token_feed_broadcaster import token_feed_broadcaster
 import asyncio
 
