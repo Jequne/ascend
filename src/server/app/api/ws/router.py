@@ -6,14 +6,14 @@ from fastapi import APIRouter, WebSocket
 from sqlalchemy.orm import Session
 
 from ...database import SessionLocal
-from ...services.ws.ws_auth import (
+from ...services.ws_streaming.ws_auth import (
     extract_ws_api_key,
     is_ws_connect_rate_limited,
     map_validation_status_to_ws_reason,
     validate_ws_api_key_with_status,
     ws_key_watchdog,
 )
-from ...services.ws.manager import ConnectionManager
+from ...services.ws_streaming.manager import ConnectionManager
 
 
 router = APIRouter()

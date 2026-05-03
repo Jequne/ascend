@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import logging
 
 from .collector import TokenFeedCollector
-from ..ws.manager import ConnectionManager
+from ..ws_streaming.manager import ConnectionManager
 
 
 logger = logging.getLogger(__name__)
