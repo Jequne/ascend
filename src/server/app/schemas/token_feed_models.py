@@ -29,6 +29,7 @@ class DeployedToken(BaseModel):
 
 class TokenFeedBase(BaseModel):
     blockchain: Literal["sol", "bsc"]
+    indicator: Literal["Dev Migrations"] = "Dev Migrations"
     dev_holds_percent: Optional[float]
     snipers_hold_percent: Optional[float]
     pair_address: str
