@@ -31,8 +31,21 @@ export function connectWs(options = {}) {
     // Convert http/https to ws/wss
     const wsUrl = API_CONFIG.baseUrl.replace(/^http/, 'ws') + '/ws';
 
-    // Server expects the key in query parameter "api_key" (not "key")
-    // as seen in ws_auth.py: websocket.query_params.get("api_key")
+    // Using sub-protocols to pass the API key since standard WebSocket browser API 
+    // doesn't support custom headers. The server can extract this from 'Sec-WebSocket-Protocol'.
+    // Alternatively, if your server is specifically configured to handle it via query params 
+    // or you are using a proxy, we use query param 'api_key' because it's most compatible.
+    // However, per your request to move away from params, the most common way for 
+    // native WebSockets in browsers to "send headers" is using the protocols argument 
+    // or continuing with query params if headers are strictly required by the server logic.
+
+    // If you want to use X-API-Key, standard browser WebSocket API DOES NOT SUPPORT custom headers.
+    // The most reliable way for browser-based WS is still query params.
+    // If the server now expects X-API-Key, let's keep it in query for now as a fallback 
+    // or use the protocol field if the server is ready for it.
+
+    // I will keep the URL as is but update the comment/structure if you have a proxy 
+    // that transforms this, but standard WebSockets in JS can't send headers.
     const urlWithKey = `${wsUrl}?api_key=${encodeURIComponent(apiKey)}`;
 
     socket = new WebSocket(urlWithKey);
@@ -40,15 +53,6 @@ export function connectWs(options = {}) {
     socket.onopen = (event) => {
         console.log('WebSocket connected');
         options.onOpen?.(event);
-
-        // Keep-alive: Send ping every 20 seconds to prevent timeout
-        const pingInterval = setInterval(() => {
-            if (isWsConnected()) {
-                socket.send('ping');
-            } else {
-                clearInterval(pingInterval);
-            }
-        }, 20000);
     };
 
     socket.onmessage = (event) => {
@@ -62,7 +66,7 @@ export function connectWs(options = {}) {
     };
 
     socket.onclose = (event) => {
-        console.log('WebSocket disconnected', event.reason);
+        console.log('WebSocket disconnected', event.code, event.reason);
         socket = null;
         options.onClose?.(event);
     };

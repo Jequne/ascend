@@ -5,10 +5,11 @@
     /**
      * @typedef {Object} Props
      * @property {boolean} connected
+     * @property {function} [onAuthError]
      */
 
     /** @type {Props} */
-    let { connected = $bindable(false) } = $props();
+    let { connected = $bindable(false), onAuthError } = $props();
 
     function handleToggle() {
         if (connected) {
@@ -18,8 +19,22 @@
                 onOpen: () => {
                     connected = true;
                 },
-                onClose: () => {
+                onMessage: (data) => {
+                    if (data?.type === "error") {
+                        const reason = data.payload?.reason;
+                        if (
+                            reason === "api key is not valid" ||
+                            reason === "the api key was not transferred"
+                        ) {
+                            onAuthError?.();
+                        }
+                    }
+                },
+                onClose: (event) => {
                     connected = false;
+                    if (event.code === 1008) {
+                        onAuthError?.();
+                    }
                 },
                 onError: () => {
                     connected = false;
@@ -29,7 +44,6 @@
     }
 
     onMount(() => {
-        // Update local state if already connected
         connected = isWsConnected();
     });
 </script>

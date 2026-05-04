@@ -24,7 +24,10 @@
 <div class="main-container">
     <div class="info-block">
         <div class="left-group">
-            <ConnectionStatus connected={isConnected} />
+            <ConnectionStatus
+                connected={isConnected}
+                onAuthError={handleLogout}
+            />
             <div class="passed-filters-counter">
                 <img
                     src="/icons/filters.svg"
