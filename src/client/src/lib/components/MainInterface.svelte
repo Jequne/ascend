@@ -1,9 +1,12 @@
 <script>
     import { getApiKey, clearApiKey } from "$lib/auth/storage.js";
     import ConnectionStatus from "./ConnectionStatus.svelte";
+    import SettingsMenu from "./SettingsMenu.svelte";
+    import { feedState } from "$lib/core/tokenFeed/store.svelte.js";
 
     let apiKey = $state("");
     let isConnected = $state(false);
+    let isSettingsOpen = $state(false);
 
     function loadApiKey() {
         apiKey = getApiKey() || "";
@@ -34,12 +37,20 @@
                     alt="Filters"
                     class="icon blue-icon"
                 />
-                <span>0</span>
+                <!-- Формат: отфильтровано / всего получено -->
+                <span
+                    >{feedState.filteredTokens.length} / {feedState.rawTokens
+                        .length}</span
+                >
             </div>
         </div>
 
         <div class="right-group">
-            <button class="settings-button" title="Settings">
+            <button
+                class="settings-button"
+                title="Settings"
+                onclick={() => (isSettingsOpen = true)}
+            >
                 <img src="/icons/settings.svg" alt="Settings" class="icon" />
             </button>
             <button
@@ -56,6 +67,10 @@
         <!-- Feed tokens will be here -->
     </div>
 </div>
+
+{#if isSettingsOpen}
+    <SettingsMenu onClose={() => (isSettingsOpen = false)} />
+{/if}
 
 <style>
     .main-container {

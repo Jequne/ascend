@@ -1,6 +1,7 @@
 <script>
     import { connectWs, disconnectWs, isWsConnected } from "$lib/api/ws";
     import { onMount } from "svelte";
+    import { feedState } from "$lib/core/tokenFeed/store.svelte.js";
 
     /**
      * @typedef {Object} Props
@@ -28,6 +29,9 @@
                         ) {
                             onAuthError?.();
                         }
+                    } else if (data?.type === "token_feed") {
+                        // Сохраняем пришедший токен в наше реактивное хранилище
+                        feedState.addToken(data.payload);
                     }
                 },
                 onClose: (event) => {
