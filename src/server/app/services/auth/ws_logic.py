@@ -127,6 +127,7 @@ class AuthStreamingProcessor:
                 websocket,
                 reason="api key is not valid"
             )
+            return False
 
         active = await manager.active_sessions_for_kid(ctx.kid)
         if active >= ctx.max_active_sessions:
