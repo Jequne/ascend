@@ -13,7 +13,7 @@ async def ping_broadcaster(
         manager: ConnectionManager, 
         *, 
         stop_event: asyncio.Event,
-        interval: int = 30
+        interval: int = 12
 ) -> None:
     logger.info("Ping broadcaster started.")
     while not stop_event.is_set():
