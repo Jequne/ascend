@@ -12,6 +12,7 @@ from .services.token_feed.axiom_dev_token_data import AxiomDevTokenData
 from .api.ws.streaming import router as ws_router
 from .services.ws_streaming.manager import manager as ws_manager
 from .services.ws_streaming.token_feed_broadcaster import token_feed_broadcaster
+from .services.ws_streaming.ping_broadcaster import ping_broadcaster
 import asyncio
 
 
@@ -25,9 +26,13 @@ async def lifespan(app: FastAPI):
     broadcaster_task = asyncio.create_task(
         token_feed_broadcaster(ws_manager, stop_event=stop_event)
     )
+    ping_task = asyncio.create_task(
+        ping_broadcaster(ws_manager, stop_event=stop_event, interval=30)
+    )
     yield
     stop_event.set()
     broadcaster_task.cancel()
+    ping_task.cancel()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)

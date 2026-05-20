@@ -7,5 +7,5 @@ from .token_feed_models import TokenFeedBase
 class WsStreamingResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    type: Literal["token_feed", "error"]
-    payload: Union[TokenFeedBase, dict[str, Any]] 
+    type: Literal["token_feed", "error", "ping"]
+    payload: Union[TokenFeedBase, dict[str, Any], str] 
