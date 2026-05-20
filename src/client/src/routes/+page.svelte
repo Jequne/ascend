@@ -1,7 +1,8 @@
-<script>
+п»ї<script>
   import { onMount } from "svelte";
   import { fade } from "svelte/transition";
   import AuthBox from "$lib/components/AuthBox.svelte";
+  import TopPanel from "$lib/components/TopPanel.svelte";
   import { validateKey, getStoredKey } from "$lib/api/auth.js";
 
   let isLoading = $state(true);
@@ -28,7 +29,7 @@
     <div class="loading" in:fade>Verifying license...</div>
   {:else if isAuthenticated}
     <div class="dashboard" in:fade>
-      <!-- Контент приложения после авторизации -->
+      <TopPanel />
     </div>
   {:else}
     <div class="auth-wrapper" in:fade>
@@ -41,7 +42,8 @@
   :global(body) {
     margin: 0;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      Helvetica, Arial, sans-serif;
     background-color: #171821;
     color: #e2e8f0;
     display: flex;
@@ -52,8 +54,10 @@
 
   .container {
     width: 100%;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
+    align-items: center;
   }
 
   .auth-wrapper {
@@ -68,6 +72,9 @@
 
   .dashboard {
     width: 100%;
-    height: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
   }
 </style>
