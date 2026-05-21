@@ -6,6 +6,7 @@
     let isConnected = $state(false);
     let isConnecting = $state(false);
     let ping = $state(0);
+    let solPrice = $state(null);
     let shouldReconnect = $state(false);
     let reconnectTimeout = null;
 
@@ -36,6 +37,8 @@
                         const clientTime = Date.now();
                         // Вычисляем задержку
                         ping = Math.abs(clientTime - serverTime);
+                    } else if (data.type === "sol_price") {
+                        solPrice = data.payload;
                     }
                 } catch (e) {}
             };
@@ -45,6 +48,7 @@
                 isConnecting = false;
                 ws = null;
                 ping = 0;
+                solPrice = null;
 
                 if (shouldReconnect) {
                     reconnectTimeout = setTimeout(() => {
@@ -128,7 +132,13 @@
                 ></polygon>
                 <circle cx="12" cy="12" r="3"></circle>
             </svg>
-            <span class="text">$86.5</span>
+            <span class="text">
+                {#if isConnected && solPrice !== null}
+                    ${solPrice}
+                {:else}
+                    -
+                {/if}
+            </span>
         </div>
 
         <div class="pill-btn blue-btn">
