@@ -125,7 +125,9 @@
             <img src="/icons/solana.svg" alt="Solana Logo" class="icon" />
             <span class="text">
                 {#if isConnected && solPrice !== null}
-                    ${typeof solPrice === 'number' ? solPrice.toFixed(1) : parseFloat(solPrice).toFixed(1)}
+                    ${typeof solPrice === "number"
+                        ? solPrice.toFixed(1)
+                        : parseFloat(solPrice).toFixed(1)}
                 {:else}
                     -
                 {/if}
