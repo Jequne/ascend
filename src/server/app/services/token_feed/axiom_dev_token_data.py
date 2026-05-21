@@ -12,6 +12,7 @@ from third_party_apis.axiom_trade_api.models.endpoints.dev_tokens_v3 \
 from third_party_apis.axiom_trade_api.models.websockets.subscription_message \
     import NewPairsRoomMessage
 from ...config import settings
+from app.core.axiom_client_provider import client_instance
 
 
 logger = logging.getLogger(__name__)
@@ -19,10 +20,7 @@ logger = logging.getLogger(__name__)
 
 class AxiomDevTokenData():
 
-    _client: AxiomTradeClient = AxiomTradeClient(
-        settings.axiom_api_config.load_axiom_api_agents()
-        )
-    _client.connect_websocket()
+    _client: AxiomTradeClient = client_instance
     
     @staticmethod
     def _get_timestamp_interval_for_token_chart_data(
