@@ -125,7 +125,7 @@
             <img src="/icons/solana.svg" alt="Solana Logo" class="icon" />
             <span class="text">
                 {#if isConnected && solPrice !== null}
-                    ${solPrice}
+                    ${typeof solPrice === 'number' ? solPrice.toFixed(1) : parseFloat(solPrice).toFixed(1)}
                 {:else}
                     -
                 {/if}
@@ -356,5 +356,40 @@
         box-shadow:
             0 6px 20px rgba(164, 173, 207, 0.2),
             inset 0 1px 0 rgba(164, 173, 207, 0.15);
+    }
+
+    /* Media queries for responsiveness */
+    @media (max-width: 600px) {
+        .top-panel {
+            padding: 0 12px;
+        }
+
+        .panel-content {
+            gap: 8px;
+        }
+
+        .pill-btn,
+        .icon-btn {
+            height: 40px;
+            padding: 0 10px;
+            font-size: 13px;
+        }
+
+        .icon-btn {
+            width: 40px;
+        }
+
+        .icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        .pill-btn .text {
+            margin-left: 6px;
+        }
+
+        .ws-btn {
+            min-width: 90px;
+        }
     }
 </style>
