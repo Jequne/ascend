@@ -7,6 +7,7 @@
     let isConnecting = $state(false);
     let ping = $state(0);
     let solPrice = $state(null);
+    let tokenFeedCount = $state(0);
     let shouldReconnect = $state(false);
     let reconnectTimeout = null;
 
@@ -39,6 +40,8 @@
                         ping = Math.abs(clientTime - serverTime);
                     } else if (data.type === "sol_price") {
                         solPrice = data.payload;
+                    } else if (data.type === "token_feed") {
+                        tokenFeedCount++;
                     }
                 } catch (e) {}
             };
@@ -49,6 +52,7 @@
                 ws = null;
                 ping = 0;
                 solPrice = null;
+                tokenFeedCount = 0;
 
                 if (shouldReconnect) {
                     reconnectTimeout = setTimeout(() => {
@@ -79,6 +83,7 @@
         isConnected = false;
         isConnecting = false;
         ping = 0;
+        tokenFeedCount = 0;
     }
 
     function toggleConnection() {
@@ -135,7 +140,7 @@
         </div>
 
         <div class="pill-btn blue-btn">
-            <span class="text"># 1</span>
+            <span class="text"># .../{tokenFeedCount}</span>
         </div>
 
         <!-- Setting and Trash Icons pushed to the right -->
