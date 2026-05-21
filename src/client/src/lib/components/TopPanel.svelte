@@ -1,101 +1,9 @@
 <script>
     import { onDestroy } from "svelte";
-    import { getStoredKey } from "$lib/api/auth.js";
-
-    let ws = null;
-    let isConnected = $state(false);
-    let isConnecting = $state(false);
-    let ping = $state(0);
-    let solPrice = $state(null);
-    let tokenFeedCount = $state(0);
-    let shouldReconnect = $state(false);
-    let reconnectTimeout = null;
-
-    const WS_URL = "ws://localhost:8000/ws";
-
-    function connect() {
-        if (ws) return;
-
-        isConnecting = true;
-        shouldReconnect = true;
-        const key = getStoredKey();
-
-        try {
-            ws = new WebSocket(`${WS_URL}?api_key=${key}`);
-
-            ws.onopen = () => {
-                isConnected = true;
-                isConnecting = false;
-            };
-
-            ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data.type === "ping" && data.payload?.timestamp) {
-                        const serverTime = new Date(
-                            data.payload.timestamp,
-                        ).getTime();
-                        const clientTime = Date.now();
-                        // Вычисляем задержку
-                        ping = Math.abs(clientTime - serverTime);
-                    } else if (data.type === "sol_price") {
-                        solPrice = data.payload;
-                    } else if (data.type === "token_feed") {
-                        tokenFeedCount++;
-                    }
-                } catch (e) {}
-            };
-
-            ws.onclose = () => {
-                isConnected = false;
-                isConnecting = false;
-                ws = null;
-                ping = 0;
-                solPrice = null;
-                tokenFeedCount = 0;
-
-                if (shouldReconnect) {
-                    reconnectTimeout = setTimeout(() => {
-                        connect();
-                    }, 3000);
-                }
-            };
-
-            ws.onerror = (err) => {
-                console.error("WS error:", err);
-            };
-        } catch (e) {
-            console.error("Failed to create WS:", e);
-            isConnecting = false;
-        }
-    }
-
-    function disconnect() {
-        shouldReconnect = false;
-        if (reconnectTimeout) {
-            clearTimeout(reconnectTimeout);
-            reconnectTimeout = null;
-        }
-        if (ws) {
-            ws.close();
-            ws = null;
-        }
-        isConnected = false;
-        isConnecting = false;
-        ping = 0;
-        tokenFeedCount = 0;
-    }
-
-    function toggleConnection() {
-        if (isConnected || isConnecting || shouldReconnect) {
-            disconnect();
-        } else {
-            connect();
-        }
-    }
+    import { wsStore } from "$lib/stores/websocket.svelte.js";
 
     onDestroy(() => {
-        disconnect();
+        wsStore.disconnect();
     });
 </script>
 
@@ -104,20 +12,22 @@
         <!-- Connect / Ping Button -->
         <button
             type="button"
-            class="pill-btn ws-btn {isConnected ? 'connected' : 'disconnected'}"
-            onclick={toggleConnection}
+            class="pill-btn ws-btn {wsStore.isConnected
+                ? 'connected'
+                : 'disconnected'}"
+            onclick={wsStore.toggleConnection}
         >
             <img
-                src={isConnected
+                src={wsStore.isConnected
                     ? "/icons/wifi-connected.svg"
                     : "/icons/wifi-disconnected.svg"}
                 alt="Connection Status"
                 class="icon"
             />
             <span class="text">
-                {#if isConnected}
-                    {ping}ms
-                {:else if isConnecting}
+                {#if wsStore.isConnected}
+                    {wsStore.ping}ms
+                {:else if wsStore.isConnecting}
                     ...
                 {:else}
                     Offline
@@ -129,10 +39,10 @@
         <div class="pill-btn purple-btn">
             <img src="/icons/solana.svg" alt="Solana Logo" class="icon" />
             <span class="text">
-                {#if isConnected && solPrice !== null}
-                    ${typeof solPrice === "number"
-                        ? solPrice.toFixed(1)
-                        : parseFloat(solPrice).toFixed(1)}
+                {#if wsStore.isConnected && wsStore.solPrice !== null}
+                    ${typeof wsStore.solPrice === "number"
+                        ? wsStore.solPrice.toFixed(1)
+                        : parseFloat(wsStore.solPrice).toFixed(1)}
                 {:else}
                     -
                 {/if}
@@ -140,7 +50,7 @@
         </div>
 
         <div class="pill-btn blue-btn">
-            <span class="text"># .../{tokenFeedCount}</span>
+            <span class="text"># .../{wsStore.tokenFeedCount}</span>
         </div>
 
         <!-- Setting and Trash Icons pushed to the right -->

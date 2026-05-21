@@ -1,4 +1,6 @@
-const API_URL = "http://localhost:8000/api/v1/auth/validate-key";
+import { API_BASE_URL } from "$lib/config/constants.js";
+
+const API_URL = `${API_BASE_URL}/auth/validate-key`;
 
 /**
  * Проверяет валидность ключа через REST API.

@@ -3,37 +3,23 @@
   import { fade } from "svelte/transition";
   import AuthBox from "$lib/components/AuthBox.svelte";
   import TopPanel from "$lib/components/TopPanel.svelte";
-  import { validateKey, getStoredKey } from "$lib/api/auth.js";
+  import { authStore } from "$lib/stores/auth.svelte.js";
 
-  let isLoading = $state(true);
-  let isAuthenticated = $state(false);
-
-  onMount(async () => {
-    const storedKey = getStoredKey();
-    if (storedKey) {
-      const isValid = await validateKey(storedKey);
-      if (isValid) {
-        isAuthenticated = true;
-      }
-    }
-    isLoading = false;
+  onMount(() => {
+    authStore.init();
   });
-
-  function handleActivate() {
-    isAuthenticated = true;
-  }
 </script>
 
 <main class="container">
-  {#if isLoading}
+  {#if authStore.isLoading}
     <div class="loading" in:fade>Verifying license...</div>
-  {:else if isAuthenticated}
+  {:else if authStore.isAuthenticated}
     <div class="dashboard" in:fade>
       <TopPanel />
     </div>
   {:else}
     <div class="auth-wrapper" in:fade>
-      <AuthBox onActivate={handleActivate} />
+      <AuthBox />
     </div>
   {/if}
 </main>

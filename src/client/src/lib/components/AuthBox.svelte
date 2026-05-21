@@ -1,8 +1,5 @@
 <script>
-    import { validateKey, storeKey } from "$lib/api/auth.js";
-
-    // Пропсы Svelte 5 для передачи эвентов наружу
-    let { onActivate } = $props();
+    import { authStore } from "$lib/stores/auth.svelte.js";
 
     let key = $state("");
     let isActivating = $state(false);
@@ -18,13 +15,9 @@
         isActivating = true;
         errorMessage = "";
 
-        // Вызов бизнес логики API
-        const isValid = await validateKey(key);
+        const success = await authStore.login(key);
 
-        if (isValid) {
-            storeKey(key);
-            onActivate(); // Сигнализируем родительскому компоненту об успехе
-        } else {
+        if (!success) {
             errorMessage = "Invalid key. Please try again.";
         }
         isActivating = false;
