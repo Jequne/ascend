@@ -13,9 +13,10 @@
     "windows": [
       {
         "title": "srcclientclient",
-        "width": 800,
+        "width": 450,
         "height": 600,
-        "minWidth": 450
+        "minWidth": 450,
+        "minHeight": 500
       }
     ],
     "security": {
