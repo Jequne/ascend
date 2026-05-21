@@ -1,0 +1,53 @@
+<script>
+    import TokenCard from "./TokenCard.svelte";
+    import { wsStore } from "$lib/stores/websocket.svelte.js";
+
+    $effect(() => {
+        console.log(
+            "TokenFeeds updated:",
+            wsStore.tokenFeeds,
+            wsStore.isConnected,
+        );
+    });
+</script>
+
+<div class="feed-container">
+    {#if wsStore.tokenFeeds && wsStore.tokenFeeds.length > 0}
+        {#each wsStore.tokenFeeds as feed, i (feed.token_address + "_" + i)}
+            <TokenCard {feed} />
+        {/each}
+    {:else if !wsStore.isConnected}
+        <div class="empty-state">
+            <p>Connecting to feed...</p>
+        </div>
+    {:else}
+        <div class="empty-state">
+            <p>Waiting for tokens...</p>
+        </div>
+    {/if}
+</div>
+
+<style>
+    .feed-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 16px;
+        overflow-y: auto;
+        flex-grow: 1;
+        box-sizing: border-box;
+    }
+
+    .empty-state {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        color: #64748b;
+        font-size: 1.1rem;
+        flex-grow: 1;
+    }
+</style>

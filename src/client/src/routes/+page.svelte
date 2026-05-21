@@ -3,6 +3,7 @@
   import { fade } from "svelte/transition";
   import AuthBox from "$lib/components/AuthBox.svelte";
   import TopPanel from "$lib/components/TopPanel.svelte";
+  import TokenFeedList from "$lib/components/TokenFeedList.svelte";
   import { authStore } from "$lib/stores/auth.svelte.js";
 
   onMount(() => {
@@ -16,6 +17,7 @@
   {:else if authStore.isAuthenticated}
     <div class="dashboard" in:fade>
       <TopPanel />
+      <TokenFeedList />
     </div>
   {:else}
     <div class="auth-wrapper" in:fade>

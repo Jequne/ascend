@@ -1,104 +1,96 @@
 import { getStoredKey } from "$lib/api/auth.js";
 import { WS_BASE_URL } from "$lib/config/constants.js";
 
-function createWebSocketStore() {
-    let ws = null;
-    let isConnected = $state(false);
-    let isConnecting = $state(false);
-    let ping = $state(0);
-    let solPrice = $state(null);
-    let tokenFeedCount = $state(0);
-    let shouldReconnect = false;
-    let reconnectTimeout = null;
+class WebSocketStore {
+    ws = null;
+    isConnected = $state(false);
+    isConnecting = $state(false);
+    ping = $state(0);
+    solPrice = $state(null);
+    tokenFeedCount = $state(0);
+    tokenFeeds = $state([]);
+    shouldReconnect = false;
+    reconnectTimeout = null;
 
-    function connect() {
-        if (ws) return;
+    connect = () => {
+        if (this.ws) return;
 
-        isConnecting = true;
-        shouldReconnect = true;
+        this.isConnecting = true;
+        this.shouldReconnect = true;
         const key = getStoredKey();
 
         try {
-            ws = new WebSocket(`${WS_BASE_URL}?api_key=${key}`);
+            this.ws = new WebSocket(`${WS_BASE_URL}?api_key=${key}`);
 
-            ws.onopen = () => {
-                isConnected = true;
-                isConnecting = false;
+            this.ws.onopen = () => {
+                this.isConnected = true;
+                this.isConnecting = false;
             };
 
-            ws.onmessage = (event) => {
+            this.ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
                     if (data.type === "ping" && data.payload?.timestamp) {
                         const serverTime = new Date(data.payload.timestamp).getTime();
                         const clientTime = Date.now();
-                        ping = Math.abs(clientTime - serverTime);
+                        this.ping = Math.abs(clientTime - serverTime);
                     } else if (data.type === "sol_price") {
-                        solPrice = data.payload;
+                        this.solPrice = data.payload;
                     } else if (data.type === "token_feed") {
-                        tokenFeedCount++;
+                        this.tokenFeedCount++;
+                        // By using unshift or reassign, state will trigger update
+                        this.tokenFeeds = [data.payload, ...this.tokenFeeds];
                     }
                 } catch (e) { }
             };
 
-            ws.onclose = () => {
-                isConnected = false;
-                isConnecting = false;
-                ws = null;
-                ping = 0;
-                solPrice = null;
-                tokenFeedCount = 0;
+            this.ws.onclose = () => {
+                this.isConnected = false;
+                this.isConnecting = false;
+                this.ws = null;
+                this.ping = 0;
+                this.solPrice = null;
+                this.tokenFeedCount = 0;
 
-                if (shouldReconnect) {
-                    reconnectTimeout = setTimeout(() => {
-                        connect();
+                if (this.shouldReconnect) {
+                    this.reconnectTimeout = setTimeout(() => {
+                        this.connect();
                     }, 3000);
                 }
             };
 
-            ws.onerror = (err) => {
+            this.ws.onerror = (err) => {
                 console.error("WS error:", err);
             };
         } catch (e) {
             console.error("Failed to create WS:", e);
-            isConnecting = false;
+            this.isConnecting = false;
         }
     }
 
-    function disconnect() {
-        shouldReconnect = false;
-        if (reconnectTimeout) {
-            clearTimeout(reconnectTimeout);
-            reconnectTimeout = null;
+    disconnect = () => {
+        this.shouldReconnect = false;
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
         }
-        if (ws) {
-            ws.close();
-            ws = null;
+        if (this.ws) {
+            this.ws.close();
+            this.ws = null;
         }
-        isConnected = false;
-        isConnecting = false;
-        ping = 0;
-        tokenFeedCount = 0;
+        this.isConnected = false;
+        this.isConnecting = false;
+        this.ping = 0;
+        this.tokenFeedCount = 0;
     }
 
-    function toggleConnection() {
-        if (isConnected || isConnecting || shouldReconnect) {
-            disconnect();
+    toggleConnection = () => {
+        if (this.isConnected || this.isConnecting || this.shouldReconnect) {
+            this.disconnect();
         } else {
-            connect();
+            this.connect();
         }
     }
-
-    return {
-        get isConnected() { return isConnected; },
-        get isConnecting() { return isConnecting; },
-        get ping() { return ping; },
-        get solPrice() { return solPrice; },
-        get tokenFeedCount() { return tokenFeedCount; },
-        connect,
-        disconnect,
-        toggleConnection
-    };
 }
 
-export const wsStore = createWebSocketStore();
+export const wsStore = new WebSocketStore();
