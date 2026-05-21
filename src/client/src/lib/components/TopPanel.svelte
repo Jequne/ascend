@@ -102,12 +102,13 @@
             class="pill-btn ws-btn {isConnected ? 'connected' : 'disconnected'}"
             onclick={toggleConnection}
         >
-            <svg viewBox="0 0 24 24" fill="none" class="icon">
-                <path
-                    d="M4 19.5A1.5 1.5 0 0 1 2.5 18A1.5 1.5 0 0 1 4 16.5A1.5 1.5 0 0 1 5.5 18A1.5 1.5 0 0 1 4 19.5ZM4 12C7.31 12 10 14.69 10 18H8C8 15.79 6.21 14 4 14V12ZM4 6C10.63 6 16 11.37 16 18H14C14 12.48 9.52 8 4 8V6Z"
-                    fill="currentColor"
-                />
-            </svg>
+            <img
+                src={isConnected
+                    ? "/icons/wifi-connected.svg"
+                    : "/icons/wifi-disconnected.svg"}
+                alt="Connection Status"
+                class="icon"
+            />
             <span class="text">
                 {#if isConnected}
                     {ping}ms
@@ -121,17 +122,7 @@
 
         <!-- Placeholder Buttons for Design -->
         <div class="pill-btn purple-btn">
-            <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                class="icon"
-                stroke="currentColor"
-                stroke-width="2"
-            >
-                <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"
-                ></polygon>
-                <circle cx="12" cy="12" r="3"></circle>
-            </svg>
+            <img src="/icons/solana.svg" alt="Solana Logo" class="icon" />
             <span class="text">
                 {#if isConnected && solPrice !== null}
                     ${solPrice}
@@ -147,44 +138,11 @@
 
         <!-- Setting and Trash Icons pushed to the right -->
         <button class="icon-btn" style="margin-left: auto;">
-            <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="icon"
-            >
-                <line x1="4" y1="21" x2="4" y2="14"></line>
-                <line x1="4" y1="10" x2="4" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12" y2="3"></line>
-                <line x1="20" y1="21" x2="20" y2="16"></line>
-                <line x1="20" y1="12" x2="20" y2="3"></line>
-                <line x1="1" y1="14" x2="7" y2="14"></line>
-                <line x1="9" y1="8" x2="15" y2="8"></line>
-                <line x1="17" y1="16" x2="23" y2="16"></line>
-            </svg>
+            <img src="/icons/settings.svg" alt="Settings" class="icon" />
         </button>
 
         <button class="icon-btn">
-            <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                class="icon"
-            >
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path
-                    d="M19 6L17.5 20.5A2 2 0 0115.5 22h-7A2 2 0 016.5 20.5L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
-                ></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-            </svg>
+            <img src="/icons/trash.svg" alt="Trash" class="icon" />
         </button>
     </div>
 </div>
@@ -193,7 +151,11 @@
     .top-panel {
         width: 100%;
         height: 15vh;
-        background-color: transparent;
+        background: linear-gradient(
+            180deg,
+            rgba(15, 17, 26, 0.8) 0%,
+            transparent 100%
+        );
         display: flex;
         align-items: center;
         padding: 0 24px;
@@ -201,6 +163,8 @@
         flex-shrink: 0;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
             Helvetica, Arial, sans-serif;
+        position: relative;
+        z-index: 10;
     }
 
     .panel-content {
@@ -208,6 +172,7 @@
         align-items: center;
         gap: 12px;
         width: 100%;
+        backdrop-filter: blur(10px);
     }
 
     .pill-btn,
@@ -215,18 +180,34 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background-color: #1e2029;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 12px; /* Smooth rounded corners */
+        background: linear-gradient(145deg, #1e2029, #252835);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
         padding: 0 16px;
         height: 48px;
         cursor: pointer;
-        transition: all 0.2s ease-in-out;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         color: #fff;
         font-weight: 600;
         font-size: 15px;
         user-select: none;
         letter-spacing: 0.2px;
+        box-shadow:
+            0 4px 15px rgba(0, 0, 0, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .pill-btn:hover,
+    .icon-btn:hover {
+        transform: translateY(-2px);
+        box-shadow:
+            0 6px 20px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .pill-btn:active,
+    .icon-btn:active {
+        transform: translateY(0);
     }
 
     .icon-btn {
@@ -236,14 +217,18 @@
     }
 
     .icon-btn:hover {
-        background-color: #272a35;
-        color: #e2e8f0;
-        border-color: rgba(255, 255, 255, 0.1);
+        background: linear-gradient(145deg, #272a35, #2f3342);
+        border-color: rgba(255, 255, 255, 0.15);
     }
 
     .icon {
         width: 20px;
         height: 20px;
+        transition: filter 0.3s ease;
+    }
+
+    .icon-btn:hover .icon {
+        filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4)) brightness(1.2);
     }
 
     .pill-btn .text {
@@ -260,38 +245,116 @@
     }
 
     .ws-btn.disconnected {
-        background-color: rgba(236, 101, 114, 0.05);
+        background: linear-gradient(
+            145deg,
+            rgba(236, 101, 114, 0.1),
+            rgba(236, 101, 114, 0.02)
+        );
         color: #eb6976;
-        border-color: rgba(236, 101, 114, 0.15);
+        border-color: rgba(236, 101, 114, 0.2);
+        box-shadow:
+            0 4px 15px rgba(236, 101, 114, 0.1),
+            inset 0 1px 0 rgba(236, 101, 114, 0.1);
     }
+
     .ws-btn.disconnected:hover {
-        background-color: rgba(236, 101, 114, 0.1);
+        background: linear-gradient(
+            145deg,
+            rgba(236, 101, 114, 0.15),
+            rgba(236, 101, 114, 0.05)
+        );
+        box-shadow:
+            0 6px 20px rgba(236, 101, 114, 0.2),
+            inset 0 1px 0 rgba(236, 101, 114, 0.15);
+    }
+
+    .ws-btn.disconnected:hover .icon {
+        filter: drop-shadow(0 0 6px rgba(236, 101, 114, 0.6)) brightness(1.2);
     }
 
     .ws-btn.connected {
-        background-color: rgba(62, 223, 167, 0.08);
+        background: linear-gradient(
+            145deg,
+            rgba(62, 223, 167, 0.1),
+            rgba(62, 223, 167, 0.02)
+        );
         color: #4ade80;
         border-color: rgba(74, 222, 128, 0.2);
+        box-shadow:
+            0 4px 15px rgba(62, 223, 167, 0.1),
+            inset 0 1px 0 rgba(62, 223, 167, 0.1);
     }
 
     .ws-btn.connected:hover {
-        background-color: rgba(62, 223, 167, 0.12);
-        box-shadow: 0 0 15px rgba(62, 223, 167, 0.15);
+        background: linear-gradient(
+            145deg,
+            rgba(62, 223, 167, 0.15),
+            rgba(62, 223, 167, 0.05)
+        );
+        box-shadow:
+            0 6px 20px rgba(62, 223, 167, 0.2),
+            inset 0 1px 0 rgba(62, 223, 167, 0.15);
+    }
+
+    .ws-btn.connected:hover .icon {
+        filter: drop-shadow(0 0 6px rgba(62, 223, 167, 0.6)) brightness(1.2);
     }
 
     /* Second Button Purple (Decorative) */
     .purple-btn {
-        background-color: rgba(222, 147, 200, 0.05);
+        background: linear-gradient(
+            145deg,
+            rgba(222, 147, 200, 0.1),
+            rgba(222, 147, 200, 0.02)
+        );
         color: #e696c2;
-        border-color: rgba(222, 147, 200, 0.15);
+        border-color: rgba(222, 147, 200, 0.2);
+        box-shadow:
+            0 4px 15px rgba(222, 147, 200, 0.1),
+            inset 0 1px 0 rgba(222, 147, 200, 0.1);
         cursor: default;
+    }
+
+    .purple-btn:hover {
+        transform: translateY(-2px);
+        background: linear-gradient(
+            145deg,
+            rgba(222, 147, 200, 0.15),
+            rgba(222, 147, 200, 0.05)
+        );
+        box-shadow:
+            0 6px 20px rgba(222, 147, 200, 0.2),
+            inset 0 1px 0 rgba(222, 147, 200, 0.15);
+    }
+
+    .purple-btn:hover .icon {
+        filter: drop-shadow(0 0 6px rgba(222, 147, 200, 0.6)) brightness(1.1);
     }
 
     /* Third Button Blueish (Decorative) */
     .blue-btn {
-        background-color: rgba(164, 173, 207, 0.05);
+        background: linear-gradient(
+            145deg,
+            rgba(164, 173, 207, 0.1),
+            rgba(164, 173, 207, 0.02)
+        );
         color: #a7accc;
-        border-color: rgba(164, 173, 207, 0.15);
+        border-color: rgba(164, 173, 207, 0.2);
+        box-shadow:
+            0 4px 15px rgba(164, 173, 207, 0.1),
+            inset 0 1px 0 rgba(164, 173, 207, 0.1);
         cursor: default;
+    }
+
+    .blue-btn:hover {
+        transform: translateY(-2px);
+        background: linear-gradient(
+            145deg,
+            rgba(164, 173, 207, 0.15),
+            rgba(164, 173, 207, 0.05)
+        );
+        box-shadow:
+            0 6px 20px rgba(164, 173, 207, 0.2),
+            inset 0 1px 0 rgba(164, 173, 207, 0.15);
     }
 </style>
