@@ -35,7 +35,7 @@
         width: 100%;
         max-width: 800px;
         margin: 0 auto;
-        padding: 16px;
+        padding: 8px 12px;
         overflow-y: auto;
         flex-grow: 1;
         box-sizing: border-box;
@@ -47,7 +47,7 @@
         align-items: center;
         height: 100%;
         color: #64748b;
-        font-size: 1.1rem;
+        font-size: 1rem;
         flex-grow: 1;
     }
 </style>

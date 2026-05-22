@@ -320,15 +320,16 @@
         background: #171821; /* Slightly darker to match image */
         border-radius: 10px;
         margin: 4px 8px;
-        padding: 8px 12px;
+        padding: 6px 10px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
         border: 1px solid rgba(255, 255, 255, 0.05);
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 6px;
         width: calc(100% - 16px);
         box-sizing: border-box;
         transition: transform 0.2s;
+        max-width: 100%;
     }
 
     .token-card:hover {
@@ -342,46 +343,48 @@
     }
 
     .new-token-block {
-        gap: 10px;
-        padding-bottom: 12px;
+        gap: 8px;
+        padding-bottom: 10px;
         border-bottom: 1px solid #2d2e3d;
     }
 
     .dev-stats-row {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        margin-top: 4px;
+        gap: 6px;
+        margin-top: 2px;
     }
 
     .stats-left {
         display: flex;
         gap: 6px;
         align-items: center;
+        flex-wrap: wrap;
     }
 
     .stats-right {
         display: flex;
         flex-direction: row;
         align-items: center;
-        gap: 12px;
-        font-size: 0.85rem;
+        gap: 8px;
+        font-size: 0.8rem;
         flex-wrap: wrap;
     }
 
     .token-top-stats {
-        margin-top: 4px;
+        margin-top: 2px;
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
     }
 
     .dh-stat {
         background: rgba(234, 179, 8, 0.15); /* amber tint */
         color: #fbbf24;
         border: 1px solid rgba(234, 179, 8, 0.3);
-        padding: 2px 8px;
+        padding: 2px 6px;
         border-radius: 4px;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 600;
         letter-spacing: 0.02em;
         display: inline-flex;
@@ -459,20 +462,23 @@
     }
 
     .tiny-icon {
-        width: 12px;
-        height: 12px;
+        width: 10px;
+        height: 10px;
         opacity: 0.9;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
     }
 
     .main-info {
         justify-content: flex-start;
         gap: 8px;
+        flex-wrap: nowrap;
     }
 
     .image-container,
     .last-image-container {
-        width: 38px;
-        height: 38px;
+        width: 32px;
+        height: 32px;
         border-radius: 6px;
         background: #2d2e3d;
         overflow: hidden;
@@ -481,8 +487,8 @@
     }
 
     .last-image-container {
-        width: 34px;
-        height: 34px;
+        width: 26px;
+        height: 26px;
     }
 
     .token-image,
@@ -493,6 +499,8 @@
         position: absolute;
         top: 0;
         left: 0;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: high-quality;
     }
 
     .image-placeholder,
@@ -504,19 +512,19 @@
         justify-content: center;
         font-weight: bold;
         color: #64748b;
-        font-size: 1.2rem;
+        font-size: 1rem;
         position: absolute;
         top: 0;
         left: 0;
     }
 
     .last-image-placeholder {
-        font-size: 0.9rem;
+        font-size: 0.8rem;
     }
 
     .token-name-header {
         margin: 0;
-        font-size: 1.05rem;
+        font-size: 0.9rem;
         font-weight: 600;
         cursor: pointer;
         transition: color 0.15s;
@@ -529,6 +537,7 @@
         padding: 0;
         color: inherit;
         font-family: inherit;
+        text-align: left;
     }
 
     .token-name-header:hover .name-text {
@@ -543,11 +552,11 @@
 
     .ticker,
     .last-ticker {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         color: #94a3b8;
         font-weight: normal;
         background: rgba(255, 255, 255, 0.08);
-        padding: 2px 6px;
+        padding: 2px 4px;
         border-radius: 4px;
         flex-shrink: 0;
     }
@@ -557,20 +566,25 @@
         display: flex;
         gap: 6px;
         flex-shrink: 0;
+        align-items: center;
     }
 
     .icon {
-        width: 14px;
-        height: 14px;
+        width: 12px;
+        height: 12px;
         opacity: 0.7;
         transition: opacity 0.15s;
         color: #94a3b8;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
     }
 
     .small-icon {
-        width: 14px;
-        height: 14px;
+        width: 12px;
+        height: 12px;
         opacity: 0.8;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
     }
 
     .socials a:hover .icon,
@@ -580,7 +594,7 @@
 
     .section-title {
         margin: 0;
-        font-size: 0.85rem;
+        font-size: 0.75rem;
         color: #64748b;
         text-transform: uppercase;
         letter-spacing: 0.05em;
@@ -589,7 +603,7 @@
     .last-tokens-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 8px;
     }
 
     .last-token-item {
@@ -597,16 +611,17 @@
         justify-content: space-between;
         align-items: center;
         background: rgba(0, 0, 0, 0.15);
-        padding: 10px;
+        padding: 6px 8px;
         border-radius: 6px;
         border: 1px solid rgba(255, 255, 255, 0.03);
-        gap: 10px;
+        gap: 8px;
+        flex-wrap: wrap;
     }
 
     .last-token-lhs {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
         flex-grow: 1;
         min-width: 0;
     }
@@ -614,7 +629,7 @@
     .last-token-info {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
         flex-grow: 1;
         min-width: 0;
     }
@@ -624,8 +639,9 @@
         align-items: center;
         gap: 6px;
         font-weight: 500;
-        font-size: 0.95rem;
+        font-size: 0.85rem;
         width: 100%;
+        line-height: 1.2;
     }
 
     .last-name {
@@ -637,9 +653,10 @@
     .last-token-metrics {
         display: flex;
         align-items: center;
-        gap: 12px;
-        font-size: 0.75rem;
+        gap: 8px;
+        font-size: 0.7rem;
         color: #94a3b8;
+        flex-wrap: wrap;
     }
 
     .time-ago {

@@ -67,7 +67,8 @@
 <style>
     .top-panel {
         width: 100%;
-        height: 15vh;
+        height: auto;
+        min-height: 10vh;
         background: linear-gradient(
             180deg,
             rgba(15, 17, 26, 0.8) 0%,
@@ -75,7 +76,7 @@
         );
         display: flex;
         align-items: center;
-        padding: 0 24px;
+        padding: 12px 16px;
         box-sizing: border-box;
         flex-shrink: 0;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -87,9 +88,10 @@
     .panel-content {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 8px;
         width: 100%;
         backdrop-filter: blur(10px);
+        flex-wrap: wrap;
     }
 
     .pill-btn,
@@ -99,14 +101,14 @@
         justify-content: center;
         background: linear-gradient(145deg, #1e2029, #252835);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 0 16px;
-        height: 48px;
+        border-radius: 10px;
+        padding: 0 12px;
+        height: 40px;
         cursor: pointer;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         color: #fff;
         font-weight: 600;
-        font-size: 15px;
+        font-size: 13px;
         user-select: none;
         letter-spacing: 0.2px;
         box-shadow:
@@ -129,7 +131,7 @@
 
     .icon-btn {
         padding: 0;
-        width: 48px;
+        width: 40px;
         color: #a0aec0;
     }
 
@@ -139,9 +141,11 @@
     }
 
     .icon {
-        width: 20px;
-        height: 20px;
+        width: 16px;
+        height: 16px;
         transition: filter 0.3s ease;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
     }
 
     .icon-btn:hover .icon {
@@ -278,35 +282,35 @@
     /* Media queries for responsiveness */
     @media (max-width: 600px) {
         .top-panel {
-            padding: 0 12px;
+            padding: 8px 12px;
         }
 
         .panel-content {
-            gap: 8px;
+            gap: 6px;
         }
 
         .pill-btn,
         .icon-btn {
-            height: 40px;
-            padding: 0 10px;
-            font-size: 13px;
+            height: 36px;
+            padding: 0 8px;
+            font-size: 12px;
         }
 
         .icon-btn {
-            width: 40px;
+            width: 36px;
         }
 
         .icon {
-            width: 18px;
-            height: 18px;
+            width: 14px;
+            height: 14px;
         }
 
         .pill-btn .text {
-            margin-left: 6px;
+            margin-left: 4px;
         }
 
         .ws-btn {
-            min-width: 90px;
+            min-width: 80px;
         }
     }
 </style>
