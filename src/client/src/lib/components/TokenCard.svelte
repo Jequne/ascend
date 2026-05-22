@@ -2,18 +2,9 @@
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { DEFAULT_FILTERS } from "$lib/config/constants.js";
     import { filtersStore } from "$lib/stores/filters.svelte.js";
+    import { buildTerminalUrl } from "$lib/utils/tokenLinks.js";
 
     export let feed = {};
-
-    function buildTerminalUrl(token, terminal) {
-        const blockchain = token?.blockchain || "sol";
-
-        if (terminal === "gmgn") {
-            return `https://gmgn.ai/${blockchain}/token/${token?.token_address}`;
-        }
-
-        return `https://axiom.trade/meme/${token?.pair_address}?chain=${blockchain}`;
-    }
 
     async function openTerminalLink(token) {
         const terminal = filtersStore.terminal ?? DEFAULT_FILTERS.terminal;

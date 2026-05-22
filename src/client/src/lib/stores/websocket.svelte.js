@@ -6,6 +6,7 @@ import {
 import { filtersStore } from "$lib/stores/filters.svelte.js";
 import { passesLastTokenFeesFilter } from "$lib/utils/lastTokenFees.js";
 import { passesLastTokensFilter } from "$lib/utils/lastTokens.js";
+import { openTokenUrlInNewTab } from "$lib/utils/tokenLinks.js";
 
 class WebSocketStore {
     ws = null;
@@ -99,6 +100,12 @@ class WebSocketStore {
                             if (devPass && feesPass && (migrationPass || lastTokensPass)) {
                                 // Increment filtered counter and add to visible feed list
                                 this.tokenFeedCount++;
+                                if (filtersStore.autoOpenInNewTab ?? DEFAULT_FILTERS.autoOpenInNewTab) {
+                                    openTokenUrlInNewTab(
+                                        payload,
+                                        filtersStore.terminal ?? DEFAULT_FILTERS.terminal,
+                                    );
+                                }
                                 this.tokenFeeds = [
                                     {
                                         ...payload,

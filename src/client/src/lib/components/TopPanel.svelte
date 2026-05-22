@@ -34,6 +34,9 @@
             DEFAULT_FILTERS.lastTokensRequiredCount,
     );
     let localTerminal = filtersStore.terminal ?? DEFAULT_FILTERS.terminal;
+    let localAutoOpenInNewTab = Boolean(
+        filtersStore.autoOpenInNewTab ?? DEFAULT_FILTERS.autoOpenInNewTab,
+    );
 
     const openSettings = () => {
         // sync from store when opening
@@ -62,6 +65,9 @@
                 DEFAULT_FILTERS.lastTokensRequiredCount,
         );
         localTerminal = filtersStore.terminal ?? DEFAULT_FILTERS.terminal;
+        localAutoOpenInNewTab = Boolean(
+            filtersStore.autoOpenInNewTab ?? DEFAULT_FILTERS.autoOpenInNewTab,
+        );
         importJson = "";
         actionMessage = "";
         actionError = "";
@@ -86,6 +92,7 @@
             minLastTokenAthMcap: Number(localMinLastTokenAthMcap),
             lastTokensRequiredCount: Number(localLastTokensRequiredCount),
             terminal: localTerminal,
+            autoOpenInNewTab: localAutoOpenInNewTab,
         });
 
         actionMessage = "Settings saved.";
@@ -137,6 +144,7 @@
                 filtersStore.lastTokensRequiredCount,
             );
             localTerminal = filtersStore.terminal;
+            localAutoOpenInNewTab = Boolean(filtersStore.autoOpenInNewTab);
 
             actionMessage = "Settings imported.";
             actionError = "";
@@ -275,6 +283,39 @@
 
                 <div class="settings-scroll">
                     <div class="settings-grid">
+                        <section class="settings-card settings-card-span-2">
+                            <div class="card-head">
+                                <h4>Auto open new token</h4>
+                                <span class="card-meta">Selected terminal</span>
+                            </div>
+
+                            <button
+                                type="button"
+                                class="toggle-card {localAutoOpenInNewTab
+                                    ? 'toggle-card-on'
+                                    : 'toggle-card-off'}"
+                                aria-pressed={localAutoOpenInNewTab}
+                                onclick={() =>
+                                    (localAutoOpenInNewTab =
+                                        !localAutoOpenInNewTab)}
+                            >
+                                <span class="toggle-card-title">
+                                    Auto open in new tab
+                                </span>
+                                <span class="toggle-card-status">
+                                    {localAutoOpenInNewTab
+                                        ? "Enabled"
+                                        : "Disabled"}
+                                </span>
+                            </button>
+
+                            <p class="instruction toggle-instruction">
+                                When a token passes filters, open its link in
+                                the terminal selected below. Last token cards
+                                stay manual.
+                            </p>
+                        </section>
+
                         <section class="settings-card settings-card-span-2">
                             <div class="card-head">
                                 <h4>Dev holds range</h4>
@@ -893,6 +934,72 @@
         color: #b8c4da;
         font-size: 11px;
         line-height: 1.45;
+    }
+
+    .toggle-instruction {
+        margin-top: 10px;
+        margin-bottom: 0;
+    }
+
+    .toggle-card {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-radius: 12px;
+        padding: 12px 14px;
+        cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(12, 15, 24, 0.92);
+        color: #e5eefb;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        transition:
+            transform 160ms ease,
+            border-color 160ms ease,
+            background 160ms ease,
+            box-shadow 160ms ease;
+    }
+
+    .toggle-card:hover {
+        transform: translateY(-1px);
+    }
+
+    .toggle-card-on {
+        border-color: rgba(74, 222, 128, 0.38);
+        background: linear-gradient(
+                135deg,
+                rgba(34, 197, 94, 0.18),
+                rgba(12, 15, 24, 0.92)
+            ),
+            rgba(12, 15, 24, 0.92);
+        box-shadow:
+            0 0 0 1px rgba(74, 222, 128, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .toggle-card-off {
+        border-color: rgba(255, 255, 255, 0.08);
+        background: rgba(12, 15, 24, 0.92);
+    }
+
+    .toggle-card-title {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.15px;
+    }
+
+    .toggle-card-status {
+        font-size: 11px;
+        font-weight: 700;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        white-space: nowrap;
+    }
+
+    .toggle-card-on .toggle-card-status {
+        color: #86efac;
     }
 
     .helper-text {

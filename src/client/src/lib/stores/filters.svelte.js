@@ -74,6 +74,14 @@ class FiltersStore {
         this.updateFilters({ terminal: value });
     }
 
+    get autoOpenInNewTab() {
+        return this.filters.autoOpenInNewTab;
+    }
+
+    set autoOpenInNewTab(value) {
+        this.updateFilters({ autoOpenInNewTab: value });
+    }
+
     init() {
         settingsStore.init();
     }

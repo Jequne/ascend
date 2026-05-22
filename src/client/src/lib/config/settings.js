@@ -91,6 +91,7 @@ export function normalizeFilters(filters = {}) {
         minLastTokenAthMcap,
         lastTokensRequiredCount,
         terminal: normalizeTerminal(source.terminal),
+        autoOpenInNewTab: Boolean(source.autoOpenInNewTab),
     };
 }
 
