@@ -2,7 +2,10 @@
     import { onDestroy } from "svelte";
     import { wsStore } from "$lib/stores/websocket.svelte.js";
     import { filtersStore } from "$lib/stores/filters.svelte.js";
-    import { DEFAULT_FILTERS } from "$lib/config/constants.js";
+    import {
+        DEFAULT_FILTERS,
+        LAST_TOKEN_FEES_AGE_EXCLUSION_DAYS,
+    } from "$lib/config/constants.js";
 
     let showSettings = false;
 
@@ -15,6 +18,10 @@
     );
     let localMinMigration = Number(
         filtersStore.minMigrationPercent ?? DEFAULT_FILTERS.minMigrationPercent,
+    );
+    let localFeesMode = filtersStore.feesMode ?? DEFAULT_FILTERS.feesMode;
+    let localMinLastTokenFees = Number(
+        filtersStore.minLastTokenFees ?? DEFAULT_FILTERS.minLastTokenFees,
     );
 
     const openSettings = () => {
@@ -31,6 +38,10 @@
             filtersStore.minMigrationPercent ??
                 DEFAULT_FILTERS.minMigrationPercent,
         );
+        localFeesMode = filtersStore.feesMode ?? DEFAULT_FILTERS.feesMode;
+        localMinLastTokenFees = Number(
+            filtersStore.minLastTokenFees ?? DEFAULT_FILTERS.minLastTokenFees,
+        );
         showSettings = true;
     };
 
@@ -46,6 +57,8 @@
         filtersStore.minDevHoldsPercent = Number(localMinDev);
         filtersStore.maxDevHoldsPercent = Number(localMaxDev);
         filtersStore.minMigrationPercent = Number(localMinMigration);
+        filtersStore.feesMode = localFeesMode;
+        filtersStore.minLastTokenFees = Number(localMinLastTokenFees);
 
         showSettings = false;
     };
@@ -190,6 +203,38 @@
                         oninput={(e) =>
                             (localMinMigration = Number(e.target.value))}
                     />
+                </div>
+
+                <div class="field">
+                    <label for="feesModeSelect">Last Tokens Fees Mode</label>
+                    <select
+                        id="feesModeSelect"
+                        value={localFeesMode}
+                        oninput={(e) => (localFeesMode = e.target.value)}
+                    >
+                        <option value="avg">avg</option>
+                        <option value="total">total</option>
+                        <option value="fixed">fixed</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="minLastTokenFeesInput">
+                        Min Last Token Fees
+                    </label>
+                    <input
+                        id="minLastTokenFeesInput"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={localMinLastTokenFees}
+                        oninput={(e) =>
+                            (localMinLastTokenFees = Number(e.target.value))}
+                    />
+                    <small class="helper-text">
+                        Last tokens older than {LAST_TOKEN_FEES_AGE_EXCLUSION_DAYS}
+                        days are ignored when their fees are below the threshold.
+                    </small>
                 </div>
 
                 <div class="actions">
@@ -449,6 +494,29 @@
         display: flex;
         flex-direction: column;
         gap: 6px;
+    }
+
+    .field input,
+    .field select {
+        background: #171a24;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: #e2e8f0;
+        border-radius: 8px;
+        height: 36px;
+        padding: 0 10px;
+        outline: none;
+    }
+
+    .field input:focus,
+    .field select:focus {
+        border-color: rgba(96, 165, 250, 0.45);
+        box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.12);
+    }
+
+    .helper-text {
+        color: #91a0b7;
+        font-size: 11px;
+        line-height: 1.35;
     }
 
     .range-wrap {

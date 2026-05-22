@@ -1,6 +1,10 @@
 import { getStoredKey } from "$lib/api/auth.js";
-import { WS_BASE_URL, DEFAULT_FILTERS } from "$lib/config/constants.js";
+import {
+    WS_BASE_URL,
+    DEFAULT_FILTERS,
+} from "$lib/config/constants.js";
 import { filtersStore } from "$lib/stores/filters.svelte.js";
+import { passesLastTokenFeesFilter } from "$lib/utils/lastTokenFees.js";
 
 class WebSocketStore {
     ws = null;
@@ -15,6 +19,17 @@ class WebSocketStore {
     tokenFeeds = $state([]);
     shouldReconnect = false;
     reconnectTimeout = null;
+
+    passesFeesFilter = (lastDeployedTokens) => {
+        const feesMode = filtersStore.feesMode ?? DEFAULT_FILTERS.feesMode;
+        const minLastTokenFees = Number(
+            filtersStore.minLastTokenFees ?? DEFAULT_FILTERS.minLastTokenFees,
+        );
+        return passesLastTokenFeesFilter(lastDeployedTokens, {
+            mode: feesMode,
+            minFeeThreshold: minLastTokenFees,
+        });
+    };
 
     connect = () => {
         if (this.ws) return;
@@ -58,11 +73,12 @@ class WebSocketStore {
                             const allTokens = Number(payload?.all_tokens_count) || 0;
                             const migrated = Number(payload?.migrated_tokens_count) || 0;
                             const migrationPercent = allTokens > 0 ? (migrated / allTokens) * 100 : 0;
+                            const feesPass = this.passesFeesFilter(payload?.last_deployed_tokens);
 
                             const devPass = dev !== null && dev !== undefined && !Number.isNaN(dev) && dev >= minDev && dev <= maxDev;
                             const migrationPass = !Number.isNaN(migrationPercent) && migrationPercent >= minMigration;
 
-                            if (devPass && migrationPass) {
+                            if (devPass && migrationPass && feesPass) {
                                 // Increment filtered counter and add to visible feed list
                                 this.tokenFeedCount++;
                                 this.tokenFeeds = [payload, ...this.tokenFeeds];
