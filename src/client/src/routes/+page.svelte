@@ -5,8 +5,10 @@
   import TopPanel from "$lib/components/TopPanel.svelte";
   import TokenFeedList from "$lib/components/TokenFeedList.svelte";
   import { authStore } from "$lib/stores/auth.svelte.js";
+  import { filtersStore } from "$lib/stores/filters.svelte.js";
 
   onMount(() => {
+    filtersStore.init();
     authStore.init();
   });
 </script>

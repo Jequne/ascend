@@ -8,6 +8,9 @@
     } from "$lib/config/constants.js";
 
     let showSettings = false;
+    let importJson = "";
+    let actionMessage = "";
+    let actionError = "";
 
     // Local editable copies (so user can cancel)
     let localMinDev = Number(
@@ -44,6 +47,9 @@
             filtersStore.minLastTokenFees ?? DEFAULT_FILTERS.minLastTokenFees,
         );
         localTerminal = filtersStore.terminal ?? DEFAULT_FILTERS.terminal;
+        importJson = "";
+        actionMessage = "";
+        actionError = "";
         showSettings = true;
     };
 
@@ -56,14 +62,66 @@
         if (localMinDev > localMaxDev) localMinDev = localMaxDev;
         if (localMaxDev < localMinDev) localMaxDev = localMinDev;
 
-        filtersStore.minDevHoldsPercent = Number(localMinDev);
-        filtersStore.maxDevHoldsPercent = Number(localMaxDev);
-        filtersStore.minMigrationPercent = Number(localMinMigration);
-        filtersStore.feesMode = localFeesMode;
-        filtersStore.minLastTokenFees = Number(localMinLastTokenFees);
-        filtersStore.terminal = localTerminal;
+        filtersStore.updateFilters({
+            minDevHoldsPercent: Number(localMinDev),
+            maxDevHoldsPercent: Number(localMaxDev),
+            minMigrationPercent: Number(localMinMigration),
+            feesMode: localFeesMode,
+            minLastTokenFees: Number(localMinLastTokenFees),
+            terminal: localTerminal,
+        });
 
+        actionMessage = "Settings saved.";
+        actionError = "";
         showSettings = false;
+    };
+
+    const exportSettings = async () => {
+        try {
+            const exportedJson = filtersStore.exportToJson();
+
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(exportedJson);
+            } else {
+                const fallbackElement = document.createElement("textarea");
+                fallbackElement.value = exportedJson;
+                fallbackElement.setAttribute("readonly", "true");
+                fallbackElement.style.position = "absolute";
+                fallbackElement.style.left = "-9999px";
+                document.body.appendChild(fallbackElement);
+                fallbackElement.select();
+                document.execCommand("copy");
+                document.body.removeChild(fallbackElement);
+            }
+
+            actionMessage = "Settings copied to clipboard.";
+            actionError = "";
+        } catch (error) {
+            actionError = error instanceof Error ? error.message : String(error);
+            actionMessage = "";
+        }
+    };
+
+    const importSettings = () => {
+        actionMessage = "";
+        actionError = "";
+
+        try {
+            filtersStore.importFromJson(importJson);
+
+            localMinDev = Number(filtersStore.minDevHoldsPercent);
+            localMaxDev = Number(filtersStore.maxDevHoldsPercent);
+            localMinMigration = Number(filtersStore.minMigrationPercent);
+            localFeesMode = filtersStore.feesMode;
+            localMinLastTokenFees = Number(filtersStore.minLastTokenFees);
+            localTerminal = filtersStore.terminal;
+
+            actionMessage = "Settings imported.";
+            actionError = "";
+        } catch (error) {
+            actionError = error instanceof Error ? error.message : String(error);
+            actionMessage = "";
+        }
     };
 
     function onMinDevInput(e) {
@@ -168,6 +226,11 @@
             >
                 <h3>Filters Settings</h3>
 
+                <p class="instruction">
+                    1. Нажми <strong>Export</strong> — JSON скопируется в буфер обмена.
+                    2. Вставь JSON в поле ниже и нажми <strong>Import</strong>.
+                </p>
+
                 <div class="field">
                     <label for="minDevRange"
                         >Dev Holds Range: {localMinDev}% — {localMaxDev}%</label
@@ -253,12 +316,39 @@
                 </div>
 
                 <div class="actions">
-                    <button class="pill-btn" onclick={saveSettings}>Save</button
-                    >
-                    <button class="pill-btn" onclick={closeSettings}
-                        >Cancel</button
-                    >
+                    <button class="pill-btn" onclick={exportSettings}>
+                        Export
+                    </button>
+                    <button class="pill-btn" onclick={importSettings}>
+                        Import
+                    </button>
+                    <button class="pill-btn" onclick={saveSettings}>Save</button>
+                    <button class="pill-btn" onclick={closeSettings}>Cancel</button>
                 </div>
+
+                <div class="field">
+                    <label for="importJsonInput">Import JSON</label>
+                    <textarea
+                        id="importJsonInput"
+                        bind:value={importJson}
+                        rows="8"
+                        spellcheck="false"
+                        placeholder='Paste the exported JSON here'
+                    ></textarea>
+                    <small class="helper-text">
+                        Можно вставить как новый формат с {`"schema"`} и {`"settings"`},
+                        так и старый плоский JSON с полями фильтров.
+                    </small>
+                </div>
+
+                {#if actionMessage}
+                    <p class="feedback success">{actionMessage}</p>
+                {/if}
+
+                {#if actionError}
+                    <p class="feedback error">{actionError}</p>
+                {/if}
+
             </div>
         </div>
     {/if}
@@ -522,10 +612,30 @@
         outline: none;
     }
 
+    .field textarea {
+        background: #171a24;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: #e2e8f0;
+        border-radius: 8px;
+        padding: 10px;
+        outline: none;
+        resize: vertical;
+        font-family: inherit;
+        line-height: 1.4;
+    }
+
     .field input:focus,
-    .field select:focus {
+    .field select:focus,
+    .field textarea:focus {
         border-color: rgba(96, 165, 250, 0.45);
         box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.12);
+    }
+
+    .instruction {
+        margin: 0 0 12px;
+        color: #b8c4da;
+        font-size: 12px;
+        line-height: 1.45;
     }
 
     .helper-text {
@@ -552,6 +662,20 @@
         display: flex;
         gap: 8px;
         justify-content: flex-end;
+    }
+
+    .feedback {
+        margin: 10px 0 0;
+        font-size: 12px;
+        line-height: 1.4;
+    }
+
+    .feedback.success {
+        color: #93c5fd;
+    }
+
+    .feedback.error {
+        color: #fca5a5;
     }
 
     /* Media queries for responsiveness */
