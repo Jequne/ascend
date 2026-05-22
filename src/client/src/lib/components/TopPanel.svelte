@@ -58,7 +58,7 @@
             <img src="/icons/settings.svg" alt="Settings" class="icon" />
         </button>
 
-        <button class="icon-btn">
+        <button class="icon-btn" onclick={wsStore.clearTokens}>
             <img src="/icons/trash.svg" alt="Trash" class="icon" />
         </button>
     </div>

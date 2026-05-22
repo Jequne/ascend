@@ -96,6 +96,10 @@ class WebSocketStore {
             this.connect();
         }
     }
+
+    clearTokens = () => {
+        this.tokenFeeds = [];
+    }
 }
 
 export const wsStore = new WebSocketStore();
