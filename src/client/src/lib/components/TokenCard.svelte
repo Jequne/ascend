@@ -1,5 +1,32 @@
 <script>
+    import { openUrl } from "@tauri-apps/plugin-opener";
+    import { DEFAULT_FILTERS } from "$lib/config/constants.js";
+    import { filtersStore } from "$lib/stores/filters.svelte.js";
+
     export let feed = {};
+
+    function buildTerminalUrl(token, terminal) {
+        const blockchain = token?.blockchain || "sol";
+
+        if (terminal === "gmgn") {
+            return `https://gmgn.ai/${blockchain}/token/${token?.token_address}`;
+        }
+
+        return `https://axiom.trade/meme/${token?.pair_address}?chain=${blockchain}`;
+    }
+
+    async function openTerminalLink(token) {
+        const terminal = filtersStore.terminal ?? DEFAULT_FILTERS.terminal;
+        const url = buildTerminalUrl(token, terminal);
+
+        if (url) {
+            try {
+                await openUrl(url);
+            } catch (error) {
+                window.open(url, "_blank", "noopener,noreferrer");
+            }
+        }
+    }
 
     function copyToClipboard(text) {
         if (text) {
@@ -42,93 +69,111 @@
 
 <div class="token-card">
     <div class="block new-token-block">
-        <div class="row main-info">
-            <div class="image-container">
-                <div class="image-placeholder">
-                    {feed.token_ticker?.substring(0, 2) || "?"}
-                </div>
-                {#if feed.token_image}
-                    <img
-                        src={feed.token_image}
-                        alt={feed.token_ticker}
-                        class="token-image"
-                        on:error={(e) => (e.target.style.display = "none")}
-                    />
-                {/if}
-            </div>
-
-            <div class="token-details-wrapper">
-                <div class="token-details-top">
-                    <button
-                        class="token-name-header"
-                        title="Click to copy address"
-                        on:click={() => copyToClipboard(feed.token_address)}
-                    >
-                        <span class="ticker">${feed.token_ticker}</span>
-                        <span class="name-text">{feed.token_name}</span>
-                    </button>
-
-                    <div class="token-top-stats">
-                        {#if feed.dev_holds_percent !== null}
-                            <span class="dh-stat"
-                                >DH: {Number(feed.dev_holds_percent).toFixed(
-                                    1,
-                                )}%</span
-                            >
-                        {/if}
+        <div
+            class="new-token-link"
+            role="button"
+            tabindex="0"
+            on:click={() => openTerminalLink(feed)}
+            on:keydown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openTerminalLink(feed);
+                }
+            }}
+        >
+            <div class="row main-info">
+                <div class="image-container">
+                    <div class="image-placeholder">
+                        {feed.token_ticker?.substring(0, 2) || "?"}
                     </div>
+                    {#if feed.token_image}
+                        <img
+                            src={feed.token_image}
+                            alt={feed.token_ticker}
+                            class="token-image"
+                            on:error={(e) => (e.target.style.display = "none")}
+                        />
+                    {/if}
                 </div>
 
-                <div class="token-details-bottom">
-                    <div class="socials">
-                        {#if feed.website}
-                            <a
-                                href={feed.website}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                ><img
-                                    src="/icons/website.svg"
-                                    alt="Website"
-                                    class="icon"
-                                /></a
-                            >
-                        {/if}
-                        {#if feed.twitter}
-                            <a
-                                href={feed.twitter}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                ><img
-                                    src="/icons/twitter.svg"
-                                    alt="Twitter"
-                                    class="icon"
-                                /></a
-                            >
-                        {/if}
-                        {#if feed.telegram}
-                            <a
-                                href={feed.telegram}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                ><img
-                                    src="/icons/telegram.svg"
-                                    alt="Telegram"
-                                    class="icon"
-                                /></a
-                            >
-                        {/if}
-                        {#if feed.discord}
-                            <a
-                                href={feed.discord}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                ><img
-                                    src="/icons/discord.svg"
-                                    alt="Discord"
-                                    class="icon"
-                                /></a
-                            >
-                        {/if}
+                <div class="token-details-wrapper">
+                    <div class="token-details-top">
+                        <button
+                            class="token-name-header"
+                            title="Click to copy address"
+                            on:click|stopPropagation={() =>
+                                copyToClipboard(feed.token_address)}
+                        >
+                            <span class="ticker">${feed.token_ticker}</span>
+                            <span class="name-text">{feed.token_name}</span>
+                        </button>
+
+                        <div class="token-top-stats">
+                            {#if feed.dev_holds_percent !== null}
+                                <span class="dh-stat"
+                                    >DH: {Number(
+                                        feed.dev_holds_percent,
+                                    ).toFixed(1)}%</span
+                                >
+                            {/if}
+                        </div>
+                    </div>
+
+                    <div class="token-details-bottom">
+                        <div class="socials">
+                            {#if feed.website}
+                                <a
+                                    href={feed.website}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    on:click|stopPropagation
+                                    ><img
+                                        src="/icons/website.svg"
+                                        alt="Website"
+                                        class="icon"
+                                    /></a
+                                >
+                            {/if}
+                            {#if feed.twitter}
+                                <a
+                                    href={feed.twitter}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    on:click|stopPropagation
+                                    ><img
+                                        src="/icons/twitter.svg"
+                                        alt="Twitter"
+                                        class="icon"
+                                    /></a
+                                >
+                            {/if}
+                            {#if feed.telegram}
+                                <a
+                                    href={feed.telegram}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    on:click|stopPropagation
+                                    ><img
+                                        src="/icons/telegram.svg"
+                                        alt="Telegram"
+                                        class="icon"
+                                    /></a
+                                >
+                            {/if}
+                            {#if feed.discord}
+                                <a
+                                    href={feed.discord}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    on:click|stopPropagation
+                                    ><img
+                                        src="/icons/discord.svg"
+                                        alt="Discord"
+                                        class="icon"
+                                    /></a
+                                >
+                            {/if}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -190,7 +235,18 @@
             <h4 class="section-title">Last Tokens</h4>
             <div class="last-tokens-list">
                 {#each feed.last_deployed_tokens as lastToken, j (lastToken.token_address + "_" + j)}
-                    <div class="last-token-item">
+                    <div
+                        class="last-token-item"
+                        role="button"
+                        tabindex="0"
+                        on:click={() => openTerminalLink(lastToken)}
+                        on:keydown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                openTerminalLink(lastToken);
+                            }
+                        }}
+                    >
                         <div class="last-token-lhs">
                             <div class="last-image-container">
                                 <div class="last-image-placeholder">
@@ -264,6 +320,7 @@
                                     href={lastToken.website}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    on:click|stopPropagation
                                     ><img
                                         src="/icons/website.svg"
                                         alt="Website"
@@ -276,6 +333,7 @@
                                     href={lastToken.twitter}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    on:click|stopPropagation
                                     ><img
                                         src="/icons/twitter.svg"
                                         alt="Twitter"
@@ -288,6 +346,7 @@
                                     href={lastToken.telegram}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    on:click|stopPropagation
                                     ><img
                                         src="/icons/telegram.svg"
                                         alt="Telegram"
@@ -300,6 +359,7 @@
                                     href={lastToken.discord}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    on:click|stopPropagation
                                     ><img
                                         src="/icons/discord.svg"
                                         alt="Discord"
@@ -346,6 +406,71 @@
         gap: 8px;
         padding-bottom: 10px;
         border-bottom: 1px solid #2d2e3d;
+    }
+
+    .new-token-link,
+    .last-token-item {
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        transition:
+            transform 160ms ease,
+            border-color 160ms ease,
+            box-shadow 160ms ease,
+            background-color 160ms ease;
+        isolation: isolate;
+    }
+
+    .new-token-link::before,
+    .last-token-item::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: linear-gradient(
+                135deg,
+                rgba(129, 140, 248, 0.12),
+                transparent 42%
+            ),
+            linear-gradient(315deg, rgba(16, 185, 129, 0.08), transparent 55%);
+        opacity: 0;
+        transition: opacity 160ms ease;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .new-token-link:hover,
+    .new-token-link:focus-visible,
+    .last-token-item:hover,
+    .last-token-item:focus-visible {
+        transform: translateY(-1px);
+        box-shadow:
+            0 10px 24px rgba(0, 0, 0, 0.18),
+            0 0 0 1px rgba(129, 140, 248, 0.12);
+        border-color: rgba(129, 140, 248, 0.18);
+    }
+
+    .new-token-link:hover::before,
+    .new-token-link:focus-visible::before,
+    .last-token-item:hover::before,
+    .last-token-item:focus-visible::before {
+        opacity: 1;
+    }
+
+    .new-token-link > *,
+    .last-token-item > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .new-token-link:focus-visible,
+    .last-token-item:focus-visible {
+        outline: none;
+    }
+
+    .new-token-link {
+        border-radius: 8px;
+        padding: 2px 2px 4px;
     }
 
     .dev-stats-row {

@@ -23,6 +23,7 @@
     let localMinLastTokenFees = Number(
         filtersStore.minLastTokenFees ?? DEFAULT_FILTERS.minLastTokenFees,
     );
+    let localTerminal = filtersStore.terminal ?? DEFAULT_FILTERS.terminal;
 
     const openSettings = () => {
         // sync from store when opening
@@ -42,6 +43,7 @@
         localMinLastTokenFees = Number(
             filtersStore.minLastTokenFees ?? DEFAULT_FILTERS.minLastTokenFees,
         );
+        localTerminal = filtersStore.terminal ?? DEFAULT_FILTERS.terminal;
         showSettings = true;
     };
 
@@ -59,6 +61,7 @@
         filtersStore.minMigrationPercent = Number(localMinMigration);
         filtersStore.feesMode = localFeesMode;
         filtersStore.minLastTokenFees = Number(localMinLastTokenFees);
+        filtersStore.terminal = localTerminal;
 
         showSettings = false;
     };
@@ -215,6 +218,18 @@
                         <option value="avg">avg</option>
                         <option value="total">total</option>
                         <option value="fixed">fixed</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="terminalSelect">Token Terminal</label>
+                    <select
+                        id="terminalSelect"
+                        value={localTerminal}
+                        oninput={(e) => (localTerminal = e.target.value)}
+                    >
+                        <option value="axiom">Axiom</option>
+                        <option value="gmgn">GMGN</option>
                     </select>
                 </div>
 

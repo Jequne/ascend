@@ -6,6 +6,7 @@ class FiltersStore {
     minMigrationPercent = $state(DEFAULT_FILTERS.minMigrationPercent);
     feesMode = $state(DEFAULT_FILTERS.feesMode);
     minLastTokenFees = $state(DEFAULT_FILTERS.minLastTokenFees);
+    terminal = $state(DEFAULT_FILTERS.terminal);
 }
 
 export const filtersStore = new FiltersStore();
