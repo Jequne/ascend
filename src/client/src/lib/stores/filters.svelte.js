@@ -82,6 +82,14 @@ class FiltersStore {
         this.updateFilters({ autoOpenInNewTab: value });
     }
 
+    get aggressiveAutoOpen() {
+        return this.filters.aggressiveAutoOpen;
+    }
+
+    set aggressiveAutoOpen(value) {
+        this.updateFilters({ aggressiveAutoOpen: value });
+    }
+
     init() {
         settingsStore.init();
     }

@@ -92,6 +92,7 @@ export function normalizeFilters(filters = {}) {
         lastTokensRequiredCount,
         terminal: normalizeTerminal(source.terminal),
         autoOpenInNewTab: Boolean(source.autoOpenInNewTab),
+        aggressiveAutoOpen: Boolean(source.aggressiveAutoOpen),
     };
 }
 

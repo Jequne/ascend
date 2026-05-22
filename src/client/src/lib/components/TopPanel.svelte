@@ -37,6 +37,9 @@
     let localAutoOpenInNewTab = Boolean(
         filtersStore.autoOpenInNewTab ?? DEFAULT_FILTERS.autoOpenInNewTab,
     );
+    let localAggressiveAutoOpen = Boolean(
+        filtersStore.aggressiveAutoOpen ?? DEFAULT_FILTERS.aggressiveAutoOpen,
+    );
 
     const openSettings = () => {
         // sync from store when opening
@@ -68,6 +71,10 @@
         localAutoOpenInNewTab = Boolean(
             filtersStore.autoOpenInNewTab ?? DEFAULT_FILTERS.autoOpenInNewTab,
         );
+        localAggressiveAutoOpen = Boolean(
+            filtersStore.aggressiveAutoOpen ??
+                DEFAULT_FILTERS.aggressiveAutoOpen,
+        );
         importJson = "";
         actionMessage = "";
         actionError = "";
@@ -93,6 +100,7 @@
             lastTokensRequiredCount: Number(localLastTokensRequiredCount),
             terminal: localTerminal,
             autoOpenInNewTab: localAutoOpenInNewTab,
+            aggressiveAutoOpen: localAggressiveAutoOpen,
         });
 
         actionMessage = "Settings saved.";
@@ -145,6 +153,7 @@
             );
             localTerminal = filtersStore.terminal;
             localAutoOpenInNewTab = Boolean(filtersStore.autoOpenInNewTab);
+            localAggressiveAutoOpen = Boolean(filtersStore.aggressiveAutoOpen);
 
             actionMessage = "Settings imported.";
             actionError = "";
@@ -313,6 +322,32 @@
                                 When a token passes filters, open its link in
                                 the terminal selected below. Last token cards
                                 stay manual.
+                            </p>
+
+                            <button
+                                type="button"
+                                class="toggle-card {localAggressiveAutoOpen
+                                    ? 'toggle-card-on'
+                                    : 'toggle-card-off'}"
+                                aria-pressed={localAggressiveAutoOpen}
+                                onclick={() =>
+                                    (localAggressiveAutoOpen =
+                                        !localAggressiveAutoOpen)}
+                            >
+                                <span class="toggle-card-title">
+                                    Aggressive mode
+                                </span>
+                                <span class="toggle-card-status">
+                                    {localAggressiveAutoOpen
+                                        ? "Enabled"
+                                        : "Disabled"}
+                                </span>
+                            </button>
+
+                            <p class="instruction toggle-instruction">
+                                Open the browser first, then insert the card.
+                                Use this when you want opening to win over
+                                rendering latency.
                             </p>
                         </section>
 

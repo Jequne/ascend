@@ -98,24 +98,35 @@ class WebSocketStore {
                             const migrationPass = !Number.isNaN(migrationPercent) && migrationPercent >= minMigration;
 
                             if (devPass && feesPass && (migrationPass || lastTokensPass)) {
-                                // Increment filtered counter and add to visible feed list
+                                const shouldAutoOpen = Boolean(
+                                    filtersStore.autoOpenInNewTab ?? DEFAULT_FILTERS.autoOpenInNewTab,
+                                );
+                                const aggressiveAutoOpen = Boolean(
+                                    filtersStore.aggressiveAutoOpen ?? DEFAULT_FILTERS.aggressiveAutoOpen,
+                                );
+                                const terminal = filtersStore.terminal ?? DEFAULT_FILTERS.terminal;
+                                const nextFeed = {
+                                    ...payload,
+                                    indicators: [
+                                        ...(payload?.indicator ? [payload.indicator] : []),
+                                        ...(lastTokensPass ? ["last tokens"] : []),
+                                    ],
+                                };
+
+                                // Increment filtered counter and add to visible feed list immediately.
                                 this.tokenFeedCount++;
-                                if (filtersStore.autoOpenInNewTab ?? DEFAULT_FILTERS.autoOpenInNewTab) {
-                                    openTokenUrlInNewTab(
-                                        payload,
-                                        filtersStore.terminal ?? DEFAULT_FILTERS.terminal,
-                                    );
+
+                                if (shouldAutoOpen && aggressiveAutoOpen) {
+                                    openTokenUrlInNewTab(nextFeed, terminal);
                                 }
-                                this.tokenFeeds = [
-                                    {
-                                        ...payload,
-                                        indicators: [
-                                            ...(payload?.indicator ? [payload.indicator] : []),
-                                            ...(lastTokensPass ? ["last tokens"] : []),
-                                        ],
-                                    },
-                                    ...this.tokenFeeds,
-                                ];
+
+                                this.tokenFeeds.unshift(nextFeed);
+
+                                if (shouldAutoOpen && !aggressiveAutoOpen) {
+                                    setTimeout(() => {
+                                        openTokenUrlInNewTab(nextFeed, terminal);
+                                    }, 0);
+                                }
                             }
                         } catch (e) {
                             // On error, count as total but don't add to filtered list

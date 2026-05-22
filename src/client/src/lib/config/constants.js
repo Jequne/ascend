@@ -13,4 +13,5 @@ export const DEFAULT_FILTERS = {
     lastTokensRequiredCount: 0,
     terminal: "axiom",
     autoOpenInNewTab: false,
+    aggressiveAutoOpen: false,
 };

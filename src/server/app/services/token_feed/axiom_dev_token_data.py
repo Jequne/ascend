@@ -119,6 +119,7 @@ class AxiomDevTokenData():
     @classmethod
     async def _prepared_last_deployed_tokens(
             cls,
+            new_token_pair_address: str,
             blockchain: str,
             dev_tokens: DevTokensV3Response,
             dev_wallet: str
@@ -126,8 +127,14 @@ class AxiomDevTokenData():
         deployed_tokens_count_need = 3
 
         if dev_tokens:
-            recent_deployed_tokens = \
-                dev_tokens.tokens[:deployed_tokens_count_need]
+            if len(dev_tokens.tokens) >=1 \
+                and dev_tokens.tokens[0].pair_address ==  new_token_pair_address:
+                
+                recent_deployed_tokens = \
+                dev_tokens.tokens[1:deployed_tokens_count_need]
+            else:
+                recent_deployed_tokens = \
+                    dev_tokens.tokens[:deployed_tokens_count_need]
             
             recent_deployed_tokens_data: List[DeployedToken] = \
                 await cls._get_full_info_about_recent_tokens(
@@ -168,7 +175,8 @@ class AxiomDevTokenData():
         last_deployed_tokens = await cls._prepared_last_deployed_tokens(
             blockchain=blockchain,
             dev_tokens=dev_tokens,
-            dev_wallet=dev_wallet
+            dev_wallet=dev_wallet,
+            new_token_pair_address=new_pairs_data.content.pair_address
         )
 
         token_feed_base = TokenFeedBase(

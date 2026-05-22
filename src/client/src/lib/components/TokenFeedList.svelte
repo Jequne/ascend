@@ -1,19 +1,11 @@
 <script>
     import TokenCard from "./TokenCard.svelte";
     import { wsStore } from "$lib/stores/websocket.svelte.js";
-
-    $effect(() => {
-        console.log(
-            "TokenFeeds updated:",
-            wsStore.tokenFeeds,
-            wsStore.isConnected,
-        );
-    });
 </script>
 
 <div class="feed-container">
     {#if wsStore.tokenFeeds && wsStore.tokenFeeds.length > 0}
-        {#each wsStore.tokenFeeds as feed, i (feed.token_address + "_" + i)}
+        {#each wsStore.tokenFeeds as feed}
             <TokenCard {feed} />
         {/each}
     {:else if !wsStore.isConnected}
