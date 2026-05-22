@@ -97,7 +97,8 @@
             actionMessage = "Settings copied to clipboard.";
             actionError = "";
         } catch (error) {
-            actionError = error instanceof Error ? error.message : String(error);
+            actionError =
+                error instanceof Error ? error.message : String(error);
             actionMessage = "";
         }
     };
@@ -119,7 +120,8 @@
             actionMessage = "Settings imported.";
             actionError = "";
         } catch (error) {
-            actionError = error instanceof Error ? error.message : String(error);
+            actionError =
+                error instanceof Error ? error.message : String(error);
             actionMessage = "";
         }
     };
@@ -132,6 +134,21 @@
     function onMaxDevInput(e) {
         const v = Number(e.target.value);
         localMaxDev = Math.max(v, localMinDev);
+    }
+
+    function getDevHoldsRangeBackground() {
+        const min = DEFAULT_FILTERS.minDevHoldsPercent;
+        const max = 100;
+        const minPercent = ((Number(localMinDev) - min) / (max - min)) * 100;
+        const maxPercent = ((Number(localMaxDev) - min) / (max - min)) * 100;
+
+        return `linear-gradient(to right,
+            rgba(37, 99, 235, 0.18) 0%,
+            rgba(37, 99, 235, 0.18) ${minPercent}%,
+            rgba(59, 130, 246, 0.98) ${minPercent}%,
+            rgba(59, 130, 246, 0.98) ${maxPercent}%,
+            rgba(37, 99, 235, 0.24) ${maxPercent}%,
+            rgba(37, 99, 235, 0.24) 100%)`;
     }
 
     function overlayKeydown(e) {
@@ -224,131 +241,200 @@
                 aria-modal="true"
                 tabindex="0"
             >
-                <h3>Filters Settings</h3>
-
-                <p class="instruction">
-                    1. Нажми <strong>Export</strong> — JSON скопируется в буфер обмена.
-                    2. Вставь JSON в поле ниже и нажми <strong>Import</strong>.
-                </p>
-
-                <div class="field">
-                    <label for="minDevRange"
-                        >Dev Holds Range: {localMinDev}% — {localMaxDev}%</label
-                    >
-                    <div class="range-wrap">
-                        <input
-                            id="minDevRange"
-                            type="range"
-                            min={DEFAULT_FILTERS.minDevHoldsPercent}
-                            max="100"
-                            step="0.1"
-                            value={localMinDev}
-                            oninput={onMinDevInput}
-                        />
-                        <input
-                            id="maxDevRange"
-                            type="range"
-                            min={DEFAULT_FILTERS.minDevHoldsPercent}
-                            max="100"
-                            step="0.1"
-                            value={localMaxDev}
-                            oninput={onMaxDevInput}
-                        />
+                <div class="settings-header">
+                    <div>
+                        <h3>Settings</h3>
+                        <p class="subtitle">
+                            Saved locally on this device. Export copies JSON to
+                            the clipboard, Import reads JSON from the field
+                            below.
+                        </p>
                     </div>
                 </div>
 
-                <div class="field">
-                    <label for="minMigrationInput">Min Migration %</label>
-                    <input
-                        id="minMigrationInput"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="1"
-                        value={localMinMigration}
-                        oninput={(e) =>
-                            (localMinMigration = Number(e.target.value))}
-                    />
+                <div class="settings-scroll">
+                    <div class="settings-grid">
+                        <section class="settings-card settings-card-span-2">
+                            <div class="card-head">
+                                <h4>Dev holds range</h4>
+                                <span class="card-meta"
+                                    >{localMinDev}% — {localMaxDev}%</span
+                                >
+                            </div>
+                            <div class="field field-tight">
+                                <div class="range-wrap">
+                                    <input
+                                        id="minDevRange"
+                                        class="range-input range-min"
+                                        type="range"
+                                        min={DEFAULT_FILTERS.minDevHoldsPercent}
+                                        max="100"
+                                        step="0.1"
+                                        value={localMinDev}
+                                        style={`background: ${getDevHoldsRangeBackground()};`}
+                                        oninput={onMinDevInput}
+                                    />
+                                    <input
+                                        id="maxDevRange"
+                                        class="range-input range-max"
+                                        type="range"
+                                        min={DEFAULT_FILTERS.minDevHoldsPercent}
+                                        max="100"
+                                        step="0.1"
+                                        value={localMaxDev}
+                                        style={`background: ${getDevHoldsRangeBackground()};`}
+                                        oninput={onMaxDevInput}
+                                    />
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="settings-card">
+                            <div class="card-head">
+                                <h4>Trading filter</h4>
+                                <span class="card-meta">Core thresholds</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="minMigrationInput"
+                                    >Min migration %</label
+                                >
+                                <input
+                                    id="minMigrationInput"
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="1"
+                                    value={localMinMigration}
+                                    oninput={(e) =>
+                                        (localMinMigration = Number(
+                                            e.target.value,
+                                        ))}
+                                />
+                            </div>
+
+                            <div class="field">
+                                <label for="feesModeSelect"
+                                    >Last Tokens Fees Mode</label
+                                >
+                                <select
+                                    id="feesModeSelect"
+                                    value={localFeesMode}
+                                    oninput={(e) =>
+                                        (localFeesMode = e.target.value)}
+                                >
+                                    <option value="avg">avg</option>
+                                    <option value="total">total</option>
+                                    <option value="fixed">fixed</option>
+                                </select>
+                            </div>
+
+                            <div class="field">
+                                <label for="minLastTokenFeesInput"
+                                    >Min last token fees</label
+                                >
+                                <input
+                                    id="minLastTokenFeesInput"
+                                    type="number"
+                                    min="0"
+                                    step="0.1"
+                                    value={localMinLastTokenFees}
+                                    oninput={(e) =>
+                                        (localMinLastTokenFees = Number(
+                                            e.target.value,
+                                        ))}
+                                />
+                                <small class="helper-text">
+                                    Tokens older than {LAST_TOKEN_FEES_AGE_EXCLUSION_DAYS}
+                                    days are ignored when their fees are below the
+                                    threshold.
+                                </small>
+                            </div>
+                        </section>
+
+                        <section class="settings-card">
+                            <div class="card-head">
+                                <h4>Terminal source</h4>
+                                <span class="card-meta">Token provider</span>
+                            </div>
+
+                            <div class="field">
+                                <label for="terminalSelect"
+                                    >Token terminal</label
+                                >
+                                <select
+                                    id="terminalSelect"
+                                    value={localTerminal}
+                                    oninput={(e) =>
+                                        (localTerminal = e.target.value)}
+                                >
+                                    <option value="axiom">Axiom</option>
+                                    <option value="gmgn">GMGN</option>
+                                </select>
+                            </div>
+                        </section>
+
+                        <section class="settings-card settings-card-span-2">
+                            <div class="card-head">
+                                <h4>Transfer settings</h4>
+                                <span class="card-meta">Clipboard / paste</span>
+                            </div>
+
+                            <p class="instruction">
+                                Export copies JSON to clipboard. Paste it below,
+                                then press Import.
+                            </p>
+
+                            <div class="transfer-actions">
+                                <button
+                                    class="pill-btn secondary"
+                                    onclick={exportSettings}
+                                >
+                                    Export
+                                </button>
+                                <button
+                                    class="pill-btn secondary"
+                                    onclick={importSettings}
+                                >
+                                    Import
+                                </button>
+                            </div>
+
+                            <div class="field field-tight">
+                                <label for="importJsonInput">Import JSON</label>
+                                <textarea
+                                    id="importJsonInput"
+                                    bind:value={importJson}
+                                    rows="8"
+                                    spellcheck="false"
+                                    placeholder="Paste the exported JSON here"
+                                ></textarea>
+                                <small class="helper-text">
+                                    You can paste the new format with {`"schema"`}
+                                    and {`"settings"`}, or the legacy flat JSON
+                                    with filter fields.
+                                </small>
+                            </div>
+                        </section>
+                    </div>
+
+                    {#if actionMessage}
+                        <p class="feedback success">{actionMessage}</p>
+                    {/if}
+
+                    {#if actionError}
+                        <p class="feedback error">{actionError}</p>
+                    {/if}
                 </div>
 
-                <div class="field">
-                    <label for="feesModeSelect">Last Tokens Fees Mode</label>
-                    <select
-                        id="feesModeSelect"
-                        value={localFeesMode}
-                        oninput={(e) => (localFeesMode = e.target.value)}
+                <div class="settings-footer">
+                    <button class="pill-btn ghost" onclick={closeSettings}
+                        >Cancel</button
                     >
-                        <option value="avg">avg</option>
-                        <option value="total">total</option>
-                        <option value="fixed">fixed</option>
-                    </select>
-                </div>
-
-                <div class="field">
-                    <label for="terminalSelect">Token Terminal</label>
-                    <select
-                        id="terminalSelect"
-                        value={localTerminal}
-                        oninput={(e) => (localTerminal = e.target.value)}
+                    <button class="pill-btn primary" onclick={saveSettings}
+                        >Save</button
                     >
-                        <option value="axiom">Axiom</option>
-                        <option value="gmgn">GMGN</option>
-                    </select>
                 </div>
-
-                <div class="field">
-                    <label for="minLastTokenFeesInput">
-                        Min Last Token Fees
-                    </label>
-                    <input
-                        id="minLastTokenFeesInput"
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={localMinLastTokenFees}
-                        oninput={(e) =>
-                            (localMinLastTokenFees = Number(e.target.value))}
-                    />
-                    <small class="helper-text">
-                        Last tokens older than {LAST_TOKEN_FEES_AGE_EXCLUSION_DAYS}
-                        days are ignored when their fees are below the threshold.
-                    </small>
-                </div>
-
-                <div class="actions">
-                    <button class="pill-btn" onclick={exportSettings}>
-                        Export
-                    </button>
-                    <button class="pill-btn" onclick={importSettings}>
-                        Import
-                    </button>
-                    <button class="pill-btn" onclick={saveSettings}>Save</button>
-                    <button class="pill-btn" onclick={closeSettings}>Cancel</button>
-                </div>
-
-                <div class="field">
-                    <label for="importJsonInput">Import JSON</label>
-                    <textarea
-                        id="importJsonInput"
-                        bind:value={importJson}
-                        rows="8"
-                        spellcheck="false"
-                        placeholder='Paste the exported JSON here'
-                    ></textarea>
-                    <small class="helper-text">
-                        Можно вставить как новый формат с {`"schema"`} и {`"settings"`},
-                        так и старый плоский JSON с полями фильтров.
-                    </small>
-                </div>
-
-                {#if actionMessage}
-                    <p class="feedback success">{actionMessage}</p>
-                {/if}
-
-                {#if actionError}
-                    <p class="feedback error">{actionError}</p>
-                {/if}
-
             </div>
         </div>
     {/if}
@@ -573,80 +659,195 @@
     .settings-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.5);
+        background: radial-gradient(
+                circle at top,
+                rgba(59, 130, 246, 0.18),
+                transparent 42%
+            ),
+            rgba(4, 7, 14, 0.76);
+        backdrop-filter: blur(10px);
         display: flex;
         align-items: center;
         justify-content: center;
         z-index: 50;
+        padding: 12px;
+        box-sizing: border-box;
     }
 
     .settings-modal {
-        background: #0f111a;
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        padding: 16px;
-        border-radius: 12px;
-        width: 360px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+        width: min(620px, 100%);
+        max-height: min(84vh, 680px);
+        background: linear-gradient(
+                180deg,
+                rgba(18, 22, 34, 0.98),
+                rgba(13, 16, 26, 0.98)
+            ),
+            #0d1018;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        box-shadow:
+            0 24px 80px rgba(0, 0, 0, 0.55),
+            inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 
-    .settings-modal h3 {
-        margin: 0 0 12px 0;
+    .settings-header {
+        padding: 14px 14px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.03),
+            transparent
+        );
+    }
+
+    .settings-header h3 {
+        margin: 0;
         font-size: 16px;
+        letter-spacing: 0.2px;
+    }
+
+    .subtitle {
+        margin: 6px 0 0;
+        color: #94a3b8;
+        font-size: 11px;
+        line-height: 1.5;
+        max-width: 56ch;
+    }
+
+    .settings-scroll {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 12px 14px 14px;
+    }
+
+    .settings-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .settings-card {
+        background: linear-gradient(
+                180deg,
+                rgba(255, 255, 255, 0.03),
+                rgba(255, 255, 255, 0.015)
+            ),
+            rgba(10, 13, 22, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 14px;
+        padding: 12px;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.03),
+            0 10px 26px rgba(0, 0, 0, 0.18);
+    }
+
+    .settings-card-span-2 {
+        grid-column: span 2;
+    }
+
+    .card-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .card-head h4 {
+        margin: 0;
+        font-size: 12px;
+        letter-spacing: 0.24px;
+        text-transform: uppercase;
+        color: #e5e7eb;
+    }
+
+    .card-meta {
+        color: #64748b;
+        font-size: 10px;
+        white-space: nowrap;
     }
 
     .field {
-        margin-bottom: 12px;
+        margin-bottom: 10px;
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 5px;
+    }
+
+    .field:last-child {
+        margin-bottom: 0;
+    }
+
+    .field-tight {
+        margin-bottom: 0;
+    }
+
+    .field label {
+        color: #dbe4f0;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.15px;
     }
 
     .field input,
     .field select {
-        background: #171a24;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        color: #e2e8f0;
-        border-radius: 8px;
-        height: 36px;
+        background: rgba(12, 15, 24, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        color: #e5eefb;
+        border-radius: 10px;
+        height: 38px;
         padding: 0 10px;
         outline: none;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
     }
 
     .field textarea {
-        background: #171a24;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        color: #e2e8f0;
-        border-radius: 8px;
+        background: rgba(12, 15, 24, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        color: #e5eefb;
+        border-radius: 10px;
         padding: 10px;
         outline: none;
         resize: vertical;
         font-family: inherit;
         line-height: 1.4;
+        min-height: 128px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
     }
 
     .field input:focus,
     .field select:focus,
     .field textarea:focus {
-        border-color: rgba(96, 165, 250, 0.45);
-        box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.12);
+        border-color: rgba(96, 165, 250, 0.42);
+        box-shadow:
+            0 0 0 3px rgba(96, 165, 250, 0.11),
+            inset 0 1px 0 rgba(255, 255, 255, 0.03);
     }
 
     .instruction {
-        margin: 0 0 12px;
+        margin: 0 0 10px;
         color: #b8c4da;
-        font-size: 12px;
+        font-size: 11px;
         line-height: 1.45;
     }
 
     .helper-text {
         color: #91a0b7;
-        font-size: 11px;
+        font-size: 10px;
         line-height: 1.35;
     }
 
     .range-wrap {
         position: relative;
-        height: 28px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        height: 30px;
+        margin-top: 4px;
+        overflow: visible;
     }
 
     .range-wrap input[type="range"] {
@@ -654,19 +855,88 @@
         left: 0;
         right: 0;
         width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        height: 30px;
+        margin: 0;
+        padding: 0;
+        appearance: none;
+        -webkit-appearance: none;
         background: transparent;
         pointer-events: auto;
+        cursor: pointer;
+        outline: none;
     }
 
-    .actions {
+    .range-wrap input[type="range"]::-webkit-slider-runnable-track {
+        height: 8px;
+        border-radius: 999px;
+        background: transparent;
+    }
+
+    .range-wrap input[type="range"]::-moz-range-track {
+        height: 8px;
+        border-radius: 999px;
+        background: transparent;
+    }
+
+    .range-wrap input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 19px;
+        height: 19px;
+        border-radius: 50%;
+        border: 2px solid rgba(239, 246, 255, 0.96);
+        background: linear-gradient(180deg, #93c5fd, #2563eb);
+        box-shadow:
+            0 0 0 4px rgba(59, 130, 246, 0.16),
+            0 8px 18px rgba(0, 0, 0, 0.35);
+        margin-top: -5px;
+    }
+
+    .range-wrap input[type="range"]::-moz-range-thumb {
+        width: 19px;
+        height: 19px;
+        border-radius: 50%;
+        border: 2px solid rgba(239, 246, 255, 0.96);
+        background: linear-gradient(180deg, #93c5fd, #2563eb);
+        box-shadow:
+            0 0 0 4px rgba(59, 130, 246, 0.16),
+            0 8px 18px rgba(0, 0, 0, 0.35);
+    }
+
+    .range-wrap input[type="range"]:focus-visible::-webkit-slider-thumb {
+        box-shadow:
+            0 0 0 5px rgba(96, 165, 250, 0.2),
+            0 0 0 9px rgba(37, 99, 235, 0.12),
+            0 8px 18px rgba(0, 0, 0, 0.35);
+    }
+
+    .range-wrap input[type="range"]:focus-visible::-moz-range-thumb {
+        box-shadow:
+            0 0 0 5px rgba(96, 165, 250, 0.2),
+            0 0 0 9px rgba(37, 99, 235, 0.12),
+            0 8px 18px rgba(0, 0, 0, 0.35);
+    }
+
+    .range-input.range-min {
+        z-index: 2;
+    }
+
+    .range-input.range-max {
+        z-index: 1;
+    }
+
+    .transfer-actions {
         display: flex;
         gap: 8px;
-        justify-content: flex-end;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
     }
 
     .feedback {
         margin: 10px 0 0;
-        font-size: 12px;
+        font-size: 11px;
         line-height: 1.4;
     }
 
@@ -676,6 +946,75 @@
 
     .feedback.error {
         color: #fca5a5;
+    }
+
+    .settings-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 12px 14px 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        background: linear-gradient(
+            180deg,
+            transparent,
+            rgba(255, 255, 255, 0.025)
+        );
+    }
+
+    .pill-btn {
+        transition:
+            background-color 160ms ease,
+            border-color 160ms ease,
+            box-shadow 160ms ease,
+            color 160ms ease,
+            transform 160ms ease;
+    }
+
+    .pill-btn:hover,
+    .icon-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .pill-btn.secondary {
+        min-width: 80px;
+        background: rgba(22, 26, 38, 0.92);
+        color: #dbe4f0;
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .pill-btn.primary {
+        min-width: 94px;
+        background: linear-gradient(135deg, #2f7cf6, #2563eb);
+        border-color: rgba(96, 165, 250, 0.3);
+        color: #f8fbff;
+    }
+
+    .pill-btn.ghost {
+        min-width: 84px;
+        background: rgba(22, 26, 38, 0.72);
+        color: #cbd5e1;
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .settings-scroll::-webkit-scrollbar {
+        width: 10px;
+    }
+
+    .settings-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .settings-scroll::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.25);
+        border-radius: 999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+    }
+
+    .settings-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(148, 163, 184, 0.42);
+        border: 2px solid transparent;
+        background-clip: padding-box;
     }
 
     /* Media queries for responsiveness */
@@ -710,6 +1049,53 @@
 
         .ws-btn {
             min-width: 80px;
+        }
+
+        .settings-overlay {
+            padding: 10px;
+        }
+
+        .settings-modal {
+            max-height: calc(100vh - 20px);
+            border-radius: 16px;
+        }
+
+        .settings-header,
+        .settings-scroll,
+        .settings-footer {
+            padding-left: 12px;
+            padding-right: 12px;
+        }
+
+        .settings-grid {
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .settings-card-span-2 {
+            grid-column: auto;
+        }
+
+        .settings-footer {
+            justify-content: stretch;
+            flex-direction: column-reverse;
+        }
+
+        .settings-footer .pill-btn {
+            width: 100%;
+        }
+
+        .transfer-actions {
+            flex-direction: column;
+        }
+
+        .transfer-actions .pill-btn {
+            width: 100%;
+        }
+
+        .card-head {
+            align-items: flex-start;
+            flex-direction: column;
         }
     }
 </style>
