@@ -50,6 +50,29 @@ export function normalizeFilters(filters = {}) {
         100,
         DEFAULT_FILTERS.minMigrationPercent,
     );
+    const minLastTokenAthMcap = Math.max(
+        0,
+        clampNumber(
+            source.minLastTokenAthMcap,
+            0,
+            Number.POSITIVE_INFINITY,
+            DEFAULT_FILTERS.minLastTokenAthMcap,
+        ),
+    );
+    const lastTokensRequiredCount = Math.max(
+        0,
+        Math.min(
+            3,
+            Math.round(
+                clampNumber(
+                    source.lastTokensRequiredCount,
+                    0,
+                    3,
+                    DEFAULT_FILTERS.lastTokensRequiredCount,
+                ),
+            ),
+        ),
+    );
 
     return {
         minDevHoldsPercent: Math.min(minDev, maxDev),
@@ -65,6 +88,8 @@ export function normalizeFilters(filters = {}) {
                 DEFAULT_FILTERS.minLastTokenFees,
             ),
         ),
+        minLastTokenAthMcap,
+        lastTokensRequiredCount,
         terminal: normalizeTerminal(source.terminal),
     };
 }
@@ -84,6 +109,8 @@ function looksLikeLegacyFilters(candidate) {
         "minMigrationPercent",
         "feesMode",
         "minLastTokenFees",
+        "minLastTokenAthMcap",
+        "lastTokensRequiredCount",
         "terminal",
     ].some((key) => Object.prototype.hasOwnProperty.call(candidate, key));
 }

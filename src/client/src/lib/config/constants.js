@@ -9,5 +9,7 @@ export const DEFAULT_FILTERS = {
     minMigrationPercent: 10,
     feesMode: "avg",
     minLastTokenFees: 0,
+    minLastTokenAthMcap: 0,
+    lastTokensRequiredCount: 0,
     terminal: "axiom",
 };

@@ -5,6 +5,7 @@ import {
 } from "$lib/config/constants.js";
 import { filtersStore } from "$lib/stores/filters.svelte.js";
 import { passesLastTokenFeesFilter } from "$lib/utils/lastTokenFees.js";
+import { passesLastTokensFilter } from "$lib/utils/lastTokens.js";
 
 class WebSocketStore {
     ws = null;
@@ -28,6 +29,22 @@ class WebSocketStore {
         return passesLastTokenFeesFilter(lastDeployedTokens, {
             mode: feesMode,
             minFeeThreshold: minLastTokenFees,
+        });
+    };
+
+    passesLastTokensFilter = (lastDeployedTokens) => {
+        const minLastTokenAthMcap = Number(
+            filtersStore.minLastTokenAthMcap ??
+            DEFAULT_FILTERS.minLastTokenAthMcap,
+        );
+        const lastTokensRequiredCount = Number(
+            filtersStore.lastTokensRequiredCount ??
+            DEFAULT_FILTERS.lastTokensRequiredCount,
+        );
+
+        return passesLastTokensFilter(lastDeployedTokens, {
+            minAthMcapThreshold: minLastTokenAthMcap,
+            requiredCount: lastTokensRequiredCount,
         });
     };
 
@@ -74,14 +91,24 @@ class WebSocketStore {
                             const migrated = Number(payload?.migrated_tokens_count) || 0;
                             const migrationPercent = allTokens > 0 ? (migrated / allTokens) * 100 : 0;
                             const feesPass = this.passesFeesFilter(payload?.last_deployed_tokens);
+                            const lastTokensPass = this.passesLastTokensFilter(payload?.last_deployed_tokens);
 
                             const devPass = dev !== null && dev !== undefined && !Number.isNaN(dev) && dev >= minDev && dev <= maxDev;
                             const migrationPass = !Number.isNaN(migrationPercent) && migrationPercent >= minMigration;
 
-                            if (devPass && migrationPass && feesPass) {
+                            if (devPass && feesPass && (migrationPass || lastTokensPass)) {
                                 // Increment filtered counter and add to visible feed list
                                 this.tokenFeedCount++;
-                                this.tokenFeeds = [payload, ...this.tokenFeeds];
+                                this.tokenFeeds = [
+                                    {
+                                        ...payload,
+                                        indicators: [
+                                            ...(payload?.indicator ? [payload.indicator] : []),
+                                            ...(lastTokensPass ? ["last tokens"] : []),
+                                        ],
+                                    },
+                                    ...this.tokenFeeds,
+                                ];
                             }
                         } catch (e) {
                             // On error, count as total but don't add to filtered list

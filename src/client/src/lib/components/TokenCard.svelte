@@ -182,9 +182,9 @@
         <!-- Dev stats row matching inspiration card -->
         <div class="dev-stats-row">
             <div class="stats-left">
-                {#if feed.indicator}
-                    <span class="badge indicator-badge">{feed.indicator}</span>
-                {/if}
+                {#each feed.indicators ?? (feed.indicator ? [feed.indicator] : []) as indicator}
+                    <span class="badge indicator-badge">{indicator}</span>
+                {/each}
                 <span class="badge blockchain-badge"
                     >{feed.blockchain || "sol"}</span
                 >

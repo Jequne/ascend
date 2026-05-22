@@ -50,6 +50,22 @@ class FiltersStore {
         this.updateFilters({ minLastTokenFees: value });
     }
 
+    get minLastTokenAthMcap() {
+        return this.filters.minLastTokenAthMcap;
+    }
+
+    set minLastTokenAthMcap(value) {
+        this.updateFilters({ minLastTokenAthMcap: value });
+    }
+
+    get lastTokensRequiredCount() {
+        return this.filters.lastTokensRequiredCount;
+    }
+
+    set lastTokensRequiredCount(value) {
+        this.updateFilters({ lastTokensRequiredCount: value });
+    }
+
     get terminal() {
         return this.filters.terminal;
     }

@@ -26,6 +26,13 @@
     let localMinLastTokenFees = Number(
         filtersStore.minLastTokenFees ?? DEFAULT_FILTERS.minLastTokenFees,
     );
+    let localMinLastTokenAthMcap = Number(
+        filtersStore.minLastTokenAthMcap ?? DEFAULT_FILTERS.minLastTokenAthMcap,
+    );
+    let localLastTokensRequiredCount = Number(
+        filtersStore.lastTokensRequiredCount ??
+            DEFAULT_FILTERS.lastTokensRequiredCount,
+    );
     let localTerminal = filtersStore.terminal ?? DEFAULT_FILTERS.terminal;
 
     const openSettings = () => {
@@ -45,6 +52,14 @@
         localFeesMode = filtersStore.feesMode ?? DEFAULT_FILTERS.feesMode;
         localMinLastTokenFees = Number(
             filtersStore.minLastTokenFees ?? DEFAULT_FILTERS.minLastTokenFees,
+        );
+        localMinLastTokenAthMcap = Number(
+            filtersStore.minLastTokenAthMcap ??
+                DEFAULT_FILTERS.minLastTokenAthMcap,
+        );
+        localLastTokensRequiredCount = Number(
+            filtersStore.lastTokensRequiredCount ??
+                DEFAULT_FILTERS.lastTokensRequiredCount,
         );
         localTerminal = filtersStore.terminal ?? DEFAULT_FILTERS.terminal;
         importJson = "";
@@ -68,6 +83,8 @@
             minMigrationPercent: Number(localMinMigration),
             feesMode: localFeesMode,
             minLastTokenFees: Number(localMinLastTokenFees),
+            minLastTokenAthMcap: Number(localMinLastTokenAthMcap),
+            lastTokensRequiredCount: Number(localLastTokensRequiredCount),
             terminal: localTerminal,
         });
 
@@ -115,6 +132,10 @@
             localMinMigration = Number(filtersStore.minMigrationPercent);
             localFeesMode = filtersStore.feesMode;
             localMinLastTokenFees = Number(filtersStore.minLastTokenFees);
+            localMinLastTokenAthMcap = Number(filtersStore.minLastTokenAthMcap);
+            localLastTokensRequiredCount = Number(
+                filtersStore.lastTokensRequiredCount,
+            );
             localTerminal = filtersStore.terminal;
 
             actionMessage = "Settings imported.";
@@ -348,6 +369,46 @@
                                     Tokens older than {LAST_TOKEN_FEES_AGE_EXCLUSION_DAYS}
                                     days are ignored when their fees are below the
                                     threshold.
+                                </small>
+                            </div>
+
+                            <div class="field">
+                                <label for="minLastTokenAthMcapInput"
+                                    >Min last token ATH mcap</label
+                                >
+                                <input
+                                    id="minLastTokenAthMcapInput"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={localMinLastTokenAthMcap}
+                                    oninput={(e) =>
+                                        (localMinLastTokenAthMcap = Number(
+                                            e.target.value,
+                                        ))}
+                                />
+                            </div>
+
+                            <div class="field">
+                                <label for="lastTokensRequiredCountInput"
+                                    >Required last tokens</label
+                                >
+                                <input
+                                    id="lastTokensRequiredCountInput"
+                                    type="number"
+                                    min="0"
+                                    max="3"
+                                    step="1"
+                                    value={localLastTokensRequiredCount}
+                                    oninput={(e) =>
+                                        (localLastTokensRequiredCount = Number(
+                                            e.target.value,
+                                        ))}
+                                />
+                                <small class="helper-text">
+                                    Passes when at least this many of the last 3
+                                    tokens have ATH mcap at or above the
+                                    threshold. Set to 0 to disable the override.
                                 </small>
                             </div>
                         </section>
