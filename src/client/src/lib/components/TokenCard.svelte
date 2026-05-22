@@ -352,8 +352,60 @@
         border-bottom: 1px solid #2d2e3d;
     }
 
-    .last-deployed-block {
-        gap: 10px;
+    .dev-stats-row {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 4px;
+    }
+
+    .stats-left {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .stats-right {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+        font-size: 0.85rem;
+        flex-wrap: wrap;
+    }
+
+    .token-top-stats {
+        margin-top: 4px;
+        display: flex;
+        align-items: center;
+    }
+
+    .dh-stat {
+        background: rgba(234, 179, 8, 0.15); /* amber tint */
+        color: #fbbf24;
+        border: 1px solid rgba(234, 179, 8, 0.3);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        display: inline-flex;
+        align-items: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .token-details-top {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .token-details-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex-grow: 1;
+        min-width: 0;
     }
 
     .row {
@@ -385,9 +437,17 @@
     }
 
     .stat-item {
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: 4px;
+    }
+
+    .stat-divider {
+        width: 4px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: inline-block;
     }
 
     .stat-item.percent {
