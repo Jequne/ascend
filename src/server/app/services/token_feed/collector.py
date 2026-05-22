@@ -50,13 +50,6 @@ class TokenFeedCollector():
             ):
         await cls.tokens_feed.put(prepared_token_feed)
 
-        async def expire_prepared_token_feed_task():
-            await asyncio.sleep(ttl_in_minutes*60)
-
-            await cls.tokens_feed.get()
-
-        asyncio.create_task(expire_prepared_token_feed_task())
-
     async def collect_token_feed_data(
             self, 
             websocket_message_data: Any

@@ -227,20 +227,20 @@
                                             )}</span
                                         >
                                     {/if}
-                                    {#if lastToken.dex_paid}
-                                        <span class="dex-paid" title="Dex paid"
-                                            ><img
-                                                src="/icons/dexscreener.svg"
-                                                alt="Dex"
-                                                class="small-icon"
-                                            /></span
-                                        >
-                                    {/if}
                                     {#if lastToken.total_pair_fees_paid}
                                         <span class="fees"
                                             >⚡ {lastToken.total_pair_fees_paid.toFixed(
                                                 1,
                                             )} SOL</span
+                                        >
+                                    {/if}
+                                    {#if lastToken.dex_paid}
+                                        <span class="dex-paid" title="Dex paid"
+                                            ><img
+                                                src="/icons/dexscreener_logo.svg"
+                                                alt="Dex"
+                                                class="small-icon"
+                                            /></span
                                         >
                                     {/if}
                                     {#if lastToken.is_migrated}

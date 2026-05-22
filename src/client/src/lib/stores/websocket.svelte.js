@@ -20,14 +20,17 @@ class WebSocketStore {
         const key = getStoredKey();
 
         try {
-            this.ws = new WebSocket(`${WS_BASE_URL}?api_key=${key}`);
+            const ws = new WebSocket(`${WS_BASE_URL}?api_key=${key}`);
+            this.ws = ws;
 
-            this.ws.onopen = () => {
+            ws.onopen = () => {
+                if (this.ws !== ws) return;
                 this.isConnected = true;
                 this.isConnecting = false;
             };
 
-            this.ws.onmessage = (event) => {
+            ws.onmessage = (event) => {
+                if (this.ws !== ws) return;
                 try {
                     const data = JSON.parse(event.data);
                     if (data.type === "ping" && data.payload?.timestamp) {
@@ -44,13 +47,13 @@ class WebSocketStore {
                 } catch (e) { }
             };
 
-            this.ws.onclose = () => {
+            ws.onclose = () => {
+                if (this.ws !== ws) return;
                 this.isConnected = false;
                 this.isConnecting = false;
                 this.ws = null;
                 this.ping = 0;
                 this.solPrice = null;
-                this.tokenFeedCount = 0;
 
                 if (this.shouldReconnect) {
                     this.reconnectTimeout = setTimeout(() => {
@@ -59,7 +62,8 @@ class WebSocketStore {
                 }
             };
 
-            this.ws.onerror = (err) => {
+            ws.onerror = (err) => {
+                if (this.ws !== ws) return;
                 console.error("WS error:", err);
             };
         } catch (e) {
@@ -82,6 +86,7 @@ class WebSocketStore {
         this.isConnecting = false;
         this.ping = 0;
         this.tokenFeedCount = 0;
+        this.tokenFeeds = [];
     }
 
     toggleConnection = () => {
