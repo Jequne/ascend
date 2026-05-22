@@ -59,19 +59,14 @@
 
             <div class="token-details-wrapper">
                 <div class="token-details-top">
-                    <h3
+                    <button
                         class="token-name-header"
                         title="Click to copy address"
-                        role="button"
-                        tabindex="0"
                         on:click={() => copyToClipboard(feed.token_address)}
-                        on:keydown={(e) =>
-                            e.key === "Enter" &&
-                            copyToClipboard(feed.token_address)}
                     >
                         <span class="ticker">${feed.token_ticker}</span>
                         <span class="name-text">{feed.token_name}</span>
-                    </h3>
+                    </button>
 
                     <div class="token-top-stats">
                         {#if feed.dev_holds_percent !== null}
@@ -529,6 +524,11 @@
         align-items: center;
         gap: 6px;
         width: 100%;
+        background: transparent;
+        border: none;
+        padding: 0;
+        color: inherit;
+        font-family: inherit;
     }
 
     .token-name-header:hover .name-text {
