@@ -1,5 +1,6 @@
 import { getStoredKey } from "$lib/api/auth.js";
-import { WS_BASE_URL } from "$lib/config/constants.js";
+import { WS_BASE_URL, DEFAULT_FILTERS } from "$lib/config/constants.js";
+import { filtersStore } from "$lib/stores/filters.svelte.js";
 
 class WebSocketStore {
     ws = null;
@@ -7,7 +8,10 @@ class WebSocketStore {
     isConnecting = $state(false);
     ping = $state(0);
     solPrice = $state(null);
+    // tokenFeedCount: messages that passed filters (filtered)
     tokenFeedCount = $state(0);
+    // tokenFeedTotalCount: total incoming token_feed messages (regardless of filters)
+    tokenFeedTotalCount = $state(0);
     tokenFeeds = $state([]);
     shouldReconnect = false;
     reconnectTimeout = null;
@@ -40,9 +44,32 @@ class WebSocketStore {
                     } else if (data.type === "sol_price") {
                         this.solPrice = data.payload;
                     } else if (data.type === "token_feed") {
-                        this.tokenFeedCount++;
-                        // By using unshift or reassign, state will trigger update
-                        this.tokenFeeds = [data.payload, ...this.tokenFeeds];
+                        // Always increment the total incoming counter
+                        this.tokenFeedTotalCount++;
+
+                        try {
+                            const payload = data.payload;
+
+                            const minDev = Number(filtersStore.minDevHoldsPercent ?? DEFAULT_FILTERS.minDevHoldsPercent);
+                            const maxDev = Number(filtersStore.maxDevHoldsPercent ?? DEFAULT_FILTERS.maxDevHoldsPercent);
+                            const minMigration = Number(filtersStore.minMigrationPercent ?? DEFAULT_FILTERS.minMigrationPercent);
+
+                            const dev = payload?.dev_holds_percent;
+                            const allTokens = Number(payload?.all_tokens_count) || 0;
+                            const migrated = Number(payload?.migrated_tokens_count) || 0;
+                            const migrationPercent = allTokens > 0 ? (migrated / allTokens) * 100 : 0;
+
+                            const devPass = dev !== null && dev !== undefined && !Number.isNaN(dev) && dev >= minDev && dev <= maxDev;
+                            const migrationPass = !Number.isNaN(migrationPercent) && migrationPercent >= minMigration;
+
+                            if (devPass && migrationPass) {
+                                // Increment filtered counter and add to visible feed list
+                                this.tokenFeedCount++;
+                                this.tokenFeeds = [payload, ...this.tokenFeeds];
+                            }
+                        } catch (e) {
+                            // On error, count as total but don't add to filtered list
+                        }
                     }
                 } catch (e) { }
             };
@@ -86,6 +113,7 @@ class WebSocketStore {
         this.isConnecting = false;
         this.ping = 0;
         this.tokenFeedCount = 0;
+        this.tokenFeedTotalCount = 0;
         this.tokenFeeds = [];
     }
 

@@ -1,6 +1,71 @@
 <script>
     import { onDestroy } from "svelte";
     import { wsStore } from "$lib/stores/websocket.svelte.js";
+    import { filtersStore } from "$lib/stores/filters.svelte.js";
+    import { DEFAULT_FILTERS } from "$lib/config/constants.js";
+
+    let showSettings = false;
+
+    // Local editable copies (so user can cancel)
+    let localMinDev = Number(
+        filtersStore.minDevHoldsPercent ?? DEFAULT_FILTERS.minDevHoldsPercent,
+    );
+    let localMaxDev = Number(
+        filtersStore.maxDevHoldsPercent ?? DEFAULT_FILTERS.maxDevHoldsPercent,
+    );
+    let localMinMigration = Number(
+        filtersStore.minMigrationPercent ?? DEFAULT_FILTERS.minMigrationPercent,
+    );
+
+    const openSettings = () => {
+        // sync from store when opening
+        localMinDev = Number(
+            filtersStore.minDevHoldsPercent ??
+                DEFAULT_FILTERS.minDevHoldsPercent,
+        );
+        localMaxDev = Number(
+            filtersStore.maxDevHoldsPercent ??
+                DEFAULT_FILTERS.maxDevHoldsPercent,
+        );
+        localMinMigration = Number(
+            filtersStore.minMigrationPercent ??
+                DEFAULT_FILTERS.minMigrationPercent,
+        );
+        showSettings = true;
+    };
+
+    const closeSettings = () => {
+        showSettings = false;
+    };
+
+    const saveSettings = () => {
+        // ensure bounds
+        if (localMinDev > localMaxDev) localMinDev = localMaxDev;
+        if (localMaxDev < localMinDev) localMaxDev = localMinDev;
+
+        filtersStore.minDevHoldsPercent = Number(localMinDev);
+        filtersStore.maxDevHoldsPercent = Number(localMaxDev);
+        filtersStore.minMigrationPercent = Number(localMinMigration);
+
+        showSettings = false;
+    };
+
+    function onMinDevInput(e) {
+        const v = Number(e.target.value);
+        localMinDev = Math.min(v, localMaxDev);
+    }
+
+    function onMaxDevInput(e) {
+        const v = Number(e.target.value);
+        localMaxDev = Math.max(v, localMinDev);
+    }
+
+    function overlayKeydown(e) {
+        if (e.key === "Escape") closeSettings();
+    }
+    function modalKeydown(e) {
+        e.stopPropagation();
+    }
 
     onDestroy(() => {
         wsStore.disconnect();
@@ -50,11 +115,17 @@
         </div>
 
         <div class="pill-btn blue-btn">
-            <span class="text"># .../{wsStore.tokenFeedCount}</span>
+            <span class="text"
+                ># {wsStore.tokenFeedCount}/{wsStore.tokenFeedTotalCount}</span
+            >
         </div>
 
         <!-- Setting and Trash Icons pushed to the right -->
-        <button class="icon-btn" style="margin-left: auto;">
+        <button
+            class="icon-btn"
+            style="margin-left: auto;"
+            onclick={openSettings}
+        >
             <img src="/icons/settings.svg" alt="Settings" class="icon" />
         </button>
 
@@ -62,6 +133,75 @@
             <img src="/icons/trash.svg" alt="Trash" class="icon" />
         </button>
     </div>
+
+    {#if showSettings}
+        <div
+            class="settings-overlay"
+            onclick={closeSettings}
+            onkeydown={overlayKeydown}
+            tabindex="0"
+            role="button"
+        >
+            <div
+                class="settings-modal"
+                onclick={(e) => e.stopPropagation()}
+                onkeydown={modalKeydown}
+                role="dialog"
+                aria-modal="true"
+                tabindex="0"
+            >
+                <h3>Filters Settings</h3>
+
+                <div class="field">
+                    <label for="minDevRange"
+                        >Dev Holds Range: {localMinDev}% — {localMaxDev}%</label
+                    >
+                    <div class="range-wrap">
+                        <input
+                            id="minDevRange"
+                            type="range"
+                            min={DEFAULT_FILTERS.minDevHoldsPercent}
+                            max="100"
+                            step="0.1"
+                            value={localMinDev}
+                            oninput={onMinDevInput}
+                        />
+                        <input
+                            id="maxDevRange"
+                            type="range"
+                            min={DEFAULT_FILTERS.minDevHoldsPercent}
+                            max="100"
+                            step="0.1"
+                            value={localMaxDev}
+                            oninput={onMaxDevInput}
+                        />
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="minMigrationInput">Min Migration %</label>
+                    <input
+                        id="minMigrationInput"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={localMinMigration}
+                        oninput={(e) =>
+                            (localMinMigration = Number(e.target.value))}
+                    />
+                </div>
+
+                <div class="actions">
+                    <button class="pill-btn" onclick={saveSettings}>Save</button
+                    >
+                    <button class="pill-btn" onclick={closeSettings}
+                        >Cancel</button
+                    >
+                </div>
+            </div>
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -277,6 +417,58 @@
         box-shadow:
             0 6px 20px rgba(164, 173, 207, 0.2),
             inset 0 1px 0 rgba(164, 173, 207, 0.15);
+    }
+
+    /* Settings modal */
+    .settings-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+    }
+
+    .settings-modal {
+        background: #0f111a;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 16px;
+        border-radius: 12px;
+        width: 360px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .settings-modal h3 {
+        margin: 0 0 12px 0;
+        font-size: 16px;
+    }
+
+    .field {
+        margin-bottom: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .range-wrap {
+        position: relative;
+        height: 28px;
+    }
+
+    .range-wrap input[type="range"] {
+        position: absolute;
+        left: 0;
+        right: 0;
+        width: 100%;
+        background: transparent;
+        pointer-events: auto;
+    }
+
+    .actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
     }
 
     /* Media queries for responsiveness */
