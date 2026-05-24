@@ -2,6 +2,7 @@
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { DEFAULT_FILTERS } from "$lib/config/constants.js";
     import { filtersStore } from "$lib/stores/filters.svelte.js";
+    import { normalizeBlacklistEntries } from "$lib/utils/blacklist.js";
     import { buildTerminalUrl } from "$lib/utils/tokenLinks.js";
 
     export let feed = {};
@@ -43,6 +44,59 @@
         }
     }
 
+    function getDevWallet(token) {
+        return String(token?.dev_wallet ?? "").trim();
+    }
+
+    function isDevWalletBlacklisted(token) {
+        const devWallet = getDevWallet(token);
+
+        if (!devWallet) return false;
+
+        const normalizedDevWallet = devWallet.toLowerCase();
+        return normalizeBlacklistEntries(filtersStore.blacklist).some(
+            (entry) => entry.toLowerCase() === normalizedDevWallet,
+        );
+    }
+
+    let devWalletBlacklisted = isDevWalletBlacklisted(feed);
+
+    function toggleDevWalletBlacklist(token) {
+        const devWallet = getDevWallet(token);
+
+        if (!devWallet) return;
+
+        const blacklist = normalizeBlacklistEntries(filtersStore.blacklist);
+        const normalizedDevWallet = devWallet.toLowerCase();
+        const nextBlacklist = blacklist.some(
+            (entry) => entry.toLowerCase() === normalizedDevWallet,
+        )
+            ? blacklist.filter(
+                  (entry) => entry.toLowerCase() !== normalizedDevWallet,
+              )
+            : [...blacklist, devWallet];
+
+        filtersStore.blacklist = nextBlacklist;
+        devWalletBlacklisted = !blacklist.some(
+            (entry) => entry.toLowerCase() === normalizedDevWallet,
+        );
+    }
+
+    function hasRelevantIndicator(feed) {
+        const indicators =
+            feed?.indicators ?? (feed?.indicator ? [feed.indicator] : []);
+
+        return indicators.some((indicator) => {
+            const normalizedIndicator = String(indicator ?? "")
+                .trim()
+                .toLowerCase();
+            return (
+                normalizedIndicator === "dev migrations" ||
+                normalizedIndicator === "last tokens"
+            );
+        });
+    }
+
     function formatNumber(value) {
         if (value === null || value === undefined) return "N/A";
         if (value >= 1e9) return (value / 1e9).toFixed(1) + "B";
@@ -74,6 +128,12 @@
               1,
           )
         : 0;
+
+    $: showDevBlacklistButton =
+        hasRelevantIndicator(feed) && Boolean(feed.dev_wallet);
+    $: if (showDevBlacklistButton) {
+        devWalletBlacklisted = isDevWalletBlacklisted(feed);
+    }
 </script>
 
 <div class="token-card">
@@ -194,13 +254,42 @@
 
         <!-- Dev stats row matching inspiration card -->
         <div class="dev-stats-row">
-            <div class="stats-left">
-                {#each feed.indicators ?? (feed.indicator ? [feed.indicator] : []) as indicator}
-                    <span class="badge indicator-badge">{indicator}</span>
-                {/each}
-                <span class="badge blockchain-badge"
-                    >{feed.blockchain || "sol"}</span
-                >
+            <div class="dev-stats-top-row">
+                <div class="stats-left">
+                    {#each feed.indicators ?? (feed.indicator ? [feed.indicator] : []) as indicator}
+                        <span class="badge indicator-badge">{indicator}</span>
+                    {/each}
+                    <span class="badge blockchain-badge"
+                        >{feed.blockchain || "sol"}</span
+                    >
+                </div>
+
+                {#if showDevBlacklistButton}
+                    <button
+                        class="dev-blacklist-button"
+                        class:is-blacklisted={devWalletBlacklisted}
+                        type="button"
+                        style="position: relative; z-index: 3; pointer-events: auto;"
+                        title={devWalletBlacklisted
+                            ? "Remove from blacklist"
+                            : "Add to blacklist"}
+                        aria-label={devWalletBlacklisted
+                            ? "Remove from blacklist"
+                            : "Add to blacklist"}
+                        on:click|stopPropagation={() =>
+                            toggleDevWalletBlacklist(feed)}
+                    >
+                        <img
+                            src="/icons/database.svg"
+                            alt=""
+                            aria-hidden="true"
+                            class="dev-blacklist-icon"
+                        />
+                        <span class="dev-blacklist-label">
+                            {devWalletBlacklisted ? "Dev BL-" : "Dev BL+"}
+                        </span>
+                    </button>
+                {/if}
             </div>
             <div class="stats-right">
                 <span class="stat-item total" title="Total Tokens">
@@ -498,11 +587,88 @@
         margin-top: 2px;
     }
 
+    .dev-stats-top-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+    }
+
     .stats-left {
         display: flex;
         gap: 6px;
         align-items: center;
         flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    .dev-blacklist-button {
+        margin-left: auto;
+        min-width: 44px;
+        height: 24px;
+        border: 1px solid rgba(249, 115, 22, 0.38);
+        background: rgba(249, 115, 22, 0.14);
+        color: #fdba74;
+        border-radius: 6px;
+        padding: 0 7px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        transition:
+            background-color 0.15s ease,
+            border-color 0.15s ease,
+            color 0.15s ease,
+            transform 0.15s ease;
+    }
+
+    .dev-blacklist-button.is-blacklisted {
+        border-color: rgba(239, 68, 68, 0.45);
+        background: rgba(239, 68, 68, 0.14);
+        color: #fca5a5;
+    }
+
+    .dev-blacklist-button:hover,
+    .dev-blacklist-button:focus-visible {
+        background: rgba(249, 115, 22, 0.22);
+        border-color: rgba(249, 115, 22, 0.6);
+        color: #fed7aa;
+        transform: translateY(-1px);
+        outline: none;
+    }
+
+    .dev-blacklist-button.is-blacklisted:hover,
+    .dev-blacklist-button.is-blacklisted:focus-visible {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.65);
+        color: #fecaca;
+    }
+
+    .dev-blacklist-icon {
+        width: 12px;
+        height: 12px;
+        opacity: 0.95;
+        filter: saturate(1.8) sepia(0.85) hue-rotate(340deg) brightness(1.05)
+            contrast(1.05);
+    }
+
+    .dev-blacklist-label {
+        font-size: 0.65rem;
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .dev-blacklist-button.is-blacklisted .dev-blacklist-icon {
+        filter: saturate(2.2) sepia(0.95) hue-rotate(320deg) brightness(0.96)
+            contrast(1.1);
+    }
+
+    .dev-blacklist-button.is-blacklisted .dev-blacklist-label {
+        color: #fecaca;
     }
 
     .stats-right {
