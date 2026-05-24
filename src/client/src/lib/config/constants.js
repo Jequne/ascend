@@ -11,6 +11,7 @@ export const DEFAULT_FILTERS = {
     minLastTokenFees: 0,
     minLastTokenAthMcap: 0,
     lastTokensRequiredCount: 0,
+    blacklist: [],
     terminal: "axiom",
     autoOpenInNewTab: false,
     aggressiveAutoOpen: false,

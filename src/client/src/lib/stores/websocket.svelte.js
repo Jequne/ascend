@@ -4,6 +4,7 @@ import {
     DEFAULT_FILTERS,
 } from "$lib/config/constants.js";
 import { filtersStore } from "$lib/stores/filters.svelte.js";
+import { tokenMatchesBlacklist } from "$lib/utils/blacklist.js";
 import { passesLastTokenFeesFilter } from "$lib/utils/lastTokenFees.js";
 import { passesLastTokensFilter } from "$lib/utils/lastTokens.js";
 import { openTokenUrlInNewTab } from "$lib/utils/tokenLinks.js";
@@ -93,11 +94,19 @@ class WebSocketStore {
                             const migrationPercent = allTokens > 0 ? (migrated / allTokens) * 100 : 0;
                             const feesPass = this.passesFeesFilter(payload?.last_deployed_tokens);
                             const lastTokensPass = this.passesLastTokensFilter(payload?.last_deployed_tokens);
+                            const blacklistMatcher =
+                                filtersStore.blacklistMatcher ??
+                                filtersStore.blacklist ??
+                                DEFAULT_FILTERS.blacklist;
+                            const blacklistPass = !tokenMatchesBlacklist(
+                                payload,
+                                blacklistMatcher,
+                            );
 
                             const devPass = dev !== null && dev !== undefined && !Number.isNaN(dev) && dev >= minDev && dev <= maxDev;
                             const migrationPass = !Number.isNaN(migrationPercent) && migrationPercent >= minMigration;
 
-                            if (devPass && feesPass && (migrationPass || lastTokensPass)) {
+                            if (blacklistPass && devPass && feesPass && (migrationPass || lastTokensPass)) {
                                 const shouldAutoOpen = Boolean(
                                     filtersStore.autoOpenInNewTab ?? DEFAULT_FILTERS.autoOpenInNewTab,
                                 );

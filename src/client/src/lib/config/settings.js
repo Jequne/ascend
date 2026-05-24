@@ -1,4 +1,5 @@
 import { DEFAULT_FILTERS } from "$lib/config/constants.js";
+import { normalizeBlacklistEntries } from "$lib/utils/blacklist.js";
 
 export const SETTINGS_STORAGE_KEY = "ascend_trenches.user_settings";
 export const SETTINGS_EXPORT_SCHEMA = "ascend_trenches.settings";
@@ -73,6 +74,7 @@ export function normalizeFilters(filters = {}) {
             ),
         ),
     );
+    const blacklist = normalizeBlacklistEntries(source.blacklist);
 
     return {
         minDevHoldsPercent: Math.min(minDev, maxDev),
@@ -90,6 +92,7 @@ export function normalizeFilters(filters = {}) {
         ),
         minLastTokenAthMcap,
         lastTokensRequiredCount,
+        blacklist,
         terminal: normalizeTerminal(source.terminal),
         autoOpenInNewTab: Boolean(source.autoOpenInNewTab),
         aggressiveAutoOpen: Boolean(source.aggressiveAutoOpen),
@@ -113,6 +116,7 @@ function looksLikeLegacyFilters(candidate) {
         "minLastTokenFees",
         "minLastTokenAthMcap",
         "lastTokensRequiredCount",
+        "blacklist",
         "terminal",
     ].some((key) => Object.prototype.hasOwnProperty.call(candidate, key));
 }

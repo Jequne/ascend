@@ -6,6 +6,10 @@
         DEFAULT_FILTERS,
         LAST_TOKEN_FEES_AGE_EXCLUSION_DAYS,
     } from "$lib/config/constants.js";
+    import {
+        blacklistEntriesToText,
+        normalizeBlacklistEntries,
+    } from "$lib/utils/blacklist.js";
 
     let showSettings = false;
     let importJson = "";
@@ -32,6 +36,9 @@
     let localLastTokensRequiredCount = Number(
         filtersStore.lastTokensRequiredCount ??
             DEFAULT_FILTERS.lastTokensRequiredCount,
+    );
+    let localBlacklistText = blacklistEntriesToText(
+        filtersStore.blacklist ?? DEFAULT_FILTERS.blacklist,
     );
     let localTerminal = filtersStore.terminal ?? DEFAULT_FILTERS.terminal;
     let localAutoOpenInNewTab = Boolean(
@@ -67,6 +74,9 @@
             filtersStore.lastTokensRequiredCount ??
                 DEFAULT_FILTERS.lastTokensRequiredCount,
         );
+        localBlacklistText = blacklistEntriesToText(
+            filtersStore.blacklist ?? DEFAULT_FILTERS.blacklist,
+        );
         localTerminal = filtersStore.terminal ?? DEFAULT_FILTERS.terminal;
         localAutoOpenInNewTab = Boolean(
             filtersStore.autoOpenInNewTab ?? DEFAULT_FILTERS.autoOpenInNewTab,
@@ -98,6 +108,7 @@
             minLastTokenFees: Number(localMinLastTokenFees),
             minLastTokenAthMcap: Number(localMinLastTokenAthMcap),
             lastTokensRequiredCount: Number(localLastTokensRequiredCount),
+            blacklist: normalizeBlacklistEntries(localBlacklistText),
             terminal: localTerminal,
             autoOpenInNewTab: localAutoOpenInNewTab,
             aggressiveAutoOpen: localAggressiveAutoOpen,
@@ -485,6 +496,32 @@
                                     Passes when at least this many of the last 3
                                     tokens have ATH mcap at or above the
                                     threshold. Set to 0 to disable the override.
+                                </small>
+                            </div>
+                        </section>
+
+                        <section class="settings-card settings-card-span-2">
+                            <div class="card-head">
+                                <h4>Blacklist</h4>
+                                <span class="card-meta">
+                                    One entry per line or comma
+                                </span>
+                            </div>
+
+                            <div class="field">
+                                <label for="blacklistInput">
+                                    Dev wallet, token name, ticker, or admin
+                                    nickname
+                                </label>
+                                <textarea
+                                    id="blacklistInput"
+                                    rows="6"
+                                    bind:value={localBlacklistText}
+                                ></textarea>
+                                <small class="helper-text">
+                                    If any incoming token field contains one of
+                                    these terms, the card stays hidden and
+                                    auto-open is skipped.
                                 </small>
                             </div>
                         </section>

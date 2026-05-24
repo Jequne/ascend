@@ -4,8 +4,12 @@ import {
     normalizeFilters,
 } from "$lib/config/settings.js";
 import { settingsStore } from "$lib/stores/settings.svelte.js";
+import { createBlacklistMatcher } from "$lib/utils/blacklist.js";
 
 class FiltersStore {
+    blacklistMatcherSource = null;
+    blacklistMatcherCache = null;
+
     get filters() {
         return settingsStore.getSection("filters") ?? DEFAULT_FILTERS;
     }
@@ -64,6 +68,26 @@ class FiltersStore {
 
     set lastTokensRequiredCount(value) {
         this.updateFilters({ lastTokensRequiredCount: value });
+    }
+
+    get blacklist() {
+        return this.filters.blacklist ?? [];
+    }
+
+    set blacklist(value) {
+        this.updateFilters({ blacklist: value });
+    }
+
+    get blacklistMatcher() {
+        const blacklist = this.blacklist;
+
+        if (this.blacklistMatcherSource === blacklist) {
+            return this.blacklistMatcherCache;
+        }
+
+        this.blacklistMatcherSource = blacklist;
+        this.blacklistMatcherCache = createBlacklistMatcher(blacklist);
+        return this.blacklistMatcherCache;
     }
 
     get terminal() {
