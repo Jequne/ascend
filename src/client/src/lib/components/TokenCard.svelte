@@ -19,6 +19,24 @@
         }
     }
 
+    async function openSocialLink(url) {
+        if (!url) return;
+
+        try {
+            await openUrl(url);
+        } catch (error) {
+            window.open(url, "_blank", "noopener,noreferrer");
+        }
+    }
+
+    function handleCardTerminalClick(event, token) {
+        if (event.target.closest("a, button, input, textarea, select, label")) {
+            return;
+        }
+
+        openTerminalLink(token);
+    }
+
     function copyToClipboard(text) {
         if (text) {
             navigator.clipboard.writeText(text);
@@ -64,7 +82,7 @@
             class="new-token-link"
             role="button"
             tabindex="0"
-            on:click={() => openTerminalLink(feed)}
+            on:click={(event) => handleCardTerminalClick(event, feed)}
             on:keydown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
@@ -117,7 +135,8 @@
                                     href={feed.website}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    on:click|stopPropagation
+                                    on:click|preventDefault|stopPropagation={() =>
+                                        openSocialLink(feed.website)}
                                     ><img
                                         src="/icons/website.svg"
                                         alt="Website"
@@ -130,7 +149,8 @@
                                     href={feed.twitter}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    on:click|stopPropagation
+                                    on:click|preventDefault|stopPropagation={() =>
+                                        openSocialLink(feed.twitter)}
                                     ><img
                                         src="/icons/twitter.svg"
                                         alt="Twitter"
@@ -143,7 +163,8 @@
                                     href={feed.telegram}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    on:click|stopPropagation
+                                    on:click|preventDefault|stopPropagation={() =>
+                                        openSocialLink(feed.telegram)}
                                     ><img
                                         src="/icons/telegram.svg"
                                         alt="Telegram"
@@ -156,7 +177,8 @@
                                     href={feed.discord}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    on:click|stopPropagation
+                                    on:click|preventDefault|stopPropagation={() =>
+                                        openSocialLink(feed.discord)}
                                     ><img
                                         src="/icons/discord.svg"
                                         alt="Discord"
@@ -230,7 +252,8 @@
                         class="last-token-item"
                         role="button"
                         tabindex="0"
-                        on:click={() => openTerminalLink(lastToken)}
+                        on:click={(event) =>
+                            handleCardTerminalClick(event, lastToken)}
                         on:keydown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                                 e.preventDefault();
@@ -311,7 +334,8 @@
                                     href={lastToken.website}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    on:click|stopPropagation
+                                    on:click|preventDefault|stopPropagation={() =>
+                                        openSocialLink(lastToken.website)}
                                     ><img
                                         src="/icons/website.svg"
                                         alt="Website"
@@ -324,7 +348,8 @@
                                     href={lastToken.twitter}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    on:click|stopPropagation
+                                    on:click|preventDefault|stopPropagation={() =>
+                                        openSocialLink(lastToken.twitter)}
                                     ><img
                                         src="/icons/twitter.svg"
                                         alt="Twitter"
@@ -337,7 +362,8 @@
                                     href={lastToken.telegram}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    on:click|stopPropagation
+                                    on:click|preventDefault|stopPropagation={() =>
+                                        openSocialLink(lastToken.telegram)}
                                     ><img
                                         src="/icons/telegram.svg"
                                         alt="Telegram"
@@ -350,7 +376,8 @@
                                     href={lastToken.discord}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    on:click|stopPropagation
+                                    on:click|preventDefault|stopPropagation={() =>
+                                        openSocialLink(lastToken.discord)}
                                     ><img
                                         src="/icons/discord.svg"
                                         alt="Discord"
@@ -683,6 +710,19 @@
         gap: 6px;
         flex-shrink: 0;
         align-items: center;
+        position: relative;
+        z-index: 2;
+        pointer-events: auto;
+    }
+
+    .socials a,
+    .last-socials a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        z-index: 5;
+        pointer-events: auto;
     }
 
     .icon {
