@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .access_keys_helpers import hash_api_key, parse_prefixed_api_key
 from ..models.access_key import ApiKey
-from ..repositories.access_keys import get_api_key_by_kid, get_api_key_by_kid_async
+from ..repositories.access_keys import (
+    get_api_key_by_kid, get_api_key_by_kid_async, set_api_key_status_as_expired)
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,6 +112,7 @@ async def validate_api_key_async(db: AsyncSession, raw_key: str) -> ApiKeyValida
         if exp.tzinfo is None:
             exp = exp.replace(tzinfo=timezone.utc)
         if now > exp:
+            await set_api_key_status_as_expired(db, kid)
             return ApiKeyValidationResult(
                 status="expired",
                 kid=kid,
