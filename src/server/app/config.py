@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     app_name: str = "Ascend"
     debug: bool = True
     database_url: str = "sqlite:///./ascend.db"
+    database_async_url: str = "sqlite+aiosqlite:///./ascend.db"
     """Перец для хэша API-ключей (рекомендуется задать в .env на проде)."""
     api_key_pepper: str = ""
     """Секрет для вызова POST /api/v1/admin/keys (заголовок X-Admin-Secret)."""

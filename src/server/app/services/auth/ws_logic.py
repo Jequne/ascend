@@ -5,10 +5,10 @@ from dataclasses import dataclass
 import logging
 
 from fastapi import WebSocket
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...database import SessionLocal
-from ...core.authenticator import extract_raw_api_key, validate_api_key
+from ...database import AsyncSessionLocal
+from ...core.authenticator import extract_raw_api_key, validate_api_key_async
 from ...core.rate_limit import ws_connect_limiter
 from ...schemas.ws_streaming import WsStreamingResponse
 from ...database import get_db
@@ -90,21 +90,21 @@ class AuthStreamingProcessor:
             return raw
     
     @classmethod
-    def validate_ws_api_key(cls, raw_key: str) -> WsAuthContext | None:
+    async def validate_ws_api_key(cls, raw_key: str) -> WsAuthContext | None:
         try:
-            cls.db = SessionLocal()
-            result = validate_api_key(cls.db, raw_key)
-        finally:
-            cls.db = cls.db.close()
+            async with AsyncSessionLocal() as session:
+                result = await validate_api_key_async(session, raw_key)
+        except Exception:
+            return None
 
         if result.status != "valid" or not result.kid:
             return None
         max_sessions = result.max_active_sessions or 1
         return WsAuthContext(
-            raw_key=raw_key, 
-            kid=result.kid, 
-            max_active_sessions=max_sessions
-            )
+            raw_key=raw_key,
+            kid=result.kid,
+            max_active_sessions=max_sessions,
+        )
     
     @classmethod
     async def connect_if_allowed(
@@ -121,7 +121,7 @@ class AuthStreamingProcessor:
                 )
             return False
 
-        ctx: WsAuthContext | None = cls.validate_ws_api_key(api_key)
+        ctx: WsAuthContext | None = await cls.validate_ws_api_key(api_key)
         if not ctx:
             await cls._ws_send_error_and_close(
                 websocket,
@@ -150,12 +150,12 @@ class AuthStreamingProcessor:
             await asyncio.sleep(interval_seconds)
 
             try:
-                cls.db = SessionLocal()
-                check = validate_api_key(cls.db, raw_key)
-            finally:
-                cls.db = cls.db.close()
-
-            if check.status == "valid":
+                async with AsyncSessionLocal() as session:
+                    check = await validate_api_key_async(session, raw_key)
+            except Exception:
+                # on DB errors treat as invalid
+                check = None
+            if check and check.status == "valid":
                 continue
             reason = cls.map_validation_status_to_ws_reason(check.status)
             await cls._ws_send_error_and_close(websocket, reason)

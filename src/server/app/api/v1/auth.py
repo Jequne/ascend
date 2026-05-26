@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Body, Depends, Header, Request, Response
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...database import get_db
+from ...database import get_async_db
 from ...schemas.auth import ValidateKeyRequest, ValidateKeyResponse
 from ...services.auth import AuthServicer
 
@@ -14,18 +14,17 @@ router = APIRouter()
 async def validate_key(
     request: Request,
     response: Response,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     body: ValidateKeyRequest | None = Body(None),
     authorization: str | None = Header(None),
     x_api_key: str | None = Header(None, alias="X-API-Key"),
 ) -> ValidateKeyResponse:
-
-    return AuthServicer.validate_key(
+    return await AuthServicer.validate_key(
         request=request,
         response=response,
         db=db,
         body=body,
         authorization=authorization,
-        x_api_key=x_api_key
+        x_api_key=x_api_key,
     )
 

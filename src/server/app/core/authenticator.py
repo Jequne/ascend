@@ -5,10 +5,11 @@ from datetime import datetime, timezone
 
 from fastapi import Header
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .access_keys_helpers import hash_api_key, parse_prefixed_api_key
 from ..models.access_key import ApiKey
-from ..repositories.access_keys import get_api_key_by_kid
+from ..repositories.access_keys import get_api_key_by_kid, get_api_key_by_kid_async
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +50,49 @@ def validate_api_key(db: Session, raw_key: str) -> ApiKeyValidationResult:
     kid, full_key = parsed
     expected_hash = hash_api_key(full_key)
     row = get_api_key_by_kid(db, kid)
+    if row is None or row.key_hash != expected_hash:
+        return ApiKeyValidationResult(status="invalid")
+
+    if row.status == "revoked":
+        return ApiKeyValidationResult(
+            status="revoked",
+            kid=kid,
+            expires_at=row.expires_at,
+            max_active_sessions=row.max_active_sessions,
+            label=row.label,
+        )
+
+    if row.expires_at is not None:
+        now = datetime.now(timezone.utc)
+        exp = row.expires_at
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        if now > exp:
+            return ApiKeyValidationResult(
+                status="expired",
+                kid=kid,
+                expires_at=row.expires_at,
+                max_active_sessions=row.max_active_sessions,
+                label=row.label,
+            )
+
+    return ApiKeyValidationResult(
+        status="valid",
+        kid=kid,
+        expires_at=row.expires_at,
+        max_active_sessions=row.max_active_sessions,
+        label=row.label,
+    )
+
+
+async def validate_api_key_async(db: AsyncSession, raw_key: str) -> ApiKeyValidationResult:
+    parsed = parse_prefixed_api_key(raw_key)
+    if not parsed:
+        return ApiKeyValidationResult(status="invalid")
+
+    kid, full_key = parsed
+    expected_hash = hash_api_key(full_key)
+    row = await get_api_key_by_kid_async(db, kid)
     if row is None or row.key_hash != expected_hash:
         return ApiKeyValidationResult(status="invalid")
 
