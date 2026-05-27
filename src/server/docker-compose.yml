@@ -4,11 +4,9 @@ services:
     container_name: ascend-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ascend
-      POSTGRES_USER: ascend
-      POSTGRES_PASSWORD: ascend_dev_password
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -26,8 +24,8 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg://ascend:ascend_dev_password@db:5432/ascend
-      DATABASE_ASYNC_URL: postgresql+psycopg://ascend:ascend_dev_password@db:5432/ascend
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      DATABASE_ASYNC_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     command: alembic upgrade head
     restart: "no"
 
@@ -43,8 +41,8 @@ services:
       migrate:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: postgresql+psycopg://ascend:ascend_dev_password@db:5432/ascend
-      DATABASE_ASYNC_URL: postgresql+psycopg://ascend:ascend_dev_password@db:5432/ascend
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      DATABASE_ASYNC_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       APP_NAME: Ascend
       DEBUG: "false"
     ports:
