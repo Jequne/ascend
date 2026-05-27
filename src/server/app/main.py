@@ -21,7 +21,7 @@ from .core.expired_access_keys_cleaner import clean_expired_access_keys
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    # init_db()
     collector = TokenFeedCollector([AxiomDevTokenData])
     await collector.start()
 
