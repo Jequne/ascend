@@ -15,6 +15,7 @@ from .services.ws_streaming.manager import manager as ws_manager
 from .services.ws_streaming.token_feed_broadcaster import token_feed_broadcaster
 from .services.ws_streaming.ping_broadcaster import ping_broadcaster
 from .services.ws_streaming.price_broadcaster import sol_price_broadcaster
+from .core.expired_access_keys_cleaner import clean_expired_access_keys
 
 
 
@@ -27,6 +28,10 @@ async def lifespan(app: FastAPI):
     sol_price_broadcaster()
 
     stop_event = asyncio.Event()
+    access_keys_cleaner_task = asyncio.create_task(
+        clean_expired_access_keys(stop_event=stop_event)
+    )
+
     broadcaster_task = asyncio.create_task(
         token_feed_broadcaster(ws_manager, stop_event=stop_event)
     )
@@ -37,6 +42,7 @@ async def lifespan(app: FastAPI):
     stop_event.set()
     broadcaster_task.cancel()
     ping_task.cancel()
+    access_keys_cleaner_task.cancel()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
