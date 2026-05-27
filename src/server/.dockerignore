@@ -1,0 +1,17 @@
+.git
+.gitignore
+.vscode
+.idea
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+venv
+.venv
+target
+src-tauri/target
+*.db
+*.sqlite3
+app/logs.txt
+.env

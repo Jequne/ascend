@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ascend-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ascend
+      POSTGRES_USER: ascend
+      POSTGRES_PASSWORD: ascend_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ascend-migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://ascend:ascend_dev_password@db:5432/ascend
+      DATABASE_ASYNC_URL: postgresql+psycopg://ascend:ascend_dev_password@db:5432/ascend
+    command: alembic upgrade head
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ascend-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql+psycopg://ascend:ascend_dev_password@db:5432/ascend
+      DATABASE_ASYNC_URL: postgresql+psycopg://ascend:ascend_dev_password@db:5432/ascend
+      APP_NAME: Ascend
+      DEBUG: "false"
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+volumes:
+  postgres_data:
