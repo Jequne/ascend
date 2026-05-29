@@ -13,6 +13,7 @@ from third_party_apis.axiom_trade_api.models.websockets.subscription_message \
     import NewPairsRoomMessage
 from ...config import settings
 from app.core.axiom_client_provider import client_instance
+from .token_feed_preparer import shared_axiom_api_semaphore
 
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,8 @@ logger = logging.getLogger(__name__)
 class AxiomDevTokenData():
 
     _client: AxiomTradeClient = client_instance
-    
+    _semaphore = shared_axiom_api_semaphore
+
     @staticmethod
     def _get_timestamp_interval_for_token_chart_data(
         interval_in_years_to_current_time: int = 3
@@ -49,24 +51,25 @@ class AxiomDevTokenData():
         
         requests_by_token = []
 
-        for token in tokens:
-            pair_info_task = asyncio.create_task(
-                cls._client.pair_info(token.pair_address)
-            )
-            token_info_task = asyncio.create_task(
-                cls._client.token_info(token.pair_address)
-            )
-            pair_chart_task = asyncio.create_task(
-                cls._client.pair_chart_v2(
-                    pair_address=token.pair_address,
-                    chart_from=chart_from,
-                    chart_to=chart_to
+        async with cls._semaphore:
+            for token in tokens:
+                pair_info_task = asyncio.create_task(
+                    cls._client.pair_info(token.pair_address)
                 )
-            )
+                token_info_task = asyncio.create_task(
+                    cls._client.token_info(token.pair_address)
+                )
+                pair_chart_task = asyncio.create_task(
+                    cls._client.pair_chart_v2(
+                        pair_address=token.pair_address,
+                        chart_from=chart_from,
+                        chart_to=chart_to
+                    )
+                )
 
-            requests_by_token.append(
-                (token, pair_info_task, token_info_task, pair_chart_task)
-            )
+                requests_by_token.append(
+                    (token, pair_info_task, token_info_task, pair_chart_task)
+                )
 
         deployed_tokens: list[DeployedToken] = []
 
@@ -164,11 +167,12 @@ class AxiomDevTokenData():
             ) -> Optional[TokenFeedBase]:
         dev_wallet = new_pairs_data.content.deployer_address
 
-        dev_tokens = await cls._client.dev_tokens_v3(
-            dev_address=dev_wallet
-            )
-        if not dev_tokens:
-            return
+        async with cls._semaphore:
+            dev_tokens = await cls._client.dev_tokens_v3(
+                dev_address=dev_wallet
+                )
+            if not dev_tokens:
+                return
         
         blockchain = cls._define_blockchain(new_pairs_data)
 
