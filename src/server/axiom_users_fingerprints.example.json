@@ -1,0 +1,26 @@
+[
+    {
+        "agent_name": "your-agent-name",
+        "headers": {
+            "User-Agent": "your-user-agent"
+        },
+        "cookies": {
+            "auth-refresh-token": {
+                "cookie": "your-refresh-token"
+            }
+        },
+        "proxy": "socks5://login:password@ip:port"
+    },
+    {
+        "agent_name": "your-agent-name",
+        "headers": {
+            "User-Agent": "your-user-agent"
+        },
+        "cookies": {
+            "auth-refresh-token": {
+                "cookie": "your-refresh-token"
+            }
+        },
+        "proxy": "socks5://login:password@ip:port"
+    }
+]
