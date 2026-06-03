@@ -1,0 +1,21 @@
+{
+	email {env.ACME_EMAIL}
+}
+
+{env.DOMAIN} {
+	encode zstd gzip
+
+	handle /api/v1/* {
+		reverse_proxy app:8000
+	}
+
+	handle /ws* {
+		reverse_proxy app:8000
+	}
+
+	handle /health {
+		reverse_proxy app:8000
+	}
+
+	respond "Not Found" 404
+}
