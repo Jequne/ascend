@@ -30,6 +30,7 @@ class AxiomTradeConfig(BaseSettings):
     class Config:
         env_prefix = "USERS_FINGERPRINTS"
         env_file = ".env"
+        extra = "ignore"
 
     def _check_users_fingerprints_file_path(self, agents_path: Path):
         agents_path = Path(self.agents_file_json)
@@ -88,6 +89,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
     axiom_api_config: AxiomTradeConfig = AxiomTradeConfig()
     logging_configuration()
