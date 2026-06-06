@@ -15,4 +15,3 @@ src-tauri/target
 *.sqlite3
 app/logs.txt
 .env
-axiom_users_fingerprints.json
