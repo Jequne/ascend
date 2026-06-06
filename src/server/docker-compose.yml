@@ -46,30 +46,30 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       DATABASE_ASYNC_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
     volumes:
-      - ${USERS_FINGERPRINTS_AGENTS_FILE_JSON}:/app/axiom_users_fingerprints.json:ro
+      - ./axiom_users_fingerprints.json:/app/axiom_users_fingerprints.json:ro
     expose:
       - "8000"
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-  caddy:
-    image: caddy:2-alpine
-    container_name: ascend-caddy
-    restart: unless-stopped
-    depends_on:
-      app:
-        condition: service_started
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      DOMAIN: ${DOMAIN}
-      ACME_EMAIL: ${ACME_EMAIL}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+  # caddy:
+  #   image: caddy:2-alpine
+  #   container_name: ascend-caddy
+  #   restart: unless-stopped
+  #   depends_on:
+  #     app:
+  #       condition: service_started
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   environment:
+  #     DOMAIN: ${DOMAIN}
+  #     ACME_EMAIL: ${ACME_EMAIL}
+  #   volumes:
+  #     - ./Caddyfile:/etc/caddy/Caddyfile:ro
+  #     - caddy_data:/data
+  #     - caddy_config:/config
 
 volumes:
   postgres_data:
   caddy_data:
-  caddy_config:
+  # caddy_config:
