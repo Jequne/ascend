@@ -11,15 +11,18 @@ import logging
 def logging_configuration():
     FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
 
-    file_handler = logging.FileHandler(filename="./app/logs.txt", encoding="utf-8")
-    file_handler.setLevel(level=logging.WARNING)
+    # file_handler = logging.FileHandler(filename="./app/logs.txt", encoding="utf-8")
+    # file_handler.setLevel(level=logging.WARNING)
 
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(logging.DEBUG)
 
     logging.basicConfig(
         format=FORMAT,
-        handlers=[file_handler, stream_handler],
+        handlers=[
+            # file_handler, 
+            stream_handler
+            ],
         level=logging.INFO
     )
 
