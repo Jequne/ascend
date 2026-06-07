@@ -19,3 +19,7 @@
 
 	respond "Not Found" 404
 }
+
+logs.{env.DOMAIN} {
+	reverse_proxy grafana:3000
+}

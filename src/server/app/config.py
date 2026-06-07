@@ -8,18 +8,25 @@ from typing import List, Optional
 import logging
 
 
-def logging_configuration():
+def logging_configuration(debug: bool):
     FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
 
-    file_handler = logging.FileHandler(filename="./app/logs.txt", encoding="utf-8")
-    file_handler.setLevel(level=logging.WARNING)
+    # file_handler = logging.FileHandler(filename="./app/logs.txt", encoding="utf-8")
+    # file_handler.setLevel(level=logging.WARNING)
 
     stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.DEBUG)
+
+    if not debug:
+        stream_handler.setLevel(logging.WARNING)
+    else:
+        stream_handler.setLevel(logging.DEBUG)
 
     logging.basicConfig(
         format=FORMAT,
-        handlers=[file_handler, stream_handler],
+        handlers=[
+            # file_handler, 
+            stream_handler
+            ],
         level=logging.INFO
     )
 
@@ -30,6 +37,7 @@ class AxiomTradeConfig(BaseSettings):
     class Config:
         env_prefix = "USERS_FINGERPRINTS"
         env_file = ".env"
+        extra = "ignore"
 
     def _check_users_fingerprints_file_path(self, agents_path: Path):
         agents_path = Path(self.agents_file_json)
@@ -69,7 +77,7 @@ class AxiomTradeConfig(BaseSettings):
 
 class Settings(BaseSettings):
     app_name: str = "Ascend"
-    debug: bool = True
+    debug: bool = False
     database_url: str = "sqlite:///./ascend.db"
     database_async_url: str = "sqlite+aiosqlite:///./ascend.db"
     """Перец для хэша API-ключей (рекомендуется задать в .env на проде)."""
@@ -88,9 +96,10 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
     axiom_api_config: AxiomTradeConfig = AxiomTradeConfig()
-    logging_configuration()
 
 
 settings = Settings()
+logging_configuration(settings.debug)
