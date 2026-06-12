@@ -1,8 +1,8 @@
 {
-	email {env.ACME_EMAIL}
+	email {$ACME_EMAIL}
 }
 
-{env.DOMAIN} {
+{$DOMAIN} {
 	encode zstd gzip
 
 	handle /api/v1/* {
@@ -20,6 +20,6 @@
 	respond "Not Found" 404
 }
 
-logs.{env.DOMAIN} {
+logs.{$DOMAIN} {
 	reverse_proxy grafana:3000
 }
