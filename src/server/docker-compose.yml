@@ -20,6 +20,27 @@ services:
       timeout: 5s
       retries: 10
 
+  backup:
+    build:
+      context: .
+      dockerfile: Dockerfile.backup
+    container_name: backup-restic
+    restart: no
+    depends_on:
+      db:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    env_file:
+      - .env
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    profiles:
+      - backup_for_cron
+
   migrate:
     build:
       context: .
