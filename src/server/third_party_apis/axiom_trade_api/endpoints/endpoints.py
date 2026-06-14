@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Dict, TypeVar, Type
+from typing import Optional, Dict, TypeVar, Type, Tuple
 from curl_cffi import AsyncSession
 import random
 from pydantic import ValidationError
@@ -33,26 +33,27 @@ def _response_summary(json_data: Dict) -> str:
 class AxiomTradeEndpoints:
     def __init__(
             self, 
-            async_http_session: AsyncSession,
             auth_manager: AuthManager
             ):
-        self._async_http_session = async_http_session
         self._auth_manager = auth_manager
         self._base_url = random.choice(AAllBaseUrls.URLS)
 
     async def __get_request(
             self, 
-            agent_data: AxiomAgentData,
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
             url: str
             ):
+        session = session_and_agent[0]
+        agent_data = session_and_agent[1]
         try:
-            return await self._async_http_session.get(
+            return await session.get(
                 url=url,
                 headers=agent_data.headers.model_dump(by_alias=True),
                 cookies=agent_data.cookies.get_cookies_for_request(),
                 timeout=15,
-                impersonate="chrome124",
+                impersonate="chrome136",
                 proxy=agent_data.proxy,
+                # proxy="http://ygnglpau:1pm7voouokdc@45.159.55.132:6504"
             )
 
         except Exception as e:
@@ -64,15 +65,15 @@ class AxiomTradeEndpoints:
 
     async def __get_response_model(
             self,
-            agent_data: AxiomAgentData,
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
             url: str,
             response_model: Type[ResponseModelT],
             endpoint_name: str,
             ) -> Optional[ResponseModelT]:
-        if not await self._auth_manager.ensure_validation(agent_data):
+        if not await self._auth_manager.ensure_validation(session_and_agent):
             return
 
-        response = await self.__get_request(agent_data, url)
+        response = await self.__get_request(session_and_agent, url)
         if not response:
             return
 
@@ -80,7 +81,7 @@ class AxiomTradeEndpoints:
             logger.warning(
                 "🟨 %s status code for %s: %s\n"
                 "url for request: %s\n",
-                agent_data.agent_name,
+                session_and_agent[1].agent_name,
                 endpoint_name,
                 response.status_code,
                 url
@@ -90,7 +91,7 @@ class AxiomTradeEndpoints:
         json_data: Dict = response.json()
         logger.debug(
             "✅ %s %s response summary: %s",
-            agent_data.agent_name,
+            session_and_agent[1].agent_name,
             endpoint_name,
             _response_summary(json_data),
         )
@@ -103,7 +104,7 @@ class AxiomTradeEndpoints:
 
     async def pair_chart_v2(
             self, 
-            agent_data: AxiomAgentData,
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
             pair_chart_v2_params: PairChartV2Params
             ) -> Optional[PairChartV2Response]:
         logger.debug(
@@ -114,7 +115,7 @@ class AxiomTradeEndpoints:
         url = self._base_url + AxiomTradeApiUrls.PAIR_CHART_V2 + \
             pair_chart_v2_params.to_http_query_string()
         return await self.__get_response_model(
-            agent_data=agent_data,
+            session_and_agent=session_and_agent,
             url=url,
             response_model=PairChartV2Response,
             endpoint_name="pair_chart_v2",
@@ -122,12 +123,12 @@ class AxiomTradeEndpoints:
             
     async def dev_tokens_v3(
             self, 
-            agent_data: AxiomAgentData, 
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData], 
             dev_address: str
             ) -> Optional[DevTokensV3Response]:
         url = self._base_url + AxiomTradeApiUrls.DEV_TOKENS_V3 + dev_address
         return await self.__get_response_model(
-            agent_data=agent_data,
+            session_and_agent=session_and_agent,
             url=url,
             response_model=DevTokensV3Response,
             endpoint_name="dev_tokens_v3",
@@ -135,12 +136,12 @@ class AxiomTradeEndpoints:
         
     async def token_info(
             self, 
-            agent_data: AxiomAgentData, 
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData], 
             pair_address: str
             ) -> Optional[TokenInfoResponse]:
         url = self._base_url + AxiomTradeApiUrls.TOKEN_INFO + pair_address
         return await self.__get_response_model(
-            agent_data=agent_data,
+            session_and_agent=session_and_agent,
             url=url,
             response_model=TokenInfoResponse,
             endpoint_name="token_info",
@@ -148,16 +149,39 @@ class AxiomTradeEndpoints:
 
     async def pair_info(
             self,
-            agent_data: AxiomAgentData,
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
             pair_address: str
         ) -> Optional[PairInfoResponse]:
         url = self._base_url + AxiomTradeApiUrls.PAIR_INFO + pair_address
         return await self.__get_response_model(
-            agent_data=agent_data,
+            session_and_agent=session_and_agent,
             url=url,
             response_model=PairInfoResponse,
             endpoint_name="pair_info",
         )
+    
+    async def server_time(
+            self,
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
+        ) -> Optional[PairInfoResponse]:
+        url = "https://api.axiom.trade/wo/server-time"
+        return await self.__get_request(
+            session_and_agent=session_and_agent,
+            url=url
+        )
+    
+    async def get_announcment(
+            self, 
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData]
+            ) -> Optional[PairInfoResponse]:
+        url = "https://api6.axiom.trade/get-announcement?"
+        return await self.__get_request(
+            session_and_agent=session_and_agent,
+            url=url
+        )
+        
+    
+
 
         
                 

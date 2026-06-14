@@ -23,22 +23,15 @@ class AxiomTradeClient:
     def __init__(
             self,
             agents: List[AxiomAgentData],
-            session: Optional[AsyncSession] = None,
-            auth_manager: Optional[AuthManager] = None,
-            endpoints: Optional[AxiomTradeEndpoints] = None,
-            websocket: Optional[AxiomTradeWebsocket] = None,
-            agent_selector: Optional[AgentSelector] = None,
             ):
-        self._session = session or AsyncSession()
-        self._auth_manager = auth_manager or AuthManager()
-        self._agent_selector = agent_selector or AgentSelector()
-        self._wsocket = websocket or AxiomTradeWebsocket(
-            self._session,
+        self._auth_manager = AuthManager()
+        self._agent_selector = AgentSelector()
+        self._endpoints = AxiomTradeEndpoints(
             self._auth_manager
         )
-        self._endpoints = endpoints or AxiomTradeEndpoints(
-            self._session,
-            self._auth_manager
+        self._wsocket = AxiomTradeWebsocket(
+            self._auth_manager,
+            self._endpoints
         )
         self._ws_task: Optional[asyncio.Task[Any]] = None
 
@@ -53,10 +46,13 @@ class AxiomTradeClient:
                 ["new_pairs", "sol_price", "migrations"]
             ) -> None:
         """Connect to WebSocket and run stream in background"""
-        random_agent = self._agent_selector.random_websocket_agent()
-        
+        random_session_and_agent = self._agent_selector.random_websocket_agent()
+
         self._ws_task = asyncio.create_task(
-            self._wsocket.start(agent_data=random_agent, rooms=rooms)
+            self._wsocket.start(
+                session_and_agent=random_session_and_agent, 
+                rooms=rooms
+                )
         )
     
     def on_sol_price(self, callback: Callable[[Any], Any]) -> None:
@@ -72,8 +68,10 @@ class AxiomTradeClient:
             endpoint_method: Callable[..., Awaitable[Optional[ResponseModelT]]],
             **kwargs: Any,
             ) -> Optional[ResponseModelT]:
-        random_agent = self._agent_selector.random_agent()
-        return await endpoint_method(agent_data=random_agent, **kwargs)
+        random_session_and_agent = self._agent_selector.random_agent()
+        return await endpoint_method(
+            session_and_agent=random_session_and_agent, **kwargs
+            )
 
     async def pair_chart_v2(
             self,
@@ -128,7 +126,15 @@ class AxiomTradeClient:
                 await self._ws_task
             except asyncio.CancelledError:
                 pass
-        await self._session.close()
+        # await self._session.close()
+
+        cancel_tasks = []
+        for session_and_agent in self._agent_selector.get_agents_and_sessions():
+            cancel_tasks.append(
+                session_and_agent[0].close()
+            )
+
+        await asyncio.gather(*cancel_tasks)
     
     async def __aenter__(self) -> "AxiomTradeClient":
         return self

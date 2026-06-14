@@ -14,6 +14,28 @@ class AxiomHeaders(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     user_agent: str = Field(..., alias="User-Agent")
+    accept: str = 'application/json, text/plain, */*'
+    accept_language: str = Field(
+        default='en,es-CL;q=0.9,es-419;q=0.8,es;q=0.7,fr;q=0.6',
+        serialization_alias='accept-language'
+        )
+    content_length: str = Field(default="0", serialization_alias="content-length")
+    origin: str = 'https://axiom.trade'
+    priority: str = 'u=1, i'
+    referer: str = 'https://axiom.trade/'
+    sec_fetch_dest: str = Field(default="empty", serialization_alias="sec-fetch-dest")
+    sec_fetch_mode: str = Field(default="cors", serialization_alias="sec-fetch-mode")
+    sec_fetch_size: str = Field(default="same-site", serialization_alias="sec-fetch-site")
+
+    @property
+    def headers_for_wss(self) -> dict:
+        return  {
+            "User-Agent": self.user_agent,
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Accept-Language': 'en,es-CL;q=0.9,es-419;q=0.8,es;q=0.7,fr;q=0.6',
+        }
+
 
 
 class AxiomCookie(BaseModel):

@@ -1,8 +1,9 @@
 import logging
 import asyncio
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 from curl_cffi import AsyncSession, exceptions
 import json
+import websockets
 
 from ..auth.auth_manager import AuthManager
 from ..models.auth import AxiomAgentData
@@ -15,6 +16,7 @@ from .ws_router import (
     MessageCallbackDecorator,
     WebsocketMessageRouter,
 )
+from .endpoints  import AxiomTradeEndpoints
 
 FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
 logger = logging.getLogger(__name__)
@@ -23,10 +25,10 @@ logger = logging.getLogger(__name__)
 class AxiomTradeWebsocket():
     def __init__(
             self, 
-            async_http_session: AsyncSession,
-            auth_manager: AuthManager
+            auth_manager: AuthManager,
+            endpoints: AxiomTradeEndpoints 
             ) -> None:
-        self._async_http_session = async_http_session
+        self._endpoints = endpoints
         self._auth_manager = auth_manager
         self._wsocket: Optional[Any] = None
         self._message_router = WebsocketMessageRouter()
@@ -55,10 +57,19 @@ class AxiomTradeWebsocket():
             ) -> None:
         self._message_router.unregister_callback(room, callback)
 
+    async def _warm_up_before_connect(
+            self, 
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData]
+            ):
+            await self._endpoints.server_time(session_and_agent)
+            await self._endpoints.get_announcment(session_and_agent)
+
     async def connect(
             self,
-            agent_data: AxiomAgentData
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData]
             ) -> bool:
+        session = session_and_agent[0]
+        agent_data = session_and_agent[1]
         if self._wsocket:
             logger.info(
                 "✅ %s already connected to axiom websocket", 
@@ -66,7 +77,7 @@ class AxiomTradeWebsocket():
                 )
             return True
         
-        if not await self._auth_manager.ensure_validation(agent_data):
+        if not await self._auth_manager.ensure_validation(session_and_agent):
             logger.warning(
                 "🟨 %s need to refresh all cookies for " \
                 "connecting to websocket",
@@ -74,14 +85,18 @@ class AxiomTradeWebsocket():
                 )
             return False
         
+        
+        await self._warm_up_before_connect(session_and_agent)
+
         try:
             self._wsocket = \
-                await self._async_http_session.ws_connect(
+                await session.ws_connect(
                     url=AxiomWssUrls.WSS_URL1,
-                    headers=agent_data.headers.model_dump(by_alias=True),
+                    # headers=agent_data.headers.model_dump(by_alias=True),
+                    headers=agent_data.headers.headers_for_wss,
                     cookies=agent_data.cookies.get_cookies_for_request(),
                     timeout=15,
-                    impersonate="chrome124",
+                    impersonate="chrome136",
                     proxy=agent_data.proxy
                 )
             
@@ -174,14 +189,28 @@ class AxiomTradeWebsocket():
         
     async def start(
             self, 
-            agent_data: AxiomAgentData,
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
             rooms: list[str] = ["new_pairs", "sol_price", "migrations"],
-            reconnecting_time_in_sec: int = 2
+            reconnecting_time_in_sec: int = 3,
+            max_retry_count: int = 3
             ) -> None:
+        retry_count = 0
         while True:
             try:
-                connect = await self.connect(agent_data)
+                if retry_count < max_retry_count:
+                    connect = await self.connect(session_and_agent)
+                else:
+                    logger.info(
+                        "⛔ failed to connect, you need look for error with connecting"
+                        )
+                    break
+
                 if not connect or not self._wsocket:
+                    retry_count += 1
+                    logger.info(
+                        "⌛ attempt to connect wss %s/%s",
+                        retry_count, max_retry_count
+                        )
                     await asyncio.sleep(reconnecting_time_in_sec)
                     continue
                 

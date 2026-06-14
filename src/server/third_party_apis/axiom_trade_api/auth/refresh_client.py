@@ -1,11 +1,12 @@
 import asyncio
 import logging
 import random
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 import cloudscraper
+from curl_cffi import AsyncSession
 
-from ..models.auth import AxiomAgentData
+from ..models.auth import AxiomAgentData, AxiomCookie
 from ..urls import AAllBaseUrls, AxiomTradeApiUrls
 
 
@@ -14,19 +15,15 @@ logger = logging.getLogger(__name__)
 
 class AuthRefreshClient:
     def __init__(self) -> None:
-        self._scraper = cloudscraper.create_scraper(
-            browser={
-                "browser": "chrome",
-                "platform": "windows",
-                "desktop": True,
-            }
-        )
         self._base_url = random.choice(AAllBaseUrls.URLS)
 
     async def refresh_access_token(
             self,
-            agent_data: AxiomAgentData,
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
             ) -> Optional[str]:
+        session = session_and_agent[0]
+        agent_data = session_and_agent[1]
+
         url = self._base_url + AxiomTradeApiUrls.REFRESH_TOKEN
         request_kwargs: dict[str, Any] = dict(
             url=url,
@@ -41,16 +38,25 @@ class AuthRefreshClient:
                 agent_data.agent_name,
                 agent_data.proxy,
             )
-            request_kwargs["proxies"] = {
-                "http": agent_data.proxy,
-                "https": agent_data.proxy,
-            }
+            # request_kwargs["proxies"] = {
+            #     "http": agent_data.proxy,
+            #     "https": agent_data.proxy,
+            # }
+            request_kwargs["proxy"] = agent_data.proxy
 
         try:
-            response = await asyncio.to_thread(
-                self._scraper.post,
+            # response = await asyncio.to_thread(
+            #     self._scraper.post,
+            #     **request_kwargs,
+            # )
+
+            response = await session.post(
                 **request_kwargs,
+                impersonate="chrome136"
             )
+
+            self._save_cf_cookies_for_agent(axiom_agent=agent_data, session=session)
+
             if response.status_code == 200:
                 logger.info(
                     "✅ %s access token refreshed", agent_data.agent_name
@@ -81,3 +87,25 @@ class AuthRefreshClient:
                 e,
             )
             return
+        
+    def _get_cookies_from_session(self, session: AsyncSession) -> dict:
+        cookies = session.cookies.get_dict()
+        return cookies
+    
+    def _save_cf_cookies_for_agent(
+            self, 
+            axiom_agent: AxiomAgentData,
+            session: AsyncSession
+            ) -> None:
+        cf_cookies: dict = self._get_cookies_from_session(session)
+
+        axiom_agent_cookies = axiom_agent.cookies
+        for key, value in cf_cookies.items():
+            cookie = AxiomCookie(cookie=value)
+            axiom_agent_cookies.key = cookie
+
+        logger.info(
+            "✅ cf cookies for %s saved in state", 
+            axiom_agent.agent_name
+            )
+        
