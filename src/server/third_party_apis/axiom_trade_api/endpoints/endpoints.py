@@ -126,7 +126,7 @@ class AxiomTradeEndpoints:
             session_and_agent: Tuple[AsyncSession, AxiomAgentData], 
             dev_address: str
             ) -> Optional[DevTokensV3Response]:
-        url = self._base_url + AxiomTradeApiUrls.DEV_TOKENS_V3 + dev_address
+        url = self._base_url + AxiomTradeApiUrls.DEV_TOKENS_V4 + dev_address
         return await self.__get_response_model(
             session_and_agent=session_and_agent,
             url=url,
