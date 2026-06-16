@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, field_serializer
 import json
 from pathlib import Path
 from typing import List, Optional
 import logging
 
 
-def logging_configuration(debug: bool):
+def logging_configuration(log_level: str):
     FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
 
     # file_handler = logging.FileHandler(filename="./app/logs.txt", encoding="utf-8")
@@ -16,10 +16,12 @@ def logging_configuration(debug: bool):
 
     stream_handler = logging.StreamHandler()
 
-    if not debug:
-        stream_handler.setLevel(logging.WARNING)
-    else:
+    if log_level.lower() == "debug":
         stream_handler.setLevel(logging.DEBUG)
+    elif log_level.lower() == "info":
+        stream_handler.setLevel(logging.INFO)
+    else:
+        stream_handler.setLevel(logging.WARNING)
 
     logging.basicConfig(
         format=FORMAT,
@@ -77,7 +79,7 @@ class AxiomTradeConfig(BaseSettings):
 
 class Settings(BaseSettings):
     app_name: str = "Ascend"
-    debug: bool = False
+    log_level: str = "info"
     database_url: str = "sqlite:///./ascend.db"
     database_async_url: str = "sqlite+aiosqlite:///./ascend.db"
     """Перец для хэша API-ключей (рекомендуется задать в .env на проде)."""
@@ -104,4 +106,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-logging_configuration(settings.debug)
+logging_configuration(settings.log_level)
