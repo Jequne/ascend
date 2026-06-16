@@ -22,8 +22,13 @@ async def token_feed_broadcaster(
         try:
             item = \
                 await asyncio.wait_for(
-                    TokenFeedCollector.tokens_feed.get(), timeout=0.5
+                    TokenFeedCollector.tokens_feed.get(), timeout=3
                     )
+            
+            logger.debug(
+                "👥 tokens_feed queue length: %s", 
+                TokenFeedCollector.tokens_feed.qsize()
+                )
         except asyncio.TimeoutError:
             continue
         except Exception as e:
