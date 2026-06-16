@@ -29,7 +29,7 @@ def logging_configuration(log_level: str):
             # file_handler, 
             stream_handler
             ],
-        level=logging.INFO
+        level=logging.DEBUG
     )
 
 class AxiomTradeConfig(BaseSettings):
