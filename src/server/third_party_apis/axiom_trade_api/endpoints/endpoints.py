@@ -32,7 +32,7 @@ def _response_summary(json_data: Dict) -> str:
 
 class AxiomTradeEndpoints:
     def __init__(
-            self, 
+            self,
             auth_manager: AuthManager
             ):
         self._auth_manager = auth_manager
@@ -97,7 +97,7 @@ class AxiomTradeEndpoints:
         )
         try:
             return response_model(**json_data)
-        
+
         except ValidationError:
             logger.warning("⚠️ validating %s response problem", endpoint_name)
             return
@@ -111,7 +111,7 @@ class AxiomTradeEndpoints:
             "pair_chart_v2 params string: \n%s",
             pair_chart_v2_params.to_http_query_string()
             )
-        
+
         url = self._base_url + AxiomTradeApiUrls.PAIR_CHART_V2 + \
             pair_chart_v2_params.to_http_query_string()
         return await self.__get_response_model(
@@ -120,23 +120,23 @@ class AxiomTradeEndpoints:
             response_model=PairChartV2Response,
             endpoint_name="pair_chart_v2",
         )
-            
+
     async def dev_tokens_v3(
-            self, 
-            session_and_agent: Tuple[AsyncSession, AxiomAgentData], 
+            self,
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
             dev_address: str
             ) -> Optional[DevTokensV3Response]:
-        url = self._base_url + AxiomTradeApiUrls.DEV_TOKENS_V4 + dev_address
+        url = self._base_url + AxiomTradeApiUrls.DEV_TOKENS_V5 + dev_address
         return await self.__get_response_model(
             session_and_agent=session_and_agent,
             url=url,
             response_model=DevTokensV3Response,
-            endpoint_name="dev_tokens_v3",
+            endpoint_name="dev_tokens_v5",
         )
-        
+
     async def token_info(
-            self, 
-            session_and_agent: Tuple[AsyncSession, AxiomAgentData], 
+            self,
+            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
             pair_address: str
             ) -> Optional[TokenInfoResponse]:
         url = self._base_url + AxiomTradeApiUrls.TOKEN_INFO + pair_address
@@ -159,7 +159,7 @@ class AxiomTradeEndpoints:
             response_model=PairInfoResponse,
             endpoint_name="pair_info",
         )
-    
+
     async def server_time(
             self,
             session_and_agent: Tuple[AsyncSession, AxiomAgentData],
@@ -169,9 +169,9 @@ class AxiomTradeEndpoints:
             session_and_agent=session_and_agent,
             url=url
         )
-    
+
     async def get_announcment(
-            self, 
+            self,
             session_and_agent: Tuple[AsyncSession, AxiomAgentData]
             ) -> Optional[PairInfoResponse]:
         url = "https://api6.axiom.trade/get-announcement?"
@@ -179,15 +179,3 @@ class AxiomTradeEndpoints:
             session_and_agent=session_and_agent,
             url=url
         )
-        
-    
-
-
-        
-                
-
-
-
-
-    
-

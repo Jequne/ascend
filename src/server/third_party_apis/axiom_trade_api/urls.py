@@ -12,23 +12,24 @@ class AAllBaseUrls:
         "https://api10.axiom.trade",
         # "https://api.axiom.trade",
    ]
-   
+
 
 class AxiomWssUrls:
-    WSS_URL1 = f"wss://cluster2.axiom.trade"
+    WSS_URL1 = "wss://cluster2.axiom.trade"
 
 
 class AxiomTradeApiUrls:
-    LOGIN_STEP1 = f"/login-password-v2"
-    LOGIN_STEP2 = f"/login-otp"
-    LOGOUT = f"/auth/logout"
-    REFRESH_TOKEN = f"/refresh-access-token"
-    USER_INFO = f"/user/info"
-    SUBSCRIBE_NEW_TOKENS = f"/ws/subscribe/new-tokens"
-    SUBSCRIBE_ORDERS = f"/ws/subscribe/orders"
-    SUBSCRIBE_POSITIONS = f"/ws/subscribe/positions"
-    PAIR_CHART_V2 = f"/pair-chart-v2?"
-    DEV_TOKENS_V3 = f"/dev-tokens-v3?devAddress="
-    DEV_TOKENS_V4 = f"/dev-tokens-v4?devAddress="
-    TOKEN_INFO = f"/token-info?pairAddress="
-    PAIR_INFO = f"/pair-info?pairAddress="
+    LOGIN_STEP1 = "/login-password-v2"
+    LOGIN_STEP2 = "/login-otp"
+    LOGOUT = "/auth/logout"
+    REFRESH_TOKEN = "/refresh-access-token"
+    USER_INFO = "/user/info"
+    SUBSCRIBE_NEW_TOKENS = "/ws/subscribe/new-tokens"
+    SUBSCRIBE_ORDERS = "/ws/subscribe/orders"
+    SUBSCRIBE_POSITIONS = "/ws/subscribe/positions"
+    PAIR_CHART_V2 = "/pair-chart-v2?"
+    DEV_TOKENS_V3 = "/dev-tokens-v3?devAddress="
+    DEV_TOKENS_V4 = "/dev-tokens-v4?devAddress="
+    DEV_TOKENS_V5 = "/dev-tokens-v5?devAddress="
+    TOKEN_INFO = "/token-info?pairAddress="
+    PAIR_INFO = "/pair-info?pairAddress="
