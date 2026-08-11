@@ -56,6 +56,26 @@ describe("TokenCard", () => {
         expect(card).toHaveTextContent("$LAST");
     });
 
+    it("exposes indicator-specific card glow states", () => {
+        const { rerender } = render(TokenCard, {
+            feed: createTokenFeed(),
+        });
+
+        const card = screen.getByTestId("token-card");
+        expect(card).toHaveAttribute("data-dev-migrations", "true");
+        expect(card).toHaveAttribute("data-last-tokens", "false");
+
+        rerender({
+            feed: createTokenFeed({
+                indicators: ["Dev Migrations", "Last Tokens"],
+            }),
+        });
+
+        expect(card).toHaveAttribute("data-dev-migrations", "true");
+        expect(card).toHaveAttribute("data-last-tokens", "true");
+        expect(screen.getByText("Last Tokens")).toHaveClass("text-[#e2ca67]");
+    });
+
     it("opens accessible social links through the opener service", async () => {
         render(TokenCard, { feed: createTokenFeed() });
 

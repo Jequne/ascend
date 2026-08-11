@@ -33,11 +33,15 @@ export function timeAgo(dateString: string, now = Date.now()): string {
 }
 
 export function hasRelevantIndicator(feed: TokenFeed): boolean {
-    return feed.indicators.some((indicator) => {
-        const normalizedIndicator = indicator.trim().toLowerCase();
-        return (
-            normalizedIndicator === "dev migrations" ||
-            normalizedIndicator === "last tokens"
-        );
-    });
+    return (
+        hasIndicator(feed, "dev migrations") ||
+        hasIndicator(feed, "last tokens")
+    );
+}
+
+export function hasIndicator(feed: TokenFeed, name: string): boolean {
+    const normalizedName = name.trim().toLowerCase();
+    return feed.indicators.some(
+        (indicator) => indicator.trim().toLowerCase() === normalizedName,
+    );
 }

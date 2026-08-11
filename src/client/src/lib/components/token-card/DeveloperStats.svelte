@@ -51,7 +51,11 @@
         <div class="flex min-w-0 flex-wrap items-center gap-1.5">
             {#each feed.indicators as indicator (indicator)}
                 <span
-                    class="text-success rounded border border-emerald-500/30 bg-emerald-500/15 px-1.5 py-0.5 text-[0.7rem] font-semibold whitespace-nowrap uppercase"
+                    class="rounded border px-1.5 py-0.5 text-[0.7rem] font-semibold whitespace-nowrap uppercase {indicator
+                        .trim()
+                        .toLowerCase() === 'last tokens'
+                        ? 'border-[#d6b94a]/35 bg-[#d6b94a]/15 text-[#e2ca67]'
+                        : 'text-success border-emerald-500/30 bg-emerald-500/15'}"
                     >{indicator}</span
                 >
             {/each}
