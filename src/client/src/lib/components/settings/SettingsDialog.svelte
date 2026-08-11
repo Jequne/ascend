@@ -117,7 +117,10 @@
             </button>
         </header>
 
-        <AutoOpenControl bind:checked={draft.autoOpenInNewTab} />
+        <AutoOpenControl
+            bind:checked={draft.autoOpenInNewTab}
+            bind:terminal={draft.terminal}
+        />
 
         <SettingsTabs {activeTab} onSelect={(tab) => (activeTab = tab)} />
 

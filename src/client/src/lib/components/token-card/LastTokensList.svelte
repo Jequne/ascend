@@ -49,23 +49,21 @@
 <section class="flex w-full flex-col" aria-labelledby="last-tokens-heading">
     <h4
         id="last-tokens-heading"
-        class="m-0 text-xs tracking-[0.05em] text-slate-500 uppercase"
+        class="mt-0 mb-1 text-xs font-semibold tracking-[0.05em] text-slate-500 uppercase"
     >
         Last Tokens
     </h4>
     <div class="flex flex-col gap-2">
         {#each tokens as token, index (`${token.token_address}:${index}`)}
             <div
-                class="hover:border-accent-purple/20 focus-visible:border-accent-purple/30 focus-visible:ring-accent-purple/60 relative isolate flex cursor-pointer flex-wrap items-center justify-between gap-2 overflow-hidden rounded-md border border-white/[0.03] bg-black/15 px-2 py-1.5 transition-[transform,border-color,box-shadow,background-color] duration-150 before:pointer-events-none before:absolute before:inset-0 before:rounded-[inherit] before:bg-[linear-gradient(135deg,rgba(129,140,248,0.12),transparent_42%),linear-gradient(315deg,rgba(16,185,129,0.08),transparent_55%)] before:opacity-0 before:transition-opacity before:duration-150 hover:-translate-y-px hover:shadow-[0_10px_24px_rgba(0,0,0,0.18),0_0_0_1px_rgba(129,140,248,0.12)] hover:before:opacity-100 focus-visible:-translate-y-px focus-visible:ring-1 focus-visible:outline-none focus-visible:before:opacity-100 motion-reduce:transform-none motion-reduce:transition-none"
+                class="hover:border-accent-purple/20 focus-visible:border-accent-purple/30 focus-visible:ring-accent-purple/60 flex cursor-pointer flex-wrap items-center justify-between gap-2 overflow-hidden rounded-lg border border-white/[0.05] bg-black/[0.13] px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.018)] transition-[transform,border-color,box-shadow,background-color] duration-150 hover:-translate-y-px hover:bg-white/[0.025] hover:shadow-[0_8px_18px_rgba(0,0,0,0.16)] focus-visible:-translate-y-px focus-visible:bg-white/[0.025] focus-visible:ring-1 focus-visible:outline-none motion-reduce:transform-none motion-reduce:transition-none"
                 role="button"
                 tabindex="0"
                 aria-label={`Open ${token.token_name} in ${filtersStore.terminal.toUpperCase()}`}
                 onclick={(event) => handleClick(event, token)}
                 onkeydown={(event) => handleKeydown(event, token)}
             >
-                <div
-                    class="relative z-[1] flex min-w-0 grow items-center gap-2"
-                >
+                <div class="flex min-w-0 grow items-center gap-2">
                     <div
                         class="bg-border relative size-[26px] shrink-0 overflow-hidden rounded-md"
                     >
@@ -151,7 +149,7 @@
                     </div>
                 </div>
 
-                <div class="relative z-[1]">
+                <div>
                     <SocialLinks {token} />
                 </div>
             </div>

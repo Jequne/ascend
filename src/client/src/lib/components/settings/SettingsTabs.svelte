@@ -11,18 +11,18 @@
     }> = [
         {
             id: "filters",
-            title: "Фильтры",
-            description: "Отбор и показ токенов",
+            title: "Filters",
+            description: "Token selection rules",
         },
         {
             id: "blacklist",
             title: "Blacklist",
-            description: "Скрытые кошельки и имена",
+            description: "Hidden wallets and names",
         },
         {
             id: "transfer",
-            title: "Импорт / экспорт",
-            description: "Перенос конфигурации",
+            title: "Import / Export",
+            description: "Move your configuration",
         },
     ];
 

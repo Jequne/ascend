@@ -82,7 +82,9 @@
         {/if}
     </div>
 
-    <div class="flex flex-wrap items-center gap-2 text-[0.8rem]">
+    <div
+        class="flex flex-wrap items-center gap-2 rounded-lg border border-white/[0.045] bg-black/10 px-2 py-1.5 text-[0.8rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]"
+    >
         <span
             class="text-foreground inline-flex items-center gap-1"
             title="Total Tokens"

@@ -76,14 +76,21 @@ describe("SettingsDialog", () => {
         await user.click(autoOpen);
         expect(autoOpen).toHaveAttribute("aria-checked", "true");
 
+        const terminal = within(dialog).getByRole("combobox", {
+            name: "Token terminal",
+        });
+        await user.click(terminal);
+        await user.click(within(dialog).getByRole("option", { name: /GMGN/ }));
+        expect(terminal).toHaveTextContent("GMGN");
+
         const filtersTab = within(dialog).getByRole("tab", {
-            name: /Фильтры/,
+            name: /Filters/,
         });
         const blacklistTab = within(dialog).getByRole("tab", {
             name: /Blacklist/,
         });
         const transferTab = within(dialog).getByRole("tab", {
-            name: /Импорт \/ экспорт/,
+            name: /Import \/ Export/,
         });
 
         expect(filtersTab).toHaveAttribute("aria-selected", "true");
@@ -101,7 +108,9 @@ describe("SettingsDialog", () => {
         await user.keyboard("{Home}");
         expect(filtersTab).toHaveFocus();
 
-        const migrationInput = within(dialog).getByLabelText("Min migration %");
+        const migrationInput = within(dialog).getByLabelText(
+            /Minimum migration rate/,
+        );
         await user.clear(migrationInput);
         await user.type(migrationInput, "42");
         await user.click(
@@ -115,6 +124,38 @@ describe("SettingsDialog", () => {
             DEFAULT_FILTERS.minMigrationPercent,
         );
         expect(filtersStore.autoOpenInNewTab).toBe(false);
+        expect(filtersStore.terminal).toBe(DEFAULT_FILTERS.terminal);
+    });
+
+    it("reveals the optional previous-token override only when enabled", async () => {
+        const { user, dialog } = await openSettings();
+        const override = within(dialog).getByRole("switch", {
+            name: "Enable previous-token performance override",
+        });
+
+        expect(override).toHaveAttribute("aria-checked", "false");
+        expect(
+            within(dialog).queryByLabelText(
+                /Minimum previous-token ATH market cap/,
+            ),
+        ).toBeNull();
+
+        await user.click(override);
+        expect(override).toHaveAttribute("aria-checked", "true");
+        expect(
+            within(dialog).getByLabelText(
+                /Minimum previous-token ATH market cap/,
+            ),
+        ).toBeVisible();
+
+        const requiredTokens = within(dialog).getByLabelText(
+            /Required previous tokens/,
+        );
+        await user.clear(requiredTokens);
+        await user.type(requiredTokens, "2");
+        await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+        expect(filtersStore.lastTokensRequiredCount).toBe(2);
     });
 
     it("normalizes blacklist entries and applies all draft changes on Save", async () => {
@@ -129,6 +170,21 @@ describe("SettingsDialog", () => {
         expect(
             within(dialog).getByLabelText("2 unique blacklist entries"),
         ).toHaveTextContent("2 unique");
+        expect(
+            within(dialog).queryByRole("list", {
+                name: "Normalized blacklist preview",
+            }),
+        ).toBeNull();
+        await user.click(
+            within(dialog).getByRole("button", {
+                name: /Show 2 blacklist entries/,
+            }),
+        );
+        expect(
+            within(dialog).getByRole("list", {
+                name: "Normalized blacklist preview",
+            }),
+        ).toBeVisible();
         await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
         expect(filtersStore.blacklist).toEqual(["Wallet-1", "Token Name"]);
@@ -154,7 +210,7 @@ describe("SettingsDialog", () => {
         });
 
         await user.click(
-            within(dialog).getByRole("tab", { name: /Импорт \/ экспорт/ }),
+            within(dialog).getByRole("tab", { name: /Import \/ Export/ }),
         );
         await user.click(
             within(dialog).getByRole("button", { name: "Copy JSON" }),
@@ -177,7 +233,7 @@ describe("SettingsDialog", () => {
                 },
             }),
         );
-        const importArea = within(dialog).getByLabelText("Paste settings JSON");
+        const importArea = within(dialog).getByLabelText("Settings JSON");
         await user.click(importArea);
         await user.paste(pastedPayload);
         await user.click(
