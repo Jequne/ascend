@@ -13,12 +13,12 @@ from ...models.access_key import ApiKey
 from ...schemas.auth import AdminCreateKeyRequest, AdminCreateKeyResponse
 from ...services.admin import AdminServices
 
-router = APIRouter()
+router = APIRouter(prefix="/admin")
 
 logger = logging.getLogger(__name__)
 
 @router.post(
-    "/admin/create-api-key",
+    "/create-api-key",
     response_model=AdminCreateKeyResponse,
     status_code=status.HTTP_201_CREATED,
 )

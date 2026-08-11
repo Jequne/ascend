@@ -7,10 +7,10 @@ from ...database import get_async_db
 from ...schemas.auth import ValidateKeyRequest, ValidateKeyResponse
 from ...services.auth import AuthServicer
 
-router = APIRouter()
+router = APIRouter(prefix="/auth")
 
 
-@router.post("/auth/validate-key", response_model=ValidateKeyResponse)
+@router.post("/validate-key", response_model=ValidateKeyResponse)
 async def validate_key(
     request: Request,
     response: Response,
