@@ -28,7 +28,7 @@
             description: "Require each recent token to pass",
         },
     ] as const;
-    const rangeMarks = Array.from({ length: 11 }, (_, index) => index * 10);
+    const rangeMarks = [0.1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
     let previousRequiredCount = Math.max(
         1,

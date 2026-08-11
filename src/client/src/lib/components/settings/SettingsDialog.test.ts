@@ -76,12 +76,19 @@ describe("SettingsDialog", () => {
         await user.click(autoOpen);
         expect(autoOpen).toHaveAttribute("aria-checked", "true");
 
-        const terminal = within(dialog).getByRole("combobox", {
+        const terminal = within(dialog).getByRole("radiogroup", {
             name: "Token terminal",
         });
-        await user.click(terminal);
-        await user.click(within(dialog).getByRole("option", { name: /GMGN/ }));
-        expect(terminal).toHaveTextContent("GMGN");
+        const axiom = within(terminal).getByRole("radio", {
+            name: /Axiom.trade/,
+        });
+        const gmgn = within(terminal).getByRole("radio", { name: /GMGN/ });
+        expect(axiom).toHaveAttribute("aria-checked", "true");
+        await user.click(gmgn);
+        expect(gmgn).toHaveAttribute("aria-checked", "true");
+        await user.keyboard("{ArrowLeft}");
+        expect(axiom).toHaveAttribute("aria-checked", "true");
+        await user.click(gmgn);
 
         const filtersTab = within(dialog).getByRole("tab", {
             name: /Filters/,

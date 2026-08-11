@@ -25,9 +25,9 @@
     <div class="flex w-full flex-wrap items-center gap-2 max-[600px]:gap-1.5">
         <button
             type="button"
-            class="focus-visible:ring-accent-purple focus-visible:ring-offset-canvas inline-flex h-10 min-w-[110px] cursor-pointer items-center justify-center rounded-[10px] border px-3 text-[13px] font-semibold tracking-[0.2px] shadow-[0_4px_15px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)] transition-[transform,background-color,border-color,box-shadow] duration-200 hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0 motion-reduce:transform-none max-[600px]:h-9 max-[600px]:min-w-20 max-[600px]:px-2 max-[600px]:text-xs {wsStore.isConnected
-                ? 'border-green-400/20 bg-[linear-gradient(145deg,rgba(62,223,167,0.1),rgba(62,223,167,0.02))] text-green-400 hover:border-green-400/35 hover:bg-[linear-gradient(145deg,rgba(62,223,167,0.15),rgba(62,223,167,0.05))]'
-                : 'text-danger border-[#ec6572]/20 bg-[linear-gradient(145deg,rgba(236,101,114,0.1),rgba(236,101,114,0.02))] hover:border-[#ec6572]/35 hover:bg-[linear-gradient(145deg,rgba(236,101,114,0.15),rgba(236,101,114,0.05))]'}"
+            class="focus-visible:ring-accent-purple focus-visible:ring-offset-canvas inline-flex h-[42px] min-w-[116px] cursor-pointer items-center justify-center rounded-lg border bg-[#1b1e28] px-3 text-[13px] font-medium tracking-[0.1px] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition-colors duration-150 hover:bg-[#222631] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:bg-[#171a23] max-[600px]:min-w-[104px] max-[600px]:px-2.5 max-[600px]:text-xs {wsStore.isConnected
+                ? 'border-emerald-400/25 text-emerald-300 hover:border-emerald-400/40 hover:bg-emerald-400/[0.06]'
+                : 'border-red-400/25 text-red-300 hover:border-red-400/40 hover:bg-red-400/[0.06]'}"
             onclick={wsStore.toggleConnection}
             title={wsStore.isConnected ? "Disconnect feed" : "Connect feed"}
             aria-label={wsStore.isConnected
@@ -51,11 +51,11 @@
         </button>
 
         <div
-            class="inline-flex h-10 cursor-default items-center justify-center rounded-[10px] border border-[#de93c8]/20 bg-[linear-gradient(145deg,rgba(222,147,200,0.1),rgba(222,147,200,0.02))] px-3 text-[13px] font-semibold tracking-[0.2px] text-[#e696c2] shadow-[0_4px_15px_rgba(222,147,200,0.1),inset_0_1px_0_rgba(222,147,200,0.1)] max-[600px]:h-9 max-[600px]:px-2 max-[600px]:text-xs"
+            class="inline-flex h-[42px] cursor-default items-center justify-center rounded-lg border border-[#de93c8]/20 bg-[#1b1e28] px-3 text-[13px] font-medium tracking-[0.1px] text-[#e696c2] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] max-[600px]:px-2.5 max-[600px]:text-xs"
             aria-label={`Solana price ${formatSolPrice(wsStore.solPrice)}`}
         >
             <img
-                class="size-4 max-[600px]:size-3.5"
+                class="size-[17px] max-[600px]:size-4"
                 src="/icons/solana.svg"
                 alt=""
                 aria-hidden="true"
@@ -66,14 +66,14 @@
         </div>
 
         <div
-            class="inline-flex h-10 cursor-default items-center justify-center rounded-[10px] border border-[#a4adcf]/20 bg-[linear-gradient(145deg,rgba(164,173,207,0.1),rgba(164,173,207,0.02))] px-3 text-[13px] font-semibold tracking-[0.2px] text-[#a7accc] shadow-[0_4px_15px_rgba(164,173,207,0.1),inset_0_1px_0_rgba(164,173,207,0.1)] max-[600px]:h-9 max-[600px]:px-2 max-[600px]:text-xs"
+            class="inline-flex h-[42px] cursor-default items-center justify-center rounded-lg border border-[#a4adcf]/20 bg-[#1b1e28] px-3 text-[13px] font-medium tracking-[0.1px] text-[#b5bbd6] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] max-[600px]:px-2.5 max-[600px]:text-xs"
             aria-label={`${wsStore.tokenFeedCount} accepted of ${wsStore.tokenFeedTotalCount} incoming tokens`}
         >
             # {wsStore.tokenFeedCount}/{wsStore.tokenFeedTotalCount}
         </div>
 
         <button
-            class="hover:text-foreground focus-visible:ring-accent-purple focus-visible:ring-offset-canvas ml-auto inline-flex size-10 cursor-pointer items-center justify-center rounded-[10px] border border-white/[0.08] bg-[linear-gradient(145deg,#1e2029,#252835)] text-[#a0aec0] shadow-[0_4px_15px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)] transition-[transform,background-color,border-color,color,box-shadow] duration-200 hover:-translate-y-px hover:border-white/15 hover:bg-[linear-gradient(145deg,#272a35,#2f3342)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0 motion-reduce:transform-none max-[600px]:size-9"
+            class="hover:text-foreground focus-visible:ring-accent-purple focus-visible:ring-offset-canvas ml-auto inline-flex size-[42px] cursor-pointer items-center justify-center rounded-lg border border-white/[0.09] bg-[#1b1e28] text-[#a0aec0] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition-colors duration-150 hover:border-white/15 hover:bg-[#242832] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:bg-[#171a23]"
             type="button"
             bind:this={settingsButton}
             onclick={() => (settingsOpen = true)}
@@ -84,7 +84,7 @@
         </button>
 
         <button
-            class="hover:border-danger/35 hover:text-danger focus-visible:ring-danger focus-visible:ring-offset-canvas inline-flex size-10 cursor-pointer items-center justify-center rounded-[10px] border border-white/[0.08] bg-[linear-gradient(145deg,#1e2029,#252835)] text-[#a0aec0] shadow-[0_4px_15px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.05)] transition-[transform,background-color,border-color,color,box-shadow] duration-200 hover:-translate-y-px hover:bg-[linear-gradient(145deg,rgba(235,105,118,0.14),rgba(235,105,118,0.04))] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:border-white/[0.08] disabled:hover:text-[#a0aec0] motion-reduce:transform-none max-[600px]:size-9"
+            class="hover:border-danger/35 hover:text-danger focus-visible:ring-danger focus-visible:ring-offset-canvas inline-flex size-[42px] cursor-pointer items-center justify-center rounded-lg border border-white/[0.09] bg-[#1b1e28] text-[#a0aec0] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] transition-colors duration-150 hover:bg-red-400/[0.06] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:bg-red-400/[0.09] disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-white/[0.09] disabled:hover:bg-[#1b1e28] disabled:hover:text-[#a0aec0]"
             type="button"
             onclick={wsStore.clearTokens}
             disabled={wsStore.tokenFeeds.length === 0}
