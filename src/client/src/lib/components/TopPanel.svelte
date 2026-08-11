@@ -11,6 +11,7 @@
         blacklistEntriesToText,
         normalizeBlacklistEntries,
     } from "$lib/utils/blacklist";
+    import { Settings2, Trash2, Wifi, WifiOff } from "@lucide/svelte";
 
     let showSettings = false;
     let importJson = "";
@@ -224,21 +225,22 @@
 
 <div class="top-panel">
     <div class="panel-content">
-        <!-- Connect / Ping Button -->
         <button
             type="button"
             class="pill-btn ws-btn {wsStore.isConnected
                 ? 'connected'
                 : 'disconnected'}"
             onclick={wsStore.toggleConnection}
+            title={wsStore.isConnected ? "Disconnect feed" : "Connect feed"}
+            aria-label={wsStore.isConnected
+                ? "Disconnect token feed"
+                : "Connect token feed"}
         >
-            <img
-                src={wsStore.isConnected
-                    ? "/icons/wifi-connected.svg"
-                    : "/icons/wifi-disconnected.svg"}
-                alt="Connection Status"
-                class="icon"
-            />
+            {#if wsStore.isConnected}
+                <Wifi class="icon" size={16} aria-hidden="true" />
+            {:else}
+                <WifiOff class="icon" size={16} aria-hidden="true" />
+            {/if}
             <span class="text">
                 {#if wsStore.isConnected}
                     {wsStore.ping}ms
@@ -250,7 +252,6 @@
             </span>
         </button>
 
-        <!-- Placeholder Buttons for Design -->
         <div class="pill-btn purple-btn">
             <img src="/icons/solana.svg" alt="Solana Logo" class="icon" />
             <span class="text">
@@ -270,17 +271,24 @@
             >
         </div>
 
-        <!-- Setting and Trash Icons pushed to the right -->
         <button
             class="icon-btn"
             style="margin-left: auto;"
             onclick={openSettings}
+            title="Settings"
+            aria-label="Open settings"
         >
-            <img src="/icons/settings.svg" alt="Settings" class="icon" />
+            <Settings2 class="icon" size={16} aria-hidden="true" />
         </button>
 
-        <button class="icon-btn" onclick={wsStore.clearTokens}>
-            <img src="/icons/trash.svg" alt="Trash" class="icon" />
+        <button
+            class="icon-btn danger-btn"
+            onclick={wsStore.clearTokens}
+            disabled={wsStore.tokenFeeds.length === 0}
+            title="Clear visible tokens"
+            aria-label="Clear visible tokens"
+        >
+            <Trash2 class="icon" size={16} aria-hidden="true" />
         </button>
     </div>
 
@@ -688,6 +696,12 @@
         transform: translateY(0);
     }
 
+    .pill-btn:focus-visible,
+    .icon-btn:focus-visible {
+        outline: 2px solid rgba(129, 140, 248, 0.8);
+        outline-offset: 2px;
+    }
+
     .icon-btn {
         padding: 0;
         width: 40px;
@@ -699,16 +713,32 @@
         border-color: rgba(255, 255, 255, 0.15);
     }
 
+    .icon-btn.danger-btn:not(:disabled):hover,
+    .icon-btn.danger-btn:not(:disabled):focus-visible {
+        color: #eb6976;
+        border-color: rgba(235, 105, 118, 0.35);
+        background: linear-gradient(
+            145deg,
+            rgba(235, 105, 118, 0.14),
+            rgba(235, 105, 118, 0.04)
+        );
+    }
+
+    .icon-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.42;
+        transform: none;
+        box-shadow:
+            0 4px 15px rgba(0, 0, 0, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
     .icon {
         width: 16px;
         height: 16px;
         transition: filter 0.3s ease;
         -webkit-backface-visibility: hidden;
         backface-visibility: hidden;
-    }
-
-    .icon-btn:hover .icon {
-        filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.4)) brightness(1.2);
     }
 
     .pill-btn .text {
@@ -748,10 +778,6 @@
             inset 0 1px 0 rgba(236, 101, 114, 0.15);
     }
 
-    .ws-btn.disconnected:hover .icon {
-        filter: drop-shadow(0 0 6px rgba(236, 101, 114, 0.6)) brightness(1.2);
-    }
-
     .ws-btn.connected {
         background: linear-gradient(
             145deg,
@@ -774,10 +800,6 @@
         box-shadow:
             0 6px 20px rgba(62, 223, 167, 0.2),
             inset 0 1px 0 rgba(62, 223, 167, 0.15);
-    }
-
-    .ws-btn.connected:hover .icon {
-        filter: drop-shadow(0 0 6px rgba(62, 223, 167, 0.6)) brightness(1.2);
     }
 
     /* Second Button Purple (Decorative) */

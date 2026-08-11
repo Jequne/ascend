@@ -5,7 +5,7 @@
 
 <div class="feed-container">
     {#if wsStore.tokenFeeds && wsStore.tokenFeeds.length > 0}
-        {#each wsStore.tokenFeeds as feed (feed.pair_address || feed.token_address)}
+        {#each wsStore.tokenFeeds as feed (feed.clientKey)}
             <TokenCard {feed} />
         {/each}
     {:else if !wsStore.isConnected}

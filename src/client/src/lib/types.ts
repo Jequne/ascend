@@ -52,6 +52,7 @@ export interface TokenFeed extends Omit<
     TokenFeedPayload,
     "last_deployed_tokens"
 > {
+    clientKey: string;
     indicators: string[];
     last_deployed_tokens: LastDeployedToken[];
 }

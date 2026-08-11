@@ -3,6 +3,7 @@ import { WS_BASE_URL } from "$lib/config/constants";
 import { filtersStore } from "$lib/stores/filters.svelte";
 import type { LastDeployedToken, TokenFeed } from "$lib/types";
 import { tokenMatchesBlacklist } from "$lib/utils/blacklist";
+import { prependRollingFeed } from "$lib/utils/feed";
 import { passesLastTokenFeesFilter } from "$lib/utils/lastTokenFees";
 import { passesLastTokensFilter } from "$lib/utils/lastTokens";
 import { openTokenUrlInNewTab } from "$lib/utils/tokenLinks";
@@ -12,6 +13,7 @@ class WebSocketStore {
     private ws: WebSocket | null = null;
     private shouldReconnect = false;
     private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    private feedSequence = 0;
 
     isConnected = $state(false);
     isConnecting = $state(false);
@@ -112,6 +114,7 @@ class WebSocketStore {
 
                 const nextFeed: TokenFeed = {
                     ...payload,
+                    clientKey: `${payload.pair_address || payload.token_address}:${this.feedSequence++}`,
                     indicators: [
                         ...(payload.indicator ? [payload.indicator] : []),
                         ...(lastTokensPass ? ["last tokens"] : []),
@@ -128,7 +131,7 @@ class WebSocketStore {
                     void openTokenUrlInNewTab(nextFeed, filtersStore.terminal);
                 }
 
-                this.tokenFeeds.unshift(nextFeed);
+                this.tokenFeeds = prependRollingFeed(this.tokenFeeds, nextFeed);
 
                 if (
                     filtersStore.autoOpenInNewTab &&
