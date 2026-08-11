@@ -1,4 +1,3 @@
-import { openerService } from "$lib/services/opener";
 import type {
     LastDeployedToken,
     Terminal,
@@ -38,12 +37,4 @@ export function buildTerminalUrl(
     return normalizeExternalUrl(
         `https://axiom.trade/meme/${token.pair_address}?chain=${blockchain}`,
     );
-}
-
-export async function openTokenUrlInNewTab(
-    token: LinkableToken,
-    terminal: Terminal,
-): Promise<void> {
-    const url = buildTerminalUrl(token, terminal);
-    if (url) await openerService.open(url);
 }

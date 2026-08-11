@@ -160,7 +160,7 @@ describe("SettingsDialog", () => {
             within(dialog).getByRole("button", { name: "Copy JSON" }),
         );
         expect(writeText).toHaveBeenCalledOnce();
-        expect(writeText.mock.calls[0]?.[0]).toContain('"schemaVersion": 1');
+        expect(writeText.mock.calls[0]?.[0]).toContain('"schemaVersion": 2');
 
         await user.click(
             within(dialog).getByRole("button", { name: "Download JSON" }),

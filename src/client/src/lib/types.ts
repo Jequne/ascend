@@ -73,7 +73,6 @@ export interface FilterSettings {
     blacklist: string[];
     terminal: Terminal;
     autoOpenInNewTab: boolean;
-    aggressiveAutoOpen: boolean;
 }
 
 export interface SettingsSections {
@@ -84,7 +83,9 @@ export interface SettingsEnvelopeV1 {
     schema: "ascend_trenches.settings";
     schemaVersion: 1;
     exportedAt: string;
-    settings: SettingsSections;
+    settings: {
+        filters: FilterSettings & { aggressiveAutoOpen?: boolean };
+    };
 }
 
 export interface SettingsEnvelopeV2 {
@@ -108,7 +109,11 @@ export interface BlacklistMatcher {
 }
 
 export interface FilterSnapshot {
-    readonly filters: Readonly<FilterSettings>;
+    readonly filters: Readonly<
+        Omit<FilterSettings, "blacklist"> & {
+            readonly blacklist: readonly string[];
+        }
+    >;
     readonly blacklistMatcher: BlacklistMatcher | null;
 }
 

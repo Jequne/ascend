@@ -7,14 +7,15 @@ import { settingsStore } from "$lib/stores/settings.svelte";
 import type {
     BlacklistMatcher,
     FeesMode,
+    FilterSnapshot,
     FilterSettings,
     Terminal,
 } from "$lib/types";
 import { createBlacklistMatcher } from "$lib/utils/blacklist";
 
 class FiltersStore {
-    private blacklistMatcherSource: readonly string[] | null = null;
-    private blacklistMatcherCache: BlacklistMatcher | null = null;
+    private snapshotSource: FilterSettings | null = null;
+    private snapshotCache: FilterSnapshot | null = null;
 
     get filters(): FilterSettings {
         return settingsStore.getSection("filters") ?? DEFAULT_FILTERS;
@@ -85,14 +86,7 @@ class FiltersStore {
     }
 
     get blacklistMatcher(): BlacklistMatcher | null {
-        const blacklist = this.blacklist;
-
-        if (this.blacklistMatcherSource !== blacklist) {
-            this.blacklistMatcherSource = blacklist;
-            this.blacklistMatcherCache = createBlacklistMatcher(blacklist);
-        }
-
-        return this.blacklistMatcherCache;
+        return this.snapshot.blacklistMatcher;
     }
 
     get terminal(): Terminal {
@@ -111,16 +105,31 @@ class FiltersStore {
         this.updateFilters({ autoOpenInNewTab: value });
     }
 
-    get aggressiveAutoOpen(): boolean {
-        return this.filters.aggressiveAutoOpen;
-    }
+    get snapshot(): FilterSnapshot {
+        const filters = this.filters;
 
-    set aggressiveAutoOpen(value: boolean) {
-        this.updateFilters({ aggressiveAutoOpen: value });
+        if (this.snapshotSource === filters && this.snapshotCache) {
+            return this.snapshotCache;
+        }
+
+        const normalizedFilters = normalizeFilters(filters);
+        const frozenFilters = Object.freeze({
+            ...normalizedFilters,
+            blacklist: Object.freeze([...normalizedFilters.blacklist]),
+        });
+        const snapshot: FilterSnapshot = Object.freeze({
+            filters: frozenFilters,
+            blacklistMatcher: createBlacklistMatcher(frozenFilters.blacklist),
+        });
+        this.snapshotSource = filters;
+        this.snapshotCache = snapshot;
+
+        return snapshot;
     }
 
     init(): void {
         settingsStore.init();
+        void this.snapshot;
     }
 
     updateFilters(partialFilters: Partial<FilterSettings>): void {
@@ -129,10 +138,11 @@ class FiltersStore {
             ...partialFilters,
         });
         settingsStore.setSection("filters", nextFilters);
+        void this.snapshot;
     }
 
     resetToDefaults(): void {
-        settingsStore.setSection("filters", normalizeFilters(DEFAULT_FILTERS));
+        this.updateFilters(DEFAULT_FILTERS);
     }
 
     exportToJson(): string {
@@ -140,7 +150,9 @@ class FiltersStore {
     }
 
     importFromJson(rawJson: string): FilterSettings {
-        return settingsStore.importFromJson(rawJson).filters;
+        const filters = settingsStore.importFromJson(rawJson).filters;
+        void this.snapshot;
+        return filters;
     }
 
     exportFileName(): string {

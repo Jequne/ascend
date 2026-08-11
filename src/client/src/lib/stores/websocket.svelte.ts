@@ -1,15 +1,15 @@
 import { getStoredKey } from "$lib/api/auth";
 import { WS_BASE_URL } from "$lib/config/constants";
+import { openerService, type UrlOpener } from "$lib/services/opener";
 import { filtersStore } from "$lib/stores/filters.svelte";
-import type { LastDeployedToken, TokenFeed } from "$lib/types";
-import { tokenMatchesBlacklist } from "$lib/utils/blacklist";
-import { prependRollingFeed } from "$lib/utils/feed";
-import { passesLastTokenFeesFilter } from "$lib/utils/lastTokenFees";
-import { passesLastTokensFilter } from "$lib/utils/lastTokens";
-import { openTokenUrlInNewTab } from "$lib/utils/tokenLinks";
+import type { FilterSnapshot, TokenFeed } from "$lib/types";
+import { evaluateTokenFeed, prependRollingFeed } from "$lib/utils/feed";
+import { buildTerminalUrl } from "$lib/utils/tokenLinks";
 import { parseWebSocketMessage } from "$lib/utils/websocketMessage";
 
-class WebSocketStore {
+export type WebSocketFactory = (url: string) => WebSocket;
+
+export class WebSocketStore {
     private ws: WebSocket | null = null;
     private shouldReconnect = false;
     private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -23,22 +23,57 @@ class WebSocketStore {
     tokenFeedTotalCount = $state(0);
     tokenFeeds = $state<TokenFeed[]>([]);
 
-    private passesFeesFilter(
-        lastDeployedTokens: readonly LastDeployedToken[] | null,
-    ): boolean {
-        return passesLastTokenFeesFilter(lastDeployedTokens, {
-            mode: filtersStore.feesMode,
-            minFeeThreshold: filtersStore.minLastTokenFees,
-        });
+    constructor(
+        private readonly opener: UrlOpener = openerService,
+        private readonly createSocket: WebSocketFactory = (url) =>
+            new WebSocket(url),
+    ) {}
+
+    private openAcceptedFeed(feed: TokenFeed, snapshot: FilterSnapshot): void {
+        if (!snapshot.filters.autoOpenInNewTab) return;
+
+        const url = buildTerminalUrl(feed, snapshot.filters.terminal);
+        if (!url) return;
+
+        try {
+            void this.opener.open(url).catch((error: unknown) => {
+                console.error("Failed to open token URL:", error);
+            });
+        } catch (error: unknown) {
+            console.error("Failed to open token URL:", error);
+        }
     }
 
-    private passesLastTokensFilter(
-        lastDeployedTokens: readonly LastDeployedToken[] | null,
-    ): boolean {
-        return passesLastTokensFilter(lastDeployedTokens, {
-            minAthMcapThreshold: filtersStore.minLastTokenAthMcap,
-            requiredCount: filtersStore.lastTokensRequiredCount,
-        });
+    private handleMessage(rawData: unknown): void {
+        const message = parseWebSocketMessage(rawData);
+        if (!message) return;
+
+        if (message.type === "ping") {
+            const serverTime = Date.parse(message.payload.timestamp);
+            this.ping = Math.abs(Date.now() - serverTime);
+            return;
+        }
+
+        if (message.type === "sol_price") {
+            this.solPrice = message.payload;
+            return;
+        }
+
+        const payload = message.payload;
+        const clientKey = `${payload.pair_address || payload.token_address}:${this.feedSequence}`;
+        const snapshot = filtersStore.snapshot;
+        const decision = evaluateTokenFeed(payload, snapshot, clientKey);
+
+        if (!decision.accepted) {
+            this.tokenFeedTotalCount += 1;
+            return;
+        }
+
+        this.openAcceptedFeed(decision.feed, snapshot);
+        this.feedSequence += 1;
+        this.tokenFeedTotalCount += 1;
+        this.tokenFeedCount += 1;
+        this.tokenFeeds = prependRollingFeed(this.tokenFeeds, decision.feed);
     }
 
     connect = (): void => {
@@ -48,7 +83,7 @@ class WebSocketStore {
         this.shouldReconnect = true;
 
         try {
-            const ws = new WebSocket(
+            const ws = this.createSocket(
                 `${WS_BASE_URL}?api_key=${getStoredKey() ?? ""}`,
             );
             this.ws = ws;
@@ -60,90 +95,7 @@ class WebSocketStore {
             };
 
             ws.onmessage = (event: MessageEvent<unknown>) => {
-                if (this.ws !== ws) return;
-
-                const message = parseWebSocketMessage(event.data);
-                if (!message) return;
-
-                if (message.type === "ping") {
-                    const serverTime = new Date(
-                        message.payload.timestamp,
-                    ).getTime();
-                    this.ping = Math.abs(Date.now() - serverTime);
-                    return;
-                }
-
-                if (message.type === "sol_price") {
-                    this.solPrice = message.payload;
-                    return;
-                }
-
-                this.tokenFeedTotalCount += 1;
-                const payload = message.payload;
-                const allTokens = payload.all_tokens_count || 0;
-                const migrated = payload.migrated_tokens_count || 0;
-                const migrationPercent =
-                    allTokens > 0 ? (migrated / allTokens) * 100 : 0;
-                const feesPass = this.passesFeesFilter(
-                    payload.last_deployed_tokens,
-                );
-                const lastTokensPass = this.passesLastTokensFilter(
-                    payload.last_deployed_tokens,
-                );
-                const blacklistPass = !tokenMatchesBlacklist(
-                    payload,
-                    filtersStore.blacklistMatcher,
-                );
-                const devPass =
-                    payload.dev_holds_percent !== null &&
-                    payload.dev_holds_percent >=
-                        filtersStore.minDevHoldsPercent &&
-                    payload.dev_holds_percent <=
-                        filtersStore.maxDevHoldsPercent;
-                const migrationPass =
-                    migrationPercent >= filtersStore.minMigrationPercent;
-
-                if (
-                    !blacklistPass ||
-                    !devPass ||
-                    !feesPass ||
-                    (!migrationPass && !lastTokensPass)
-                ) {
-                    return;
-                }
-
-                const nextFeed: TokenFeed = {
-                    ...payload,
-                    clientKey: `${payload.pair_address || payload.token_address}:${this.feedSequence++}`,
-                    indicators: [
-                        ...(payload.indicator ? [payload.indicator] : []),
-                        ...(lastTokensPass ? ["last tokens"] : []),
-                    ],
-                    last_deployed_tokens: payload.last_deployed_tokens ?? [],
-                };
-
-                this.tokenFeedCount += 1;
-
-                if (
-                    filtersStore.autoOpenInNewTab &&
-                    filtersStore.aggressiveAutoOpen
-                ) {
-                    void openTokenUrlInNewTab(nextFeed, filtersStore.terminal);
-                }
-
-                this.tokenFeeds = prependRollingFeed(this.tokenFeeds, nextFeed);
-
-                if (
-                    filtersStore.autoOpenInNewTab &&
-                    !filtersStore.aggressiveAutoOpen
-                ) {
-                    setTimeout(() => {
-                        void openTokenUrlInNewTab(
-                            nextFeed,
-                            filtersStore.terminal,
-                        );
-                    }, 0);
-                }
+                if (this.ws === ws) this.handleMessage(event.data);
             };
 
             ws.onclose = () => {
@@ -155,7 +107,10 @@ class WebSocketStore {
                 this.solPrice = null;
 
                 if (this.shouldReconnect) {
-                    this.reconnectTimeout = setTimeout(this.connect, 3000);
+                    this.reconnectTimeout = setTimeout(() => {
+                        this.reconnectTimeout = null;
+                        this.connect();
+                    }, 3000);
                 }
             };
 

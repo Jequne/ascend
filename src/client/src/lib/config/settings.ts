@@ -2,7 +2,7 @@ import { DEFAULT_FILTERS } from "$lib/config/constants";
 import type {
     FeesMode,
     FilterSettings,
-    SettingsEnvelopeV1,
+    SettingsEnvelopeV2,
     SettingsSections,
     Terminal,
 } from "$lib/types";
@@ -10,7 +10,7 @@ import { normalizeBlacklistEntries } from "$lib/utils/blacklist";
 
 export const SETTINGS_STORAGE_KEY = "ascend_trenches.user_settings";
 export const SETTINGS_EXPORT_SCHEMA = "ascend_trenches.settings";
-export const SETTINGS_EXPORT_SCHEMA_VERSION = 1;
+export const SETTINGS_EXPORT_SCHEMA_VERSION = 2;
 export const SETTINGS_EXPORT_FILENAME = "ascend-trenches-settings.json";
 export const SETTINGS_IMPORT_MAX_BYTES = 1_000_000;
 
@@ -94,8 +94,7 @@ export function normalizeFilters(filters: unknown = {}): FilterSettings {
         ),
         blacklist: normalizeBlacklistEntries(source.blacklist),
         terminal: normalizeTerminal(source.terminal),
-        autoOpenInNewTab: Boolean(source.autoOpenInNewTab),
-        aggressiveAutoOpen: Boolean(source.aggressiveAutoOpen),
+        autoOpenInNewTab: source.autoOpenInNewTab === true,
     };
 }
 
@@ -118,6 +117,8 @@ function looksLikeLegacyFilters(candidate: unknown): boolean {
         "lastTokensRequiredCount",
         "blacklist",
         "terminal",
+        "autoOpenInNewTab",
+        "aggressiveAutoOpen",
     ].some((key) => Object.hasOwn(candidate, key));
 }
 
@@ -144,7 +145,7 @@ export function normalizeSettingsSections(
 
 export function createSettingsExportPayload(
     sections: unknown,
-): SettingsEnvelopeV1 {
+): SettingsEnvelopeV2 {
     return {
         schema: SETTINGS_EXPORT_SCHEMA,
         schemaVersion: SETTINGS_EXPORT_SCHEMA_VERSION,
@@ -170,6 +171,7 @@ export function parseSettingsImport(rawInput: unknown): SettingsSections {
 
     if (
         parsed.schemaVersion !== undefined &&
+        parsed.schemaVersion !== 1 &&
         parsed.schemaVersion !== SETTINGS_EXPORT_SCHEMA_VERSION
     ) {
         throw new Error("Unsupported settings schema version.");

@@ -18,5 +18,4 @@ export const DEFAULT_FILTERS = {
     blacklist: [],
     terminal: "axiom",
     autoOpenInNewTab: false,
-    aggressiveAutoOpen: false,
 } satisfies FilterSettings;
