@@ -1,11 +1,11 @@
-<script>
+<script lang="ts">
     import TokenCard from "./TokenCard.svelte";
-    import { wsStore } from "$lib/stores/websocket.svelte.js";
+    import { wsStore } from "$lib/stores/websocket.svelte";
 </script>
 
 <div class="feed-container">
     {#if wsStore.tokenFeeds && wsStore.tokenFeeds.length > 0}
-        {#each wsStore.tokenFeeds as feed}
+        {#each wsStore.tokenFeeds as feed (feed.pair_address || feed.token_address)}
             <TokenCard {feed} />
         {/each}
     {:else if !wsStore.isConnected}

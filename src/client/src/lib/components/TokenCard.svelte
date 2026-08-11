@@ -1,54 +1,67 @@
-<script>
+<script lang="ts">
     import { openUrl } from "@tauri-apps/plugin-opener";
-    import { DEFAULT_FILTERS } from "$lib/config/constants.js";
-    import { filtersStore } from "$lib/stores/filters.svelte.js";
-    import { normalizeBlacklistEntries } from "$lib/utils/blacklist.js";
-    import { buildTerminalUrl } from "$lib/utils/tokenLinks.js";
+    import { DEFAULT_FILTERS } from "$lib/config/constants";
+    import { filtersStore } from "$lib/stores/filters.svelte";
+    import type {
+        BlacklistToken,
+        LastDeployedToken,
+        TokenFeed,
+    } from "$lib/types";
+    import { normalizeBlacklistEntries } from "$lib/utils/blacklist";
+    import { buildTerminalUrl } from "$lib/utils/tokenLinks";
 
-    export let feed = {};
+    export let feed: TokenFeed;
 
-    async function openTerminalLink(token) {
+    async function openTerminalLink(
+        token: TokenFeed | LastDeployedToken,
+    ): Promise<void> {
         const terminal = filtersStore.terminal ?? DEFAULT_FILTERS.terminal;
         const url = buildTerminalUrl(token, terminal);
 
         if (url) {
             try {
                 await openUrl(url);
-            } catch (error) {
+            } catch {
                 window.open(url, "_blank", "noopener,noreferrer");
             }
         }
     }
 
-    async function openSocialLink(url) {
+    async function openSocialLink(url: string | null): Promise<void> {
         if (!url) return;
 
         try {
             await openUrl(url);
-        } catch (error) {
+        } catch {
             window.open(url, "_blank", "noopener,noreferrer");
         }
     }
 
-    function handleCardTerminalClick(event, token) {
-        if (event.target.closest("a, button, input, textarea, select, label")) {
+    function handleCardTerminalClick(
+        event: MouseEvent,
+        token: TokenFeed | LastDeployedToken,
+    ): void {
+        if (
+            event.target instanceof Element &&
+            event.target.closest("a, button, input, textarea, select, label")
+        ) {
             return;
         }
 
         openTerminalLink(token);
     }
 
-    function copyToClipboard(text) {
+    function copyToClipboard(text: string): void {
         if (text) {
             navigator.clipboard.writeText(text);
         }
     }
 
-    function getDevWallet(token) {
-        return String(token?.dev_wallet ?? "").trim();
+    function getDevWallet(token: BlacklistToken): string {
+        return String(token.dev_wallet ?? "").trim();
     }
 
-    function isDevWalletBlacklisted(token) {
+    function isDevWalletBlacklisted(token: BlacklistToken): boolean {
         const devWallet = getDevWallet(token);
 
         if (!devWallet) return false;
@@ -61,7 +74,7 @@
 
     let devWalletBlacklisted = isDevWalletBlacklisted(feed);
 
-    function toggleDevWalletBlacklist(token) {
+    function toggleDevWalletBlacklist(token: BlacklistToken): void {
         const devWallet = getDevWallet(token);
 
         if (!devWallet) return;
@@ -82,7 +95,7 @@
         );
     }
 
-    function hasRelevantIndicator(feed) {
+    function hasRelevantIndicator(feed: TokenFeed): boolean {
         const indicators =
             feed?.indicators ?? (feed?.indicator ? [feed.indicator] : []);
 
@@ -97,7 +110,7 @@
         });
     }
 
-    function formatNumber(value) {
+    function formatNumber(value: number | null): string {
         if (value === null || value === undefined) return "N/A";
         if (value >= 1e9) return (value / 1e9).toFixed(1) + "B";
         if (value >= 1e6) return (value / 1e6).toFixed(1) + "M";
@@ -105,10 +118,10 @@
         return value.toFixed(1);
     }
 
-    function timeAgo(dateString) {
+    function timeAgo(dateString: string): string {
         if (!dateString) return "";
         const date = new Date(dateString);
-        const seconds = Math.floor((new Date() - date) / 1000);
+        const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
 
         let interval = seconds / 31536000;
         if (interval > 1) return Math.floor(interval) + "y";
@@ -120,7 +133,13 @@
         if (interval > 1) return Math.floor(interval) + "h";
         interval = seconds / 60;
         if (interval > 1) return Math.floor(interval) + "m";
-        return Math.floor(seconds) + "s";
+        return Math.max(0, Math.floor(seconds)) + "s";
+    }
+
+    function hideBrokenImage(event: Event): void {
+        if (event.currentTarget instanceof HTMLImageElement) {
+            event.currentTarget.style.display = "none";
+        }
     }
 
     $: migratedRatio = feed.all_tokens_count
@@ -137,7 +156,7 @@
 </script>
 
 <div class="token-card">
-    <div class="block new-token-block">
+    <div class="new-token-block block">
         <div
             class="new-token-link"
             role="button"
@@ -160,7 +179,7 @@
                             src={feed.token_image}
                             alt={feed.token_ticker}
                             class="token-image"
-                            on:error={(e) => (e.target.style.display = "none")}
+                            on:error={hideBrokenImage}
                         />
                     {/if}
                 </div>
@@ -256,7 +275,7 @@
         <div class="dev-stats-row">
             <div class="dev-stats-top-row">
                 <div class="stats-left">
-                    {#each feed.indicators ?? (feed.indicator ? [feed.indicator] : []) as indicator}
+                    {#each feed.indicators as indicator (indicator)}
                         <span class="badge indicator-badge">{indicator}</span>
                     {/each}
                     <span class="badge blockchain-badge"
@@ -333,7 +352,7 @@
 
     <!-- Last Deployed Tokens Block -->
     {#if feed.last_deployed_tokens && feed.last_deployed_tokens.length > 0}
-        <div class="block last-deployed-block">
+        <div class="last-deployed-block block">
             <h4 class="section-title">Last Tokens</h4>
             <div class="last-tokens-list">
                 {#each feed.last_deployed_tokens as lastToken, j (lastToken.token_address + "_" + j)}
@@ -361,8 +380,7 @@
                                         src={lastToken.token_image}
                                         alt={lastToken.token_ticker}
                                         class="last-token-image"
-                                        on:error={(e) =>
-                                            (e.target.style.display = "none")}
+                                        on:error={hideBrokenImage}
                                     />
                                 {/if}
                             </div>
@@ -534,11 +552,8 @@
         position: absolute;
         inset: 0;
         border-radius: inherit;
-        background: linear-gradient(
-                135deg,
-                rgba(129, 140, 248, 0.12),
-                transparent 42%
-            ),
+        background:
+            linear-gradient(135deg, rgba(129, 140, 248, 0.12), transparent 42%),
             linear-gradient(315deg, rgba(16, 185, 129, 0.08), transparent 55%);
         opacity: 0;
         transition: opacity 160ms ease;

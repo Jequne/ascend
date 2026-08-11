@@ -1,15 +1,16 @@
-<script>
+<script lang="ts">
     import { onDestroy } from "svelte";
-    import { wsStore } from "$lib/stores/websocket.svelte.js";
-    import { filtersStore } from "$lib/stores/filters.svelte.js";
+    import { wsStore } from "$lib/stores/websocket.svelte";
+    import { filtersStore } from "$lib/stores/filters.svelte";
     import {
         DEFAULT_FILTERS,
         LAST_TOKEN_FEES_AGE_EXCLUSION_DAYS,
-    } from "$lib/config/constants.js";
+    } from "$lib/config/constants";
+    import type { FeesMode, Terminal } from "$lib/types";
     import {
         blacklistEntriesToText,
         normalizeBlacklistEntries,
-    } from "$lib/utils/blacklist.js";
+    } from "$lib/utils/blacklist";
 
     let showSettings = false;
     let importJson = "";
@@ -48,7 +49,7 @@
         filtersStore.aggressiveAutoOpen ?? DEFAULT_FILTERS.aggressiveAutoOpen,
     );
 
-    const openSettings = () => {
+    const openSettings = (): void => {
         // sync from store when opening
         localMinDev = Number(
             filtersStore.minDevHoldsPercent ??
@@ -83,7 +84,7 @@
         );
         localAggressiveAutoOpen = Boolean(
             filtersStore.aggressiveAutoOpen ??
-                DEFAULT_FILTERS.aggressiveAutoOpen,
+            DEFAULT_FILTERS.aggressiveAutoOpen,
         );
         importJson = "";
         actionMessage = "";
@@ -91,11 +92,11 @@
         showSettings = true;
     };
 
-    const closeSettings = () => {
+    const closeSettings = (): void => {
         showSettings = false;
     };
 
-    const saveSettings = () => {
+    const saveSettings = (): void => {
         // ensure bounds
         if (localMinDev > localMaxDev) localMinDev = localMaxDev;
         if (localMaxDev < localMinDev) localMaxDev = localMinDev;
@@ -119,7 +120,7 @@
         showSettings = false;
     };
 
-    const exportSettings = async () => {
+    const exportSettings = async (): Promise<void> => {
         try {
             const exportedJson = filtersStore.exportToJson();
 
@@ -139,14 +140,14 @@
 
             actionMessage = "Settings copied to clipboard.";
             actionError = "";
-        } catch (error) {
+        } catch (error: unknown) {
             actionError =
                 error instanceof Error ? error.message : String(error);
             actionMessage = "";
         }
     };
 
-    const importSettings = () => {
+    const importSettings = (): void => {
         actionMessage = "";
         actionError = "";
 
@@ -168,24 +169,33 @@
 
             actionMessage = "Settings imported.";
             actionError = "";
-        } catch (error) {
+        } catch (error: unknown) {
             actionError =
                 error instanceof Error ? error.message : String(error);
             actionMessage = "";
         }
     };
 
-    function onMinDevInput(e) {
-        const v = Number(e.target.value);
+    function inputValue(event: Event): string {
+        return (event.currentTarget as HTMLInputElement | HTMLSelectElement)
+            .value;
+    }
+
+    function inputNumber(event: Event): number {
+        return Number(inputValue(event));
+    }
+
+    function onMinDevInput(e: Event): void {
+        const v = inputNumber(e);
         localMinDev = Math.min(v, localMaxDev);
     }
 
-    function onMaxDevInput(e) {
-        const v = Number(e.target.value);
+    function onMaxDevInput(e: Event): void {
+        const v = inputNumber(e);
         localMaxDev = Math.max(v, localMinDev);
     }
 
-    function getDevHoldsRangeBackground() {
+    function getDevHoldsRangeBackground(): string {
         const min = DEFAULT_FILTERS.minDevHoldsPercent;
         const max = 100;
         const minPercent = ((Number(localMinDev) - min) / (max - min)) * 100;
@@ -200,10 +210,10 @@
             rgba(37, 99, 235, 0.24) 100%)`;
     }
 
-    function overlayKeydown(e) {
+    function overlayKeydown(e: KeyboardEvent): void {
         if (e.key === "Escape") closeSettings();
     }
-    function modalKeydown(e) {
+    function modalKeydown(e: KeyboardEvent): void {
         e.stopPropagation();
     }
 
@@ -415,9 +425,7 @@
                                     step="1"
                                     value={localMinMigration}
                                     oninput={(e) =>
-                                        (localMinMigration = Number(
-                                            e.target.value,
-                                        ))}
+                                        (localMinMigration = inputNumber(e))}
                                 />
                             </div>
 
@@ -429,7 +437,9 @@
                                     id="feesModeSelect"
                                     value={localFeesMode}
                                     oninput={(e) =>
-                                        (localFeesMode = e.target.value)}
+                                        (localFeesMode = inputValue(
+                                            e,
+                                        ) as FeesMode)}
                                 >
                                     <option value="avg">avg</option>
                                     <option value="total">total</option>
@@ -448,9 +458,8 @@
                                     step="0.1"
                                     value={localMinLastTokenFees}
                                     oninput={(e) =>
-                                        (localMinLastTokenFees = Number(
-                                            e.target.value,
-                                        ))}
+                                        (localMinLastTokenFees =
+                                            inputNumber(e))}
                                 />
                                 <small class="helper-text">
                                     Tokens older than {LAST_TOKEN_FEES_AGE_EXCLUSION_DAYS}
@@ -470,9 +479,8 @@
                                     step="1"
                                     value={localMinLastTokenAthMcap}
                                     oninput={(e) =>
-                                        (localMinLastTokenAthMcap = Number(
-                                            e.target.value,
-                                        ))}
+                                        (localMinLastTokenAthMcap =
+                                            inputNumber(e))}
                                 />
                             </div>
 
@@ -488,9 +496,8 @@
                                     step="1"
                                     value={localLastTokensRequiredCount}
                                     oninput={(e) =>
-                                        (localLastTokensRequiredCount = Number(
-                                            e.target.value,
-                                        ))}
+                                        (localLastTokensRequiredCount =
+                                            inputNumber(e))}
                                 />
                                 <small class="helper-text">
                                     Passes when at least this many of the last 3
@@ -516,8 +523,7 @@
                                 <textarea
                                     id="blacklistInput"
                                     rows="6"
-                                    bind:value={localBlacklistText}
-                                ></textarea>
+                                    bind:value={localBlacklistText}></textarea>
                                 <small class="helper-text">
                                     If any incoming token field contains one of
                                     these terms, the card stays hidden and
@@ -540,7 +546,9 @@
                                     id="terminalSelect"
                                     value={localTerminal}
                                     oninput={(e) =>
-                                        (localTerminal = e.target.value)}
+                                        (localTerminal = inputValue(
+                                            e,
+                                        ) as Terminal)}
                                 >
                                     <option value="axiom">Axiom</option>
                                     <option value="gmgn">GMGN</option>
@@ -584,9 +592,9 @@
                                     placeholder="Paste the exported JSON here"
                                 ></textarea>
                                 <small class="helper-text">
-                                    You can paste the new format with {`"schema"`}
-                                    and {`"settings"`}, or the legacy flat JSON
-                                    with filter fields.
+                                    You can paste the new format with "schema"
+                                    and "settings", or the legacy flat JSON with
+                                    filter fields.
                                 </small>
                             </div>
                         </section>
@@ -629,8 +637,9 @@
         padding: 12px 16px;
         box-sizing: border-box;
         flex-shrink: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-            Helvetica, Arial, sans-serif;
+        font-family:
+            -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+            Arial, sans-serif;
         position: relative;
         z-index: 10;
     }
@@ -833,7 +842,8 @@
     .settings-overlay {
         position: fixed;
         inset: 0;
-        background: radial-gradient(
+        background:
+            radial-gradient(
                 circle at top,
                 rgba(59, 130, 246, 0.18),
                 transparent 42%
@@ -851,7 +861,8 @@
     .settings-modal {
         width: min(620px, 100%);
         max-height: min(84vh, 680px);
-        background: linear-gradient(
+        background:
+            linear-gradient(
                 180deg,
                 rgba(18, 22, 34, 0.98),
                 rgba(13, 16, 26, 0.98)
@@ -904,7 +915,8 @@
     }
 
     .settings-card {
-        background: linear-gradient(
+        background:
+            linear-gradient(
                 180deg,
                 rgba(255, 255, 255, 0.03),
                 rgba(255, 255, 255, 0.015)
@@ -1039,7 +1051,8 @@
 
     .toggle-card-on {
         border-color: rgba(74, 222, 128, 0.38);
-        background: linear-gradient(
+        background:
+            linear-gradient(
                 135deg,
                 rgba(34, 197, 94, 0.18),
                 rgba(12, 15, 24, 0.92)

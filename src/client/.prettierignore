@@ -1,0 +1,9 @@
+.svelte-kit
+.vscode
+build
+node_modules
+README.md
+src-tauri
+src-tauri/gen
+src-tauri/target
+package-lock.json

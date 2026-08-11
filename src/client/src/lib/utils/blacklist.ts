@@ -1,12 +1,19 @@
-export function normalizeBlacklistEntries(value) {
+import type { BlacklistMatcher, BlacklistToken } from "$lib/types";
+
+interface TrieNode {
+    children: Map<string, TrieNode>;
+    failure: TrieNode | null;
+    output: boolean;
+}
+
+export function normalizeBlacklistEntries(value: unknown): string[] {
     const rawEntries = Array.isArray(value)
         ? value
         : typeof value === "string"
-            ? value.split(/[\n,]+/)
-            : [];
-
-    const entries = [];
-    const seen = new Set();
+          ? value.split(/[\n,]+/)
+          : [];
+    const entries: string[] = [];
+    const seen = new Set<string>();
 
     for (const entry of rawEntries) {
         const normalizedEntry = String(entry ?? "").trim();
@@ -22,19 +29,21 @@ export function normalizeBlacklistEntries(value) {
     return entries;
 }
 
-export function blacklistEntriesToText(value) {
+export function blacklistEntriesToText(value: unknown): string {
     return normalizeBlacklistEntries(value).join("\n");
 }
 
-function createTrieNode() {
+function createTrieNode(): TrieNode {
     return {
-        children: new Map(),
+        children: new Map<string, TrieNode>(),
         failure: null,
         output: false,
     };
 }
 
-export function createBlacklistMatcher(blacklistEntries = []) {
+export function createBlacklistMatcher(
+    blacklistEntries: unknown = [],
+): BlacklistMatcher | null {
     const normalizedEntries = normalizeBlacklistEntries(blacklistEntries).map(
         (entry) => entry.toLowerCase(),
     );
@@ -47,17 +56,18 @@ export function createBlacklistMatcher(blacklistEntries = []) {
         let node = root;
 
         for (const character of entry) {
-            if (!node.children.has(character)) {
-                node.children.set(character, createTrieNode());
+            let child = node.children.get(character);
+            if (!child) {
+                child = createTrieNode();
+                node.children.set(character, child);
             }
-
-            node = node.children.get(character);
+            node = child;
         }
 
         node.output = true;
     }
 
-    const queue = [];
+    const queue: TrieNode[] = [];
 
     for (const child of root.children.values()) {
         child.failure = root;
@@ -66,6 +76,7 @@ export function createBlacklistMatcher(blacklistEntries = []) {
 
     for (let index = 0; index < queue.length; index += 1) {
         const current = queue[index];
+        if (!current) continue;
 
         for (const [character, child] of current.children.entries()) {
             let failure = current.failure;
@@ -74,13 +85,13 @@ export function createBlacklistMatcher(blacklistEntries = []) {
                 failure = failure.failure;
             }
 
-            child.failure = failure ? failure.children.get(character) : root;
-            child.output = child.output || Boolean(child.failure?.output);
+            child.failure = failure?.children.get(character) ?? root;
+            child.output = child.output || child.failure.output;
             queue.push(child);
         }
     }
 
-    function matchesText(text) {
+    const matchesText = (text: string): boolean => {
         if (!text) return false;
 
         let node = root;
@@ -90,19 +101,14 @@ export function createBlacklistMatcher(blacklistEntries = []) {
                 node = node.failure ?? root;
             }
 
-            if (node.children.has(character)) {
-                node = node.children.get(character);
-            }
-
-            if (node.output) {
-                return true;
-            }
+            node = node.children.get(character) ?? node;
+            if (node.output) return true;
         }
 
         return false;
-    }
+    };
 
-    function matchesToken(token = {}) {
+    const matchesToken = (token: BlacklistToken): boolean => {
         const fields = [
             token.dev_wallet,
             token.token_name,
@@ -110,15 +116,13 @@ export function createBlacklistMatcher(blacklistEntries = []) {
             token.twitter_admin_nickname,
         ];
 
-        for (const field of fields) {
-            const normalizedField = String(field ?? "").trim().toLowerCase();
-            if (normalizedField && matchesText(normalizedField)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
+        return fields.some((field) => {
+            const normalizedField = String(field ?? "")
+                .trim()
+                .toLowerCase();
+            return normalizedField ? matchesText(normalizedField) : false;
+        });
+    };
 
     return {
         entries: normalizedEntries,
@@ -127,12 +131,13 @@ export function createBlacklistMatcher(blacklistEntries = []) {
     };
 }
 
-export function tokenMatchesBlacklist(token = {}, blacklistEntries = []) {
-    const matcher = Array.isArray(blacklistEntries)
-        ? createBlacklistMatcher(blacklistEntries)
-        : blacklistEntries;
+export function tokenMatchesBlacklist(
+    token: BlacklistToken,
+    blacklist: readonly string[] | BlacklistMatcher | null,
+): boolean {
+    if (!blacklist) return false;
+    if ("matchesToken" in blacklist) return blacklist.matchesToken(token);
 
-    if (!matcher) return false;
-
-    return matcher.matchesToken(token);
+    const matcher = createBlacklistMatcher(blacklist);
+    return matcher ? matcher.matchesToken(token) : false;
 }

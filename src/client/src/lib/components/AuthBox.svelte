@@ -1,11 +1,11 @@
-<script>
-    import { authStore } from "$lib/stores/auth.svelte.js";
+<script lang="ts">
+    import { authStore } from "$lib/stores/auth.svelte";
 
     let key = $state("");
     let isActivating = $state(false);
     let errorMessage = $state("");
 
-    async function activate(event) {
+    async function activate(event: SubmitEvent) {
         event.preventDefault();
         if (!key.trim()) {
             errorMessage = "Please enter a key.";
