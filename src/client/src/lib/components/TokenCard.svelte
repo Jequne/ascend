@@ -32,72 +32,29 @@
 
 <style>
     .token-card[data-dev-migrations="true"] {
-        border-color: rgb(16 185 129 / 0.3);
-        background:
-            linear-gradient(145deg, rgb(16 185 129 / 0.055), transparent 42%),
-            linear-gradient(145deg, rgb(35 38 50 / 0.97), rgb(23 24 33 / 0.98));
+        border-color: rgb(52 211 153 / 0.48);
+        box-shadow:
+            0 0 0 1px rgb(16 185 129 / 0.08),
+            0 0 9px rgb(16 185 129 / 0.12),
+            0 8px 22px rgb(0 0 0 / 0.24),
+            inset 0 1px 0 rgb(255 255 255 / 0.04);
     }
 
     .token-card[data-last-tokens="true"] {
-        border-color: rgb(214 185 74 / 0.3);
-        background:
-            linear-gradient(145deg, rgb(214 185 74 / 0.055), transparent 42%),
-            linear-gradient(145deg, rgb(35 38 50 / 0.97), rgb(23 24 33 / 0.98));
+        border-color: rgb(214 185 74 / 0.48);
+        box-shadow:
+            0 0 0 1px rgb(214 185 74 / 0.08),
+            0 0 9px rgb(214 185 74 / 0.12),
+            0 8px 22px rgb(0 0 0 / 0.24),
+            inset 0 1px 0 rgb(255 255 255 / 0.04);
     }
 
     .token-card[data-dev-migrations="true"][data-last-tokens="true"] {
-        border-color: rgb(112 187 102 / 0.38);
-        background:
-            linear-gradient(
-                115deg,
-                rgb(16 185 129 / 0.07),
-                transparent 42%,
-                rgb(214 185 74 / 0.07)
-            ),
-            linear-gradient(145deg, rgb(35 38 50 / 0.97), rgb(23 24 33 / 0.98));
-    }
-
-    .token-card[data-dev-migrations="true"]::before,
-    .token-card[data-last-tokens="true"]::before {
-        position: absolute;
-        z-index: -1;
-        inset: -2px;
-        border-radius: inherit;
-        background: rgb(16 185 129 / 0.22);
-        filter: blur(7px);
-        content: "";
-        pointer-events: none;
-        animation: token-card-glow 3.8s ease-in-out infinite alternate;
-        will-change: opacity;
-    }
-
-    .token-card[data-last-tokens="true"]::before {
-        background: rgb(214 185 74 / 0.22);
-    }
-
-    .token-card[data-dev-migrations="true"][data-last-tokens="true"]::before {
-        background: linear-gradient(
-            105deg,
-            rgb(16 185 129 / 0.25),
-            rgb(214 185 74 / 0.24)
-        );
-    }
-
-    @keyframes token-card-glow {
-        from {
-            opacity: 0.38;
-        }
-        to {
-            opacity: 0.72;
-        }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .token-card[data-dev-migrations="true"]::before,
-        .token-card[data-last-tokens="true"]::before {
-            animation: none;
-            opacity: 0.52;
-            will-change: auto;
-        }
+        border-color: rgb(112 187 102 / 0.56);
+        box-shadow:
+            0 0 0 1px rgb(112 187 102 / 0.1),
+            0 0 9px rgb(112 187 102 / 0.14),
+            0 8px 22px rgb(0 0 0 / 0.24),
+            inset 0 1px 0 rgb(255 255 255 / 0.04);
     }
 </style>
