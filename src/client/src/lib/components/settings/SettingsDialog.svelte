@@ -120,6 +120,7 @@
         <AutoOpenControl
             bind:checked={draft.autoOpenInNewTab}
             bind:terminal={draft.terminal}
+            bind:highlightMigratedTokens={draft.highlightMigratedTokens}
         />
 
         <SettingsTabs {activeTab} onSelect={(tab) => (activeTab = tab)} />

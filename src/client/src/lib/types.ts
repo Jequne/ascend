@@ -73,6 +73,7 @@ export interface FilterSettings {
     blacklist: string[];
     terminal: Terminal;
     autoOpenInNewTab: boolean;
+    highlightMigratedTokens: boolean;
 }
 
 export interface SettingsSections {

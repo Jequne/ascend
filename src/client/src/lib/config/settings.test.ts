@@ -28,6 +28,7 @@ describe("settings import compatibility", () => {
                 blacklist: [" Wallet ", "wallet", "Token"],
                 terminal: "unsupported",
                 autoOpenInNewTab: "false",
+                highlightMigratedTokens: false,
             }),
         ).toEqual({
             minDevHoldsPercent: 10,
@@ -40,6 +41,7 @@ describe("settings import compatibility", () => {
             blacklist: ["Wallet", "Token"],
             terminal: DEFAULT_FILTERS.terminal,
             autoOpenInNewTab: false,
+            highlightMigratedTokens: false,
         });
     });
 

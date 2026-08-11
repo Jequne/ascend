@@ -12,6 +12,11 @@ import type {
     Terminal,
 } from "$lib/types";
 import { createBlacklistMatcher } from "$lib/utils/blacklist";
+import { writable } from "svelte/store";
+
+export const migratedHighlightStore = writable<boolean>(
+    DEFAULT_FILTERS.highlightMigratedTokens,
+);
 
 class FiltersStore {
     private snapshotSource: FilterSettings | null = null;
@@ -105,6 +110,14 @@ class FiltersStore {
         this.updateFilters({ autoOpenInNewTab: value });
     }
 
+    get highlightMigratedTokens(): boolean {
+        return this.filters.highlightMigratedTokens;
+    }
+
+    set highlightMigratedTokens(value: boolean) {
+        this.updateFilters({ highlightMigratedTokens: value });
+    }
+
     get snapshot(): FilterSnapshot {
         const filters = this.filters;
 
@@ -129,6 +142,7 @@ class FiltersStore {
 
     init(): void {
         settingsStore.init();
+        migratedHighlightStore.set(this.filters.highlightMigratedTokens);
         void this.snapshot;
     }
 
@@ -137,6 +151,7 @@ class FiltersStore {
             ...this.filters,
             ...partialFilters,
         });
+        migratedHighlightStore.set(nextFilters.highlightMigratedTokens);
         settingsStore.setSection("filters", nextFilters);
         void this.snapshot;
     }
@@ -151,6 +166,7 @@ class FiltersStore {
 
     importFromJson(rawJson: string): FilterSettings {
         const filters = settingsStore.importFromJson(rawJson).filters;
+        migratedHighlightStore.set(filters.highlightMigratedTokens);
         void this.snapshot;
         return filters;
     }

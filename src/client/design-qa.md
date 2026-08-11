@@ -111,3 +111,63 @@
 - None required for handoff.
 
 final result: passed
+
+## Migrated-token highlight follow-up
+
+### Evidence
+
+- Source visual truth: `C:\Users\C336~1\AppData\Local\Temp\codex-clipboard-Ga1J6X.png` (411 x 371 px).
+- Highlight-on implementation: `C:\Users\C336~1\AppData\Local\Temp\ascend-migrated-card-on-final.png` (500 x 500 px).
+- Settings implementation: `C:\Users\C336~1\AppData\Local\Temp\ascend-migrated-setting.png` (500 x 500 px).
+- Highlight-off implementation: `C:\Users\C336~1\AppData\Local\Temp\ascend-migrated-card-off.png` (500 x 500 px).
+- CSS viewport: 500 x 500 px at device pixel ratio 1.
+- Normalization: the supplied source is a cropped 411 x 371 product region, so the comparison used the matching token-card content region rather than browser-frame dimensions.
+- State: authenticated token feed with one current token and three previous tokens; two previous tokens are migrated.
+
+### Findings
+
+- No actionable P0, P1, or P2 findings remain.
+- Typography and copy: the 24 px `M` badge is immediately scannable without competing with token names, while the setting title and helper text explain the effect directly.
+- Spacing and layout rhythm: the badge sits inline with the token identity and does not shift metrics or action icons. The new setting remains within the existing auto-open panel and preserves its proportions.
+- Colors and visual tokens: migrated rows use a restrained emerald border and translucent tint from the existing palette. The non-migrated row is unchanged.
+- Image quality and asset fidelity: token imagery and existing service assets are unchanged; the migration status is semantic text rather than a substituted product asset.
+- Accessibility and behavior: the badge exposes `Migrated token`, the setting is a labeled switch, and turning the tint off leaves the persistent `M` status marker visible.
+
+### Full-view comparison evidence
+
+- The supplied token-card screenshot and `ascend-migrated-card-on-final.png` were opened together in one comparison input.
+- The implementation preserves the source hierarchy and density while making migrated rows distinguishable through both shape/text and a low-intensity color treatment.
+- The wider implementation frame contains the same product region plus the existing top controls; that crop difference was excluded from fidelity judgments.
+
+### Focused region comparison evidence
+
+- The three previous-token rows were inspected together: Octopus remains neutral, while Asset and Hopecoin receive the tint and 24 px `M` badge.
+- The highlight-off capture confirms that only the tint is removed; migrated identity remains visible through `M`.
+- The Settings capture confirms the switch is directly below terminal selection and does not disturb the tabs or filter layout.
+
+### Comparison history
+
+1. P2 - The original migrated check was too small and visually ambiguous.
+    - Fix: replaced it with a clear `M` badge and added an optional subtle row tint.
+    - Initial post-fix evidence showed the correct behavior but the badge was still less prominent than requested.
+    - Final fix: increased the badge to 24 px while retaining compact typography and the existing palette.
+    - Post-fix evidence: `C:\Users\C336~1\AppData\Local\Temp\ascend-migrated-card-on-final.png`, compared together with the source.
+    - Result: resolved.
+
+### Primary interactions and runtime checks
+
+- Toggle migrated-token highlighting in Settings and save.
+- Confirm migrated rows update immediately after Save.
+- Confirm the `M` badge remains when highlighting is disabled.
+- Confirm only migrated previous-token rows receive the tint.
+- Browser console checked after interaction: no warnings, errors, or issues.
+
+### Implementation checklist
+
+- [x] Add an explicit migration badge to migrated previous tokens.
+- [x] Add a restrained migrated-row highlight.
+- [x] Add a persisted general setting below terminal selection.
+- [x] Preserve the migration badge when highlighting is disabled.
+- [x] Verify both rendered states and browser console.
+
+final result: passed

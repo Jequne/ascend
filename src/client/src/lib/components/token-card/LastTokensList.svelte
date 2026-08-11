@@ -1,16 +1,14 @@
 <script lang="ts">
     import SocialLinks from "$lib/components/token-card/SocialLinks.svelte";
     import { openExternalUrl } from "$lib/services/opener";
-    import { filtersStore } from "$lib/stores/filters.svelte";
+    import {
+        filtersStore,
+        migratedHighlightStore,
+    } from "$lib/stores/filters.svelte";
     import type { LastDeployedToken } from "$lib/types";
     import { buildTerminalUrl } from "$lib/utils/tokenLinks";
     import { formatCompactNumber, timeAgo } from "$lib/utils/tokenDisplay";
-    import {
-        ChartNoAxesCombined,
-        CircleCheck,
-        Clock3,
-        Zap,
-    } from "@lucide/svelte";
+    import { ChartNoAxesCombined, Clock3, Zap } from "@lucide/svelte";
 
     export let tokens: LastDeployedToken[];
 
@@ -56,9 +54,14 @@
     <div class="flex flex-col gap-2">
         {#each tokens as token, index (`${token.token_address}:${index}`)}
             <div
-                class="hover:border-accent-purple/20 focus-visible:border-accent-purple/30 focus-visible:ring-accent-purple/60 flex cursor-pointer flex-wrap items-center justify-between gap-2 overflow-hidden rounded-lg border border-white/[0.05] bg-black/[0.13] px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.018)] transition-[transform,border-color,box-shadow,background-color] duration-150 hover:-translate-y-px hover:bg-white/[0.025] hover:shadow-[0_8px_18px_rgba(0,0,0,0.16)] focus-visible:-translate-y-px focus-visible:bg-white/[0.025] focus-visible:ring-1 focus-visible:outline-none motion-reduce:transform-none motion-reduce:transition-none"
+                class="hover:border-accent-purple/20 focus-visible:border-accent-purple/30 focus-visible:ring-accent-purple/60 flex cursor-pointer flex-wrap items-center justify-between gap-2 overflow-hidden rounded-lg border px-2 py-1.5 transition-[transform,border-color,box-shadow,background-color] duration-150 hover:-translate-y-px hover:shadow-[0_8px_18px_rgba(0,0,0,0.16)] focus-visible:-translate-y-px focus-visible:ring-1 focus-visible:outline-none motion-reduce:transform-none motion-reduce:transition-none {token.is_migrated &&
+                $migratedHighlightStore
+                    ? 'border-emerald-400/[0.14] bg-emerald-400/[0.045] shadow-[inset_0_1px_0_rgba(110,231,183,0.035)] hover:bg-emerald-400/[0.065] focus-visible:bg-emerald-400/[0.065]'
+                    : 'border-white/[0.05] bg-black/[0.13] shadow-[inset_0_1px_0_rgba(255,255,255,0.018)] hover:bg-white/[0.025] focus-visible:bg-white/[0.025]'}"
                 role="button"
                 tabindex="0"
+                data-migrated={token.is_migrated}
+                data-highlighted={token.is_migrated && $migratedHighlightStore}
                 aria-label={`Open ${token.token_name} in ${filtersStore.terminal.toUpperCase()}`}
                 onclick={(event) => handleClick(event, token)}
                 onkeydown={(event) => handleKeydown(event, token)}
@@ -91,6 +94,13 @@
                                 >${token.token_ticker}</span
                             >
                             <span class="truncate">{token.token_name}</span>
+                            {#if token.is_migrated}
+                                <span
+                                    class="text-success border-success/30 bg-success/10 inline-flex size-6 shrink-0 items-center justify-center rounded-md border text-[0.7rem] leading-none font-black shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"
+                                    title="Migrated"
+                                    aria-label="Migrated token">M</span
+                                >
+                            {/if}
                         </div>
 
                         <div
@@ -134,15 +144,6 @@
                                         alt=""
                                         aria-hidden="true"
                                     />
-                                </span>
-                            {/if}
-                            {#if token.is_migrated}
-                                <span
-                                    class="inline-flex"
-                                    title="Migrated"
-                                    aria-label="Migrated"
-                                >
-                                    <CircleCheck size={12} aria-hidden="true" />
                                 </span>
                             {/if}
                         </div>

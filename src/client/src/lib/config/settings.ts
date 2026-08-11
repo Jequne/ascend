@@ -95,6 +95,7 @@ export function normalizeFilters(filters: unknown = {}): FilterSettings {
         blacklist: normalizeBlacklistEntries(source.blacklist),
         terminal: normalizeTerminal(source.terminal),
         autoOpenInNewTab: source.autoOpenInNewTab === true,
+        highlightMigratedTokens: source.highlightMigratedTokens !== false,
     };
 }
 
@@ -118,6 +119,7 @@ function looksLikeLegacyFilters(candidate: unknown): boolean {
         "blacklist",
         "terminal",
         "autoOpenInNewTab",
+        "highlightMigratedTokens",
         "aggressiveAutoOpen",
     ].some((key) => Object.hasOwn(candidate, key));
 }

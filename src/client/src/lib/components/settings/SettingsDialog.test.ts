@@ -70,9 +70,15 @@ describe("SettingsDialog", () => {
         const autoOpen = within(dialog).getByRole("switch", {
             name: "Automatically open accepted tokens",
         });
+        const migratedHighlight = within(dialog).getByRole("switch", {
+            name: "Highlight migrated previous tokens",
+        });
 
         expect(autoOpen).toHaveFocus();
         expect(autoOpen).toHaveAttribute("aria-checked", "false");
+        expect(migratedHighlight).toHaveAttribute("aria-checked", "true");
+        await user.click(migratedHighlight);
+        expect(migratedHighlight).toHaveAttribute("aria-checked", "false");
         await user.click(autoOpen);
         expect(autoOpen).toHaveAttribute("aria-checked", "true");
 
@@ -132,6 +138,7 @@ describe("SettingsDialog", () => {
         );
         expect(filtersStore.autoOpenInNewTab).toBe(false);
         expect(filtersStore.terminal).toBe(DEFAULT_FILTERS.terminal);
+        expect(filtersStore.highlightMigratedTokens).toBe(true);
     });
 
     it("reveals the optional previous-token override only when enabled", async () => {
@@ -163,6 +170,18 @@ describe("SettingsDialog", () => {
         await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
         expect(filtersStore.lastTokensRequiredCount).toBe(2);
+    });
+
+    it("saves the migrated-token highlight preference", async () => {
+        const { user, dialog } = await openSettings();
+        const migratedHighlight = within(dialog).getByRole("switch", {
+            name: "Highlight migrated previous tokens",
+        });
+
+        await user.click(migratedHighlight);
+        await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+        expect(filtersStore.highlightMigratedTokens).toBe(false);
     });
 
     it("normalizes blacklist entries and applies all draft changes on Save", async () => {

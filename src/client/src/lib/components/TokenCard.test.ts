@@ -1,6 +1,8 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { fireEvent, render, screen } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { tick } from "svelte";
+import { DEFAULT_FILTERS } from "$lib/config/constants";
 import { filtersStore } from "$lib/stores/filters.svelte";
 import TokenCard from "./TokenCard.svelte";
 import { createLastDeployedToken, createTokenFeed } from "./tokenFeed.fixture";
@@ -12,7 +14,30 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
 describe("TokenCard", () => {
     beforeEach(() => {
         vi.mocked(openUrl).mockClear();
-        filtersStore.blacklist = [];
+        filtersStore.updateFilters(DEFAULT_FILTERS);
+    });
+
+    it("marks migrated previous tokens and toggles their row highlight", async () => {
+        render(TokenCard, {
+            feed: createTokenFeed({
+                last_deployed_tokens: [createLastDeployedToken()],
+            }),
+        });
+
+        const migratedRow = screen.getByRole("button", {
+            name: /Open Last Token/,
+        });
+        expect(screen.getByLabelText("Migrated token")).toHaveTextContent("M");
+        expect(migratedRow).toHaveAttribute("data-migrated", "true");
+        expect(migratedRow).toHaveAttribute("data-highlighted", "true");
+
+        filtersStore.highlightMigratedTokens = false;
+        await tick();
+
+        expect(
+            screen.getByRole("button", { name: /Open Last Token/ }),
+        ).toHaveAttribute("data-highlighted", "false");
+        expect(screen.getByLabelText("Migrated token")).toBeVisible();
     });
 
     it("renders the existing data order and nested last tokens", () => {
