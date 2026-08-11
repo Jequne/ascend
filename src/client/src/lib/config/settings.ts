@@ -12,6 +12,7 @@ export const SETTINGS_STORAGE_KEY = "ascend_trenches.user_settings";
 export const SETTINGS_EXPORT_SCHEMA = "ascend_trenches.settings";
 export const SETTINGS_EXPORT_SCHEMA_VERSION = 1;
 export const SETTINGS_EXPORT_FILENAME = "ascend-trenches-settings.json";
+export const SETTINGS_IMPORT_MAX_BYTES = 1_000_000;
 
 const ALLOWED_FEES_MODES = new Set<FeesMode>(["avg", "total", "fixed"]);
 const ALLOWED_TERMINALS = new Set<Terminal>(["axiom", "gmgn"]);
@@ -158,6 +159,20 @@ export function parseSettingsImport(rawInput: unknown): SettingsSections {
 
     if (!isPlainObject(parsed)) {
         throw new Error("Settings file must contain a JSON object.");
+    }
+
+    if (
+        parsed.schema !== undefined &&
+        parsed.schema !== SETTINGS_EXPORT_SCHEMA
+    ) {
+        throw new Error("Unsupported settings schema.");
+    }
+
+    if (
+        parsed.schemaVersion !== undefined &&
+        parsed.schemaVersion !== SETTINGS_EXPORT_SCHEMA_VERSION
+    ) {
+        throw new Error("Unsupported settings schema version.");
     }
 
     const isExportEnvelope =
