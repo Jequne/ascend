@@ -1,6 +1,7 @@
 <script lang="ts">
     import SocialLinks from "$lib/components/token-card/SocialLinks.svelte";
     import DevBlacklistButton from "$lib/components/token-card/DevBlacklistButton.svelte";
+    import RetryingTokenImage from "$lib/components/token-card/RetryingTokenImage.svelte";
     import { filtersStore } from "$lib/stores/filters.svelte";
     import type { TokenFeed } from "$lib/types";
     import { openExternalUrl } from "$lib/services/opener";
@@ -42,12 +43,6 @@
         const url = buildXProfileUrl(feed.twitter_admin_nickname);
         if (url) openExternalUrl(url);
     }
-
-    function hideBrokenImage(event: Event): void {
-        if (event.currentTarget instanceof HTMLImageElement) {
-            event.currentTarget.style.display = "none";
-        }
-    }
 </script>
 
 <div
@@ -68,11 +63,10 @@
                 {feed.token_ticker?.substring(0, 2) || "?"}
             </div>
             {#if feed.token_image}
-                <img
-                    class="absolute inset-0 size-full object-cover"
+                <RetryingTokenImage
+                    className="absolute inset-0 size-full object-cover"
                     src={feed.token_image}
                     alt={`${feed.token_ticker} token`}
-                    onerror={hideBrokenImage}
                 />
             {/if}
         </div>
