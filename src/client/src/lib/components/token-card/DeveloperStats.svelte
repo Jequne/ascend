@@ -1,49 +1,14 @@
 <script lang="ts">
-    import { filtersStore } from "$lib/stores/filters.svelte";
     import type { TokenFeed } from "$lib/types";
-    import { normalizeBlacklistEntries } from "$lib/utils/blacklist";
-    import { hasRelevantIndicator } from "$lib/utils/tokenDisplay";
     import { CircleCheck, Database, TrendingUp } from "@lucide/svelte";
 
     export let feed: TokenFeed;
 
-    let devWalletBlacklisted = false;
-
-    $: showDevBlacklistButton =
-        hasRelevantIndicator(feed) && Boolean(feed.dev_wallet);
-    $: if (showDevBlacklistButton) {
-        devWalletBlacklisted = isDevWalletBlacklisted();
-    }
     $: migratedRatio = feed.all_tokens_count
         ? ((feed.migrated_tokens_count / feed.all_tokens_count) * 100).toFixed(
               1,
           )
         : "0";
-
-    function isDevWalletBlacklisted(): boolean {
-        const devWallet = feed.dev_wallet.trim().toLowerCase();
-        return normalizeBlacklistEntries(filtersStore.blacklist).some(
-            (entry) => entry.toLowerCase() === devWallet,
-        );
-    }
-
-    function toggleDevWalletBlacklist(): void {
-        const devWallet = feed.dev_wallet.trim();
-        if (!devWallet) return;
-
-        const blacklist = normalizeBlacklistEntries(filtersStore.blacklist);
-        const normalizedDevWallet = devWallet.toLowerCase();
-        const isBlacklisted = blacklist.some(
-            (entry) => entry.toLowerCase() === normalizedDevWallet,
-        );
-
-        filtersStore.blacklist = isBlacklisted
-            ? blacklist.filter(
-                  (entry) => entry.toLowerCase() !== normalizedDevWallet,
-              )
-            : [...blacklist, devWallet];
-        devWalletBlacklisted = !isBlacklisted;
-    }
 </script>
 
 <div class="mt-0.5 flex flex-col gap-1.5">
@@ -65,24 +30,12 @@
             >
         </div>
 
-        {#if showDevBlacklistButton}
-            <button
-                class="ml-auto inline-flex h-6 min-w-11 cursor-pointer items-center justify-center gap-1 rounded-md border px-1.5 text-[0.65rem] leading-none font-extrabold tracking-[0.03em] whitespace-nowrap uppercase transition-[background-color,border-color,color,transform,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:outline-none motion-reduce:transform-none {devWalletBlacklisted
-                    ? 'border-red-500/45 bg-red-500/15 text-red-300 hover:border-red-500/65 hover:bg-red-500/20 hover:text-red-200'
-                    : 'border-orange-500/40 bg-orange-500/15 text-orange-300 hover:border-orange-500/60 hover:bg-orange-500/25 hover:text-orange-200'} hover:-translate-y-px active:translate-y-0"
-                type="button"
-                title={devWalletBlacklisted
-                    ? "Remove from blacklist"
-                    : "Add to blacklist"}
-                aria-label={devWalletBlacklisted
-                    ? "Remove developer wallet from blacklist"
-                    : "Add developer wallet to blacklist"}
-                aria-pressed={devWalletBlacklisted}
-                onclick={toggleDevWalletBlacklist}
+        {#if feed.dev_holds_percent !== null}
+            <span
+                class="ml-auto inline-flex h-6 shrink-0 items-center rounded border border-amber-500/30 bg-amber-500/15 px-1.5 text-[0.7rem] font-semibold tracking-[0.02em] whitespace-nowrap text-amber-400 shadow-[0_2px_4px_rgba(0,0,0,0.1)]"
             >
-                <Database size={12} strokeWidth={2} aria-hidden="true" />
-                <span>{devWalletBlacklisted ? "Dev BL-" : "Dev BL+"}</span>
-            </button>
+                DH: {feed.dev_holds_percent.toFixed(1)}%
+            </span>
         {/if}
     </div>
 

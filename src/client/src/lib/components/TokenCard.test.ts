@@ -92,6 +92,31 @@ describe("TokenCard", () => {
         expect(openUrl).toHaveBeenCalledWith("https://x.com/example");
     });
 
+    it("opens the developer X profile from the nickname", async () => {
+        render(TokenCard, {
+            feed: createTokenFeed({ twitter_admin_nickname: "@Eustazzeus" }),
+        });
+
+        const adminLink = screen.getByRole("link", {
+            name: "Open @Eustazzeus on X",
+        });
+        expect(adminLink).toHaveAttribute("href", "https://x.com/Eustazzeus");
+
+        await fireEvent.click(adminLink);
+
+        expect(openUrl).toHaveBeenCalledWith("https://x.com/Eustazzeus");
+    });
+
+    it("hides an invalid developer X nickname", () => {
+        render(TokenCard, {
+            feed: createTokenFeed({ twitter_admin_nickname: "not a handle" }),
+        });
+
+        expect(
+            screen.queryByRole("link", { name: /not a handle.*on X/ }),
+        ).not.toBeInTheDocument();
+    });
+
     it("toggles the developer wallet blacklist", async () => {
         render(TokenCard, { feed: createTokenFeed() });
 

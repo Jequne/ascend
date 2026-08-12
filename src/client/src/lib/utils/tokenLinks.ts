@@ -20,6 +20,18 @@ export function normalizeExternalUrl(value: unknown): string | null {
     }
 }
 
+export function buildXProfileUrl(nickname: string | null): string | null {
+    const normalizedNickname = nickname?.trim().replace(/^@/, "");
+    if (
+        !normalizedNickname ||
+        !/^[A-Za-z0-9_]{1,15}$/.test(normalizedNickname)
+    ) {
+        return null;
+    }
+
+    return `https://x.com/${normalizedNickname}`;
+}
+
 export function buildTerminalUrl(
     token: LinkableToken,
     terminal: Terminal,

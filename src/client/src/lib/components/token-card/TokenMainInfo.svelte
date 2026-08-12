@@ -1,9 +1,10 @@
 <script lang="ts">
     import SocialLinks from "$lib/components/token-card/SocialLinks.svelte";
+    import DevBlacklistButton from "$lib/components/token-card/DevBlacklistButton.svelte";
     import { filtersStore } from "$lib/stores/filters.svelte";
     import type { TokenFeed } from "$lib/types";
     import { openExternalUrl } from "$lib/services/opener";
-    import { buildTerminalUrl } from "$lib/utils/tokenLinks";
+    import { buildTerminalUrl, buildXProfileUrl } from "$lib/utils/tokenLinks";
 
     export let feed: TokenFeed;
 
@@ -32,6 +33,14 @@
     function copyAddress(): void {
         if (!feed.token_address) return;
         void navigator.clipboard.writeText(feed.token_address);
+    }
+
+    function openAdminProfile(event: MouseEvent): void {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const url = buildXProfileUrl(feed.twitter_admin_nickname);
+        if (url) openExternalUrl(url);
     }
 
     function hideBrokenImage(event: Event): void {
@@ -69,33 +78,42 @@
         </div>
 
         <div class="flex min-w-0 grow flex-col gap-1.5">
-            <div class="flex flex-col justify-center">
-                <button
-                    class="hover:text-accent-purple focus-visible:text-accent-purple focus-visible:ring-accent-purple m-0 flex w-full cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-left text-sm font-semibold text-inherit transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
-                    type="button"
-                    title="Copy token address"
-                    aria-label={`Copy ${feed.token_ticker} address`}
-                    onclick={(event) => {
-                        event.stopPropagation();
-                        copyAddress();
-                    }}
-                >
-                    <span
-                        class="text-muted shrink-0 rounded bg-white/[0.08] px-1 py-0.5 text-xs font-normal"
-                        >${feed.token_ticker}</span
+            <div class="flex flex-col justify-center gap-0.5">
+                <div class="flex min-w-0 items-start gap-2">
+                    <button
+                        class="hover:text-accent-purple focus-visible:text-accent-purple focus-visible:ring-accent-purple m-0 flex min-w-0 grow cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-left text-sm font-semibold text-inherit transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
+                        type="button"
+                        title="Copy token address"
+                        aria-label={`Copy ${feed.token_ticker} address`}
+                        onclick={(event) => {
+                            event.stopPropagation();
+                            copyAddress();
+                        }}
                     >
-                    <span class="truncate">{feed.token_name}</span>
-                </button>
-
-                <div class="mt-0.5 flex flex-wrap items-center">
-                    {#if feed.dev_holds_percent !== null}
                         <span
-                            class="inline-flex items-center rounded border border-amber-500/30 bg-amber-500/15 px-1.5 py-0.5 text-[0.7rem] font-semibold tracking-[0.02em] text-amber-400 shadow-[0_2px_4px_rgba(0,0,0,0.1)]"
+                            class="text-muted shrink-0 rounded bg-white/[0.08] px-1 py-0.5 text-xs font-normal"
+                            >${feed.token_ticker}</span
                         >
-                            DH: {feed.dev_holds_percent.toFixed(1)}%
-                        </span>
-                    {/if}
+                        <span class="truncate">{feed.token_name}</span>
+                    </button>
+
+                    <DevBlacklistButton {feed} />
                 </div>
+
+                {#if buildXProfileUrl(feed.twitter_admin_nickname) !== null}
+                    <a
+                        class="w-fit truncate text-xs font-medium text-sky-400 underline decoration-sky-400/60 underline-offset-2 transition-[color,text-shadow,text-decoration-color] duration-150 hover:text-sky-300 hover:decoration-sky-300 hover:[text-shadow:0_0_8px_rgba(56,189,248,0.65)] focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none"
+                        href={buildXProfileUrl(feed.twitter_admin_nickname) ??
+                            undefined}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Open ${feed.twitter_admin_nickname} on X`}
+                        aria-label={`Open ${feed.twitter_admin_nickname} on X`}
+                        onclick={openAdminProfile}
+                    >
+                        {feed.twitter_admin_nickname}
+                    </a>
+                {/if}
             </div>
 
             <SocialLinks token={feed} />
