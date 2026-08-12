@@ -42,7 +42,7 @@
 
 {#if visible}
     <button
-        class="inline-flex h-7 shrink-0 cursor-pointer items-center justify-center gap-1 rounded border px-1.5 text-[0.65rem] leading-none font-extrabold tracking-[0.03em] whitespace-nowrap uppercase transition-[background-color,border-color,color,transform,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:outline-none motion-reduce:transform-none {devWalletBlacklisted
+        class="-mr-1.5 inline-flex h-7 shrink-0 cursor-pointer items-center justify-center gap-1 rounded border px-1.5 text-[0.65rem] leading-none font-extrabold tracking-[0.03em] whitespace-nowrap uppercase transition-[background-color,border-color,color,transform,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:outline-none motion-reduce:transform-none {devWalletBlacklisted
             ? 'border-red-500/45 bg-red-500/15 text-red-300 hover:border-red-500/65 hover:bg-red-500/20 hover:text-red-200'
             : 'border-orange-500/40 bg-orange-500/15 text-orange-300 hover:border-orange-500/60 hover:bg-orange-500/25 hover:text-orange-200'} hover:-translate-y-px active:translate-y-0"
         type="button"
