@@ -36,6 +36,11 @@
     );
 
     $: overrideEnabled = settings.lastTokensRequiredCount > 0;
+    $: rangeStartValue = Math.max(
+        0,
+        Math.min(100, settings.minDevHoldsPercent),
+    );
+    $: rangeEndValue = Math.max(0, Math.min(100, settings.maxDevHoldsPercent));
     $: if (settings.lastTokensRequiredCount > 0) {
         previousRequiredCount = settings.lastTokensRequiredCount;
     }
@@ -78,14 +83,6 @@
         update("lastTokensRequiredCount", Number(input.value));
     }
 
-    function rangeStart(): number {
-        return Math.max(0, Math.min(100, settings.minDevHoldsPercent));
-    }
-
-    function rangeEnd(): number {
-        return Math.max(0, Math.min(100, settings.maxDevHoldsPercent));
-    }
-
     function formatPercent(value: number): string {
         return Number.isInteger(value) ? String(value) : value.toFixed(1);
     }
@@ -124,15 +121,13 @@
 
         <div
             class="dev-range relative mt-1 h-8 w-full min-w-0"
-            style={`--range-start: ${rangeStart()}%; --range-end: ${rangeEnd()}%;`}
+            style={`--range-start: ${rangeStartValue}%; --range-end: ${rangeEndValue}%;`}
+            data-testid="developer-holds-range"
         >
             <div
-                class="absolute top-1/2 right-1 left-1 h-[7px] -translate-y-1/2 overflow-hidden rounded-full bg-white/[0.09] shadow-[inset_0_1px_2px_rgba(0,0,0,0.45)]"
+                class="range-track absolute top-1/2 right-1 left-1 h-[7px] -translate-y-1/2 overflow-hidden rounded-full shadow-[inset_0_1px_2px_rgba(0,0,0,0.45)]"
                 aria-hidden="true"
-            >
-                <span class="range-selection absolute inset-y-0 rounded-full"
-                ></span>
-            </div>
+            ></div>
             <input
                 class="range-input range-min"
                 id="minimum-developer-holds"
@@ -351,11 +346,16 @@
 </div>
 
 <style>
-    .range-selection {
-        left: var(--range-start);
-        right: calc(100% - var(--range-end));
-        background: linear-gradient(90deg, #2563eb, #3b82f6);
-        box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+    .range-track {
+        background: linear-gradient(
+            90deg,
+            rgba(71, 78, 94, 0.42) 0%,
+            rgba(71, 78, 94, 0.42) var(--range-start),
+            #2563eb var(--range-start),
+            #3b82f6 var(--range-end),
+            rgba(71, 78, 94, 0.42) var(--range-end),
+            rgba(71, 78, 94, 0.42) 100%
+        );
     }
 
     .range-input {

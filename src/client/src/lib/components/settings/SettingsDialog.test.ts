@@ -1,4 +1,10 @@
-import { cleanup, render, screen, within } from "@testing-library/svelte";
+import {
+    cleanup,
+    fireEvent,
+    render,
+    screen,
+    within,
+} from "@testing-library/svelte";
 import userEvent from "@testing-library/user-event";
 import { tick } from "svelte";
 import {
@@ -184,14 +190,31 @@ describe("SettingsDialog", () => {
         expect(filtersStore.highlightMigratedTokens).toBe(false);
     });
 
+    it("updates the developer-holds track as the selected range changes", async () => {
+        const { dialog } = await openSettings();
+        const maximum = within(dialog).getByLabelText(
+            "Maximum developer holds percent",
+        ) as HTMLInputElement;
+
+        maximum.value = "84.6";
+        await fireEvent.input(maximum);
+        await tick();
+
+        expect(within(dialog).getByTestId("developer-holds-range")).toHaveStyle(
+            "--range-end: 84.6%",
+        );
+        expect(maximum).toHaveValue("84.6");
+    });
+
     it("normalizes blacklist entries and applies all draft changes on Save", async () => {
         const { user, dialog } = await openSettings();
 
         await user.click(
             within(dialog).getByRole("tab", { name: /Blacklist/ }),
         );
-        const blacklist = within(dialog).getByLabelText("Blacklist values");
+        const blacklist = within(dialog).getByLabelText("Add hidden values");
         await user.type(blacklist, "Wallet-1\n wallet-1 \nToken Name");
+        await user.click(within(dialog).getByRole("button", { name: "Add" }));
 
         expect(
             within(dialog).getByLabelText("2 unique blacklist entries"),
@@ -214,6 +237,46 @@ describe("SettingsDialog", () => {
         await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
         expect(filtersStore.blacklist).toEqual(["Wallet-1", "Token Name"]);
+    });
+
+    it("requires confirmation before clearing all blacklist entries", async () => {
+        filtersStore.blacklist = ["Wallet-1", "Token Name"];
+        const { user, dialog } = await openSettings();
+
+        await user.click(
+            within(dialog).getByRole("tab", { name: /Blacklist/ }),
+        );
+        await user.click(
+            within(dialog).getByRole("button", { name: "Clear blacklist" }),
+        );
+
+        const confirmation = within(dialog).getByRole("dialog", {
+            name: "Clear the entire blacklist?",
+        });
+        expect(confirmation).toHaveTextContent(
+            "cannot be restored unless you exported your settings first",
+        );
+        await user.click(
+            within(confirmation).getByRole("button", { name: "Keep values" }),
+        );
+        expect(
+            within(dialog).getByLabelText("2 unique blacklist entries"),
+        ).toBeVisible();
+
+        await user.click(
+            within(dialog).getByRole("button", { name: "Clear blacklist" }),
+        );
+        await user.click(
+            within(dialog).getByRole("button", {
+                name: "Clear permanently",
+            }),
+        );
+        expect(
+            within(dialog).getByLabelText("0 unique blacklist entries"),
+        ).toBeVisible();
+
+        await user.click(within(dialog).getByRole("button", { name: "Save" }));
+        expect(filtersStore.blacklist).toEqual([]);
     });
 
     it("copies, downloads, pastes, and uploads settings without bypassing Save", async () => {
