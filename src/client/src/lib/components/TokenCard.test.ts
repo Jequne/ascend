@@ -117,6 +117,22 @@ describe("TokenCard", () => {
         ).not.toBeInTheDocument();
     });
 
+    it("uses the Axiom CDN image when a fresh token has no image URL", () => {
+        const tokenAddress = "9LoWfvBgTzwqAMzNeMRwVY8YFBY8hEZjyvo3Mvb8pump";
+
+        render(TokenCard, {
+            feed: createTokenFeed({
+                token_address: tokenAddress,
+                token_image: null,
+            }),
+        });
+
+        expect(screen.getByRole("img", { name: "EXM token" })).toHaveAttribute(
+            "src",
+            `https://axiomtrading.sfo3.cdn.digitaloceanspaces.com/${tokenAddress}.webp`,
+        );
+    });
+
     it("toggles the developer wallet blacklist", async () => {
         render(TokenCard, { feed: createTokenFeed() });
 

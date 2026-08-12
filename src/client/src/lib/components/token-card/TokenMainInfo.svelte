@@ -5,9 +5,12 @@
     import { filtersStore } from "$lib/stores/filters.svelte";
     import type { TokenFeed } from "$lib/types";
     import { openExternalUrl } from "$lib/services/opener";
+    import { resolveTokenImageUrl } from "$lib/utils/tokenImage";
     import { buildTerminalUrl, buildXProfileUrl } from "$lib/utils/tokenLinks";
 
     export let feed: TokenFeed;
+
+    $: tokenImageUrl = resolveTokenImageUrl(feed);
 
     function openTerminal(): void {
         const url = buildTerminalUrl(feed, filtersStore.terminal);
@@ -62,10 +65,10 @@
             >
                 {feed.token_ticker?.substring(0, 2) || "?"}
             </div>
-            {#if feed.token_image}
+            {#if tokenImageUrl}
                 <RetryingTokenImage
                     className="absolute inset-0 size-full object-cover"
-                    src={feed.token_image}
+                    src={tokenImageUrl}
                     alt={`${feed.token_ticker} token`}
                 />
             {/if}
