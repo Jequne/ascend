@@ -49,7 +49,7 @@
 </script>
 
 <div
-    class="focus-visible:ring-accent-purple/60 cursor-pointer rounded-[10px] border border-transparent px-1.5 pt-1 pb-1.5 transition-[transform,border-color,background-color,box-shadow] duration-150 hover:-translate-y-px hover:border-white/[0.07] hover:bg-white/[0.025] hover:shadow-[0_8px_18px_rgba(0,0,0,0.14)] focus-visible:border-white/[0.08] focus-visible:bg-white/[0.025] focus-visible:ring-1 focus-visible:outline-none motion-reduce:transform-none motion-reduce:transition-none"
+    class="group focus-visible:ring-accent-purple/60 cursor-pointer rounded-[10px] border border-transparent px-1.5 pt-1 pb-1.5 transition-[border-color,background-color,box-shadow] duration-200 ease-out hover:border-white/[0.055] hover:bg-white/[0.028] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] focus-visible:border-white/[0.08] focus-visible:bg-white/[0.025] focus-visible:ring-1 focus-visible:outline-none motion-reduce:transition-none"
     role="button"
     tabindex="0"
     aria-label={`Open ${feed.token_name} in ${filtersStore.terminal.toUpperCase()}`}
@@ -58,7 +58,8 @@
 >
     <div class="flex w-full flex-nowrap items-center gap-2">
         <div
-            class="bg-border relative size-8 shrink-0 overflow-hidden rounded-lg border border-white/[0.08] shadow-[0_3px_9px_rgba(0,0,0,0.28)]"
+            class="bg-border relative size-10 shrink-0 overflow-hidden rounded-[10px] border border-white/[0.08] shadow-[0_3px_9px_rgba(0,0,0,0.28)] transition-[border-color,filter] duration-200 ease-out group-hover:border-white/[0.14] group-hover:brightness-[1.04] motion-reduce:transition-none"
+            data-testid="token-image-frame"
         >
             <div
                 class="absolute inset-0 flex items-center justify-center text-base font-bold text-slate-500"

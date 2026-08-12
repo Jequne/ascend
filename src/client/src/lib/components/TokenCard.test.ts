@@ -54,6 +54,10 @@ describe("TokenCard", () => {
         expect(card).toHaveTextContent("4 migrated");
         expect(card).toHaveTextContent("Last Tokens");
         expect(card).toHaveTextContent("$LAST");
+        expect(screen.getByTestId("token-image-frame")).toHaveClass("size-10");
+        expect(screen.getByTestId("developer-blacklist-button")).toHaveClass(
+            "size-9",
+        );
     });
 
     it("exposes indicator-specific card glow states", () => {

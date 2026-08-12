@@ -42,10 +42,11 @@
 
 {#if visible}
     <button
-        class="-mr-1.5 inline-flex h-7 shrink-0 cursor-pointer items-center justify-center gap-1 rounded border px-1.5 text-[0.65rem] leading-none font-extrabold tracking-[0.03em] whitespace-nowrap uppercase transition-[background-color,border-color,color,transform,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:outline-none motion-reduce:transform-none {devWalletBlacklisted
+        class="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border transition-[background-color,border-color,color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:outline-none {devWalletBlacklisted
             ? 'border-red-500/45 bg-red-500/15 text-red-300 hover:border-red-500/65 hover:bg-red-500/20 hover:text-red-200'
-            : 'border-orange-500/40 bg-orange-500/15 text-orange-300 hover:border-orange-500/60 hover:bg-orange-500/25 hover:text-orange-200'} hover:-translate-y-px active:translate-y-0"
+            : 'border-orange-500/40 bg-orange-500/15 text-orange-300 hover:border-orange-400/65 hover:bg-orange-500/22 hover:text-orange-200'} hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
         type="button"
+        data-testid="developer-blacklist-button"
         title={devWalletBlacklisted
             ? "Remove from blacklist"
             : "Add to blacklist"}
@@ -55,7 +56,6 @@
         aria-pressed={devWalletBlacklisted}
         onclick={toggleDevWalletBlacklist}
     >
-        <Database size={12} strokeWidth={2} aria-hidden="true" />
-        <span>{devWalletBlacklisted ? "Dev BL-" : "Dev BL+"}</span>
+        <Database size={15} strokeWidth={2} aria-hidden="true" />
     </button>
 {/if}
