@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
 
 from ..database import AsyncSessionLocal
-from ..repositories.access_keys import remove_expired_access_keys
+from ..repositories.api_keys import remove_expired_access_keys
 
 
 async def clean_expired_access_keys(stop_event: asyncio.Event):

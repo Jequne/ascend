@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .access_keys_helpers import hash_api_key, parse_prefixed_api_key
 from ..models.access_key import ApiKey
-from ..repositories.access_keys import (
+from ..repositories.api_keys import (
     get_api_key_by_kid, get_api_key_by_kid_async, set_api_key_status_as_expired)
 
 
