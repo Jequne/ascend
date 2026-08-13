@@ -5,7 +5,6 @@ from dataclasses import dataclass
 import logging
 
 from fastapi import WebSocket
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...database import AsyncSessionLocal
 from ...core.authenticator import extract_raw_api_key, validate_api_key_async
@@ -129,8 +128,8 @@ class AuthStreamingProcessor:
             )
             return False
 
-        active = await manager.active_sessions_for_kid(ctx.kid)
-        if active >= ctx.max_active_sessions:
+        active_sessions = await manager.active_sessions_for_kid(ctx.kid)
+        if active_sessions >= ctx.max_active_sessions:
             await cls._ws_send_error_and_close(websocket, "too_many_sessions")
             return False
 

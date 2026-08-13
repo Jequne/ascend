@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, Header, Request, Response, status
+from fastapi import Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...schemas.auth import ValidateKeyRequest, ValidateKeyResponse

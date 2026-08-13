@@ -1,15 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, status
 from sqlalchemy.orm import Session
 import logging 
 
-from ...config import settings
-from ...core.access_keys_helpers import generate_api_key, hash_api_key
 from ...database import get_db
-from ...models.access_key import ApiKey
 from ...schemas.auth import AdminCreateKeyRequest, AdminCreateKeyResponse
 from ...services.admin import AdminServices
 
