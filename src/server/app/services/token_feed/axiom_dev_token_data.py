@@ -85,6 +85,7 @@ class AxiomDevTokenData():
 
             except Exception as e:
                 logger.warning("⚠️ api endpoint coroutine runtime error: %s", e)
+                raise e
                 continue
             
             if pair_info_data is None or token_info_data \
@@ -134,7 +135,7 @@ class AxiomDevTokenData():
                 and dev_tokens.tokens[0].pair_address ==  new_token_pair_address:
                 
                 recent_deployed_tokens = \
-                dev_tokens.tokens[1:deployed_tokens_count_need]
+                dev_tokens.tokens[1:deployed_tokens_count_need + 1]
             else:
                 recent_deployed_tokens = \
                     dev_tokens.tokens[:deployed_tokens_count_need]

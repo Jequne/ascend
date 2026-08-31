@@ -22,28 +22,28 @@ from .core.expired_access_keys_cleaner import clean_expired_access_keys
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # init_db()
-    # collector = TokenFeedCollector([AxiomDevTokenData])
-    # await collector.start()
+    init_db()
+    collector = TokenFeedCollector([AxiomDevTokenData])
+    await collector.start()
 
-    # sol_price_broadcaster()
+    sol_price_broadcaster()
 
-    # stop_event = asyncio.Event()
-    # access_keys_cleaner_task = asyncio.create_task(
-    #     clean_expired_access_keys(stop_event=stop_event)
-    # )
+    stop_event = asyncio.Event()
+    access_keys_cleaner_task = asyncio.create_task(
+        clean_expired_access_keys(stop_event=stop_event)
+    )
 
-    # broadcaster_task = asyncio.create_task(
-    #     token_feed_broadcaster(ws_manager, stop_event=stop_event)
-    # )
-    # ping_task = asyncio.create_task(
-    #     ping_broadcaster(ws_manager, stop_event=stop_event, interval=30)
-    # )
+    broadcaster_task = asyncio.create_task(
+        token_feed_broadcaster(ws_manager, stop_event=stop_event)
+    )
+    ping_task = asyncio.create_task(
+        ping_broadcaster(ws_manager, stop_event=stop_event, interval=30)
+    )
     yield
-    # stop_event.set()
-    # broadcaster_task.cancel()
-    # ping_task.cancel()
-    # access_keys_cleaner_task.cancel()
+    stop_event.set()
+    broadcaster_task.cancel()
+    ping_task.cancel()
+    access_keys_cleaner_task.cancel()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)

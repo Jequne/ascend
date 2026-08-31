@@ -31,7 +31,7 @@ class PairInfoResponse(BaseModel):
 
     created_at: datetime = Field(..., alias="createdAt")
     deployer_address: str = Field(..., alias="deployerAddress")
-    dev_wallet_funding: DevWalletFunding = Field(..., alias="devWalletFunding")
+    dev_wallet_funding: DevWalletFunding | None = Field(None, alias="devWalletFunding")
     dex_paid: bool = Field(..., alias="dexPaid")
     discord: Optional[str]
     display_protocol: str = Field(..., alias="displayProtocol")
