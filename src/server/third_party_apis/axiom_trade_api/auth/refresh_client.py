@@ -3,7 +3,6 @@ import logging
 import random
 from typing import Any, Optional, Tuple
 
-import cloudscraper
 from curl_cffi import AsyncSession
 
 from ..models.auth import AxiomAgentData, AxiomCookie
