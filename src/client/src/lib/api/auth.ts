@@ -1,7 +1,7 @@
 import { API_BASE_URL } from "$lib/config/constants";
 import { isPlainObject } from "$lib/config/settings";
 
-const API_URL = `${API_BASE_URL}/auth/validate-key`;
+const API_URL = `${API_BASE_URL}/api-keys/validate-api-key`;
 const LICENSE_STORAGE_KEY = "license_key";
 
 export async function validateKey(apiKey: string): Promise<boolean> {
@@ -10,11 +10,12 @@ export async function validateKey(apiKey: string): Promise<boolean> {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                "X-Api-Key": apiKey
             },
-            body: JSON.stringify({ api_key: apiKey }),
+            // body: JSON.stringify({ api_key: apiKey }),
         });
         const data: unknown = await response.json();
-        return response.ok && isPlainObject(data) && data.status === "valid";
+        return response.ok && isPlainObject(data);
     } catch (error: unknown) {
         console.error("Validation error:", error);
         return false;

@@ -1,8 +1,8 @@
-"""init
+"""added_revoked_at_api_keys
 
-Revision ID: 201399c596d2
+Revision ID: 801c5e2b52e7
 Revises: 
-Create Date: 2026-05-27 11:43:37.088412
+Create Date: 2026-08-31 17:49:25.521434
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '201399c596d2'
+revision: str = '801c5e2b52e7'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -26,9 +26,10 @@ def upgrade() -> None:
     sa.Column('key_hash', sa.String(length=64), nullable=False),
     sa.Column('label', sa.String(length=255), nullable=True),
     sa.Column('status', sa.String(length=20), nullable=False),
-    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('max_active_sessions', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('revoked_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('api_keys', schema=None) as batch_op:

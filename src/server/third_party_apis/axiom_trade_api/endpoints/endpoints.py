@@ -1,50 +1,58 @@
 import logging
-from typing import Optional, Dict, TypeVar, Type, Tuple
-from curl_cffi import AsyncSession
 import random
+from typing import Type, TypeVar
+
+from curl_cffi import AsyncSession
+from curl_cffi.requests import Response
+from curl_cffi.requests.exceptions import RequestException
 from pydantic import ValidationError
 
-from ..auth.auth_manager import AuthManager
-from ..models.auth import AxiomAgentData
-from ..models.endpoints.pair_chart_v2 import PairChartV2Params, PairChartV2Response
-from ..models.endpoints.dev_tokens_v3 import DevTokensV3Response
-from ..models.endpoints.token_info import TokenInfoResponse
-from ..models.endpoints.pair_info import PairInfoResponse
+from ..auth import AuthManager
+from .exceptions import *
+from ..models import *
 from ..urls import AAllBaseUrls, AxiomTradeApiUrls
 
 
-FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
 logger = logging.getLogger(__name__)
+
 ResponseModelT = TypeVar("ResponseModelT")
 
 
-def _response_summary(json_data: Dict) -> str:
+def _response_summary(json_data: dict) -> str:
     keys = sorted(json_data.keys())
-    tokens_count = len(json_data.get("tokens", [])) if isinstance(json_data.get("tokens"), list) else None
-    points_count = len(json_data.get("points", [])) if isinstance(json_data.get("points"), list) else None
+
+    tokens = json_data.get("tokens")
+    points = json_data.get("points")
+
+    tokens_count = len(tokens) if isinstance(tokens, list) else None
+    points_count = len(points) if isinstance(points, list) else None
+
     details = [f"keys={keys}"]
+
     if tokens_count is not None:
         details.append(f"tokens={tokens_count}")
+
     if points_count is not None:
         details.append(f"points={points_count}")
+
     return ", ".join(details)
 
 
 class AxiomTradeEndpoints:
     def __init__(
-            self,
-            auth_manager: AuthManager
-            ):
+        self,
+        auth_manager: AuthManager,
+    ) -> None:
         self._auth_manager = auth_manager
         self._base_url = random.choice(AAllBaseUrls.URLS)
 
     async def __get_request(
-            self, 
-            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
-            url: str
-            ):
-        session = session_and_agent[0]
-        agent_data = session_and_agent[1]
+        self,
+        session_and_agent: tuple[AsyncSession, AxiomAgentData],
+        url: str,
+    ) -> Response:
+        session, agent_data = session_and_agent
+
         try:
             return await session.get(
                 url=url,
@@ -53,67 +61,83 @@ class AxiomTradeEndpoints:
                 timeout=15,
                 impersonate="chrome136",
                 proxy=agent_data.proxy,
-                # proxy="http://ygnglpau:1pm7voouokdc@45.159.55.132:6504"
             )
 
-        except Exception as e:
-            logger.warning(
-                "❌ %s problem with request: %s",
-                agent_data.agent_name, e
-            )
-            return
+        except RequestException as exc:
+            raise AxiomRequestError(
+                f"{agent_data.agent_name}: request failed: {url}"
+            ) from exc
 
     async def __get_response_model(
-            self,
-            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
-            url: str,
-            response_model: Type[ResponseModelT],
-            endpoint_name: str,
-            ) -> Optional[ResponseModelT]:
-        if not await self._auth_manager.ensure_validation(session_and_agent):
-            return
+        self,
+        session_and_agent: tuple[AsyncSession, AxiomAgentData],
+        url: str,
+        response_model: Type[ResponseModelT],
+        endpoint_name: str,
+    ) -> ResponseModelT:
+        agent_data = session_and_agent[1]
 
-        response = await self.__get_request(session_and_agent, url)
-        if not response:
-            return
+        is_valid = await self._auth_manager.ensure_validation(
+            session_and_agent
+        )
+
+        if not is_valid:
+            raise AxiomApiError(
+                f"{agent_data.agent_name}: authentication validation failed"
+            )
+
+        response = await self.__get_request(
+            session_and_agent=session_and_agent,
+            url=url,
+        )
 
         if response.status_code != 200:
-            logger.warning(
-                "🟨 %s status code for %s: %s\n"
-                "url for request: %s\n",
-                session_and_agent[1].agent_name,
-                endpoint_name,
-                response.status_code,
-                url
+            raise AxiomHTTPStatusError(
+                f"{agent_data.agent_name}: "
+                f"{endpoint_name} returned status {response.status_code}"
             )
-            return
 
-        json_data: Dict = response.json()
+        try:
+            json_data: dict = response.json()
+
+        except ValueError as exc:
+            raise AxiomResponseError(
+                f"{agent_data.agent_name}: "
+                f"{endpoint_name} returned invalid JSON"
+            ) from exc
+
         logger.debug(
-            "✅ %s %s response summary: %s",
-            session_and_agent[1].agent_name,
+            "%s %s response summary: %s",
+            agent_data.agent_name,
             endpoint_name,
             _response_summary(json_data),
         )
+
         try:
             return response_model(**json_data)
 
-        except ValidationError:
-            logger.warning("⚠️ validating %s response problem", endpoint_name)
-            return
+        except ValidationError as exc:
+            raise AxiomResponseValidationError(
+                f"{agent_data.agent_name}: "
+                f"{endpoint_name} response validation failed"
+            ) from exc
 
     async def pair_chart_v2(
-            self, 
-            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
-            pair_chart_v2_params: PairChartV2Params
-            ) -> Optional[PairChartV2Response]:
+        self,
+        session_and_agent: tuple[AsyncSession, AxiomAgentData],
+        pair_chart_v2_params: PairChartV2Params,
+    ) -> PairChartV2Response:
         logger.debug(
-            "pair_chart_v2 params string: \n%s",
-            pair_chart_v2_params.to_http_query_string()
-            )
+            "pair_chart_v2 params string: %s",
+            pair_chart_v2_params.to_http_query_string(),
+        )
 
-        url = self._base_url + AxiomTradeApiUrls.PAIR_CHART_V2 + \
-            pair_chart_v2_params.to_http_query_string()
+        url = (
+            self._base_url
+            + AxiomTradeApiUrls.PAIR_CHART_V2
+            + pair_chart_v2_params.to_http_query_string()
+        )
+
         return await self.__get_response_model(
             session_and_agent=session_and_agent,
             url=url,
@@ -122,11 +146,16 @@ class AxiomTradeEndpoints:
         )
 
     async def dev_tokens_v3(
-            self,
-            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
-            dev_address: str
-            ) -> Optional[DevTokensV3Response]:
-        url = self._base_url + AxiomTradeApiUrls.DEV_TOKENS_V5 + dev_address
+        self,
+        session_and_agent: tuple[AsyncSession, AxiomAgentData],
+        dev_address: str,
+    ) -> DevTokensV3Response:
+        url = (
+            self._base_url
+            + AxiomTradeApiUrls.DEV_TOKENS_V5
+            + dev_address
+        )
+
         return await self.__get_response_model(
             session_and_agent=session_and_agent,
             url=url,
@@ -135,11 +164,16 @@ class AxiomTradeEndpoints:
         )
 
     async def token_info(
-            self,
-            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
-            pair_address: str
-            ) -> Optional[TokenInfoResponse]:
-        url = self._base_url + AxiomTradeApiUrls.TOKEN_INFO + pair_address
+        self,
+        session_and_agent: tuple[AsyncSession, AxiomAgentData],
+        pair_address: str,
+    ) -> TokenInfoResponse:
+        url = (
+            self._base_url
+            + AxiomTradeApiUrls.TOKEN_INFO
+            + pair_address
+        )
+
         return await self.__get_response_model(
             session_and_agent=session_and_agent,
             url=url,
@@ -148,11 +182,16 @@ class AxiomTradeEndpoints:
         )
 
     async def pair_info(
-            self,
-            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
-            pair_address: str
-        ) -> Optional[PairInfoResponse]:
-        url = self._base_url + AxiomTradeApiUrls.PAIR_INFO + pair_address
+        self,
+        session_and_agent: tuple[AsyncSession, AxiomAgentData],
+        pair_address: str,
+    ) -> PairInfoResponse:
+        url = (
+            self._base_url
+            + AxiomTradeApiUrls.PAIR_INFO
+            + pair_address
+        )
+
         return await self.__get_response_model(
             session_and_agent=session_and_agent,
             url=url,
@@ -161,21 +200,23 @@ class AxiomTradeEndpoints:
         )
 
     async def server_time(
-            self,
-            session_and_agent: Tuple[AsyncSession, AxiomAgentData],
-        ) -> Optional[PairInfoResponse]:
+        self,
+        session_and_agent: tuple[AsyncSession, AxiomAgentData],
+    ) -> Response:
         url = "https://api.axiom.trade/wo/server-time"
+
         return await self.__get_request(
             session_and_agent=session_and_agent,
-            url=url
+            url=url,
         )
 
-    async def get_announcment(
-            self,
-            session_and_agent: Tuple[AsyncSession, AxiomAgentData]
-            ) -> Optional[PairInfoResponse]:
+    async def get_announcement(
+        self,
+        session_and_agent: tuple[AsyncSession, AxiomAgentData],
+    ) -> Response:
         url = "https://api6.axiom.trade/get-announcement?"
+
         return await self.__get_request(
             session_and_agent=session_and_agent,
-            url=url
+            url=url,
         )

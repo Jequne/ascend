@@ -4,6 +4,7 @@ from .subscription_message import (
     NewPairsRoomMessage,
     RoomSubscribeRequest,
     SolPriceRoomMessage,
+    NewPairsRoomContent,
 )
 
 __all__ = [

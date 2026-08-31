@@ -1,18 +1,23 @@
 import asyncio
+import inspect
 import logging
-from typing import Awaitable, Optional, Dict, Set, Callable, Any, TypeAlias
+from typing import Any, Awaitable, Callable, Dict, Set, TypeAlias
 
 from pydantic import ValidationError
 
-from ..models.websockets.subscription_message import (
+from ..models import (
     NewPairsRoomMessage,
     SolPriceRoomMessage,
 )
 
 
 logger = logging.getLogger(__name__)
+
 MessageCallback: TypeAlias = Callable[[Any], Any]
-MessageCallbackDecorator: TypeAlias = Callable[[MessageCallback], MessageCallback]
+MessageCallbackDecorator: TypeAlias = Callable[
+    [MessageCallback],
+    MessageCallback,
+]
 
 
 class WebsocketMessageRouter:
@@ -20,7 +25,7 @@ class WebsocketMessageRouter:
         self._callbacks: Dict[str, Set[MessageCallback]] = {}
 
     def on(self, room: str) -> MessageCallbackDecorator:
-        """Decorator to register callback for a room."""
+        """Register a callback for a websocket room."""
 
         def decorator(callback: MessageCallback) -> MessageCallback:
             self._callbacks.setdefault(room, set()).add(callback)
@@ -29,76 +34,117 @@ class WebsocketMessageRouter:
         return decorator
 
     def register_callback(
-            self,
-            room: str,
-            callback: MessageCallback,
-            ) -> None:
+        self,
+        room: str,
+        callback: MessageCallback,
+    ) -> None:
         self._callbacks.setdefault(room, set()).add(callback)
 
     def unregister_callback(
-            self,
-            room: str,
-            callback: MessageCallback,
-            ) -> None:
+        self,
+        room: str,
+        callback: MessageCallback,
+    ) -> None:
         callbacks = self._callbacks.get(room)
+
         if not callbacks:
             return
 
         callbacks.discard(callback)
+
         if not callbacks:
             self._callbacks.pop(room, None)
 
-    def validate_room_message(self, data: Dict[str, Any]) -> Optional[Any]:
+    def validate_room_message(
+        self,
+        data: Dict[str, Any],
+    ) -> Any | None:
         room = data.get("room")
-        model = None
 
         match room:
             case "sol_price":
                 model = SolPriceRoomMessage
+
             case "new_pairs":
                 model = NewPairsRoomMessage
+
             case _:
                 return data
 
         try:
             return model.model_validate(data)
 
-        except ValidationError as e:
+        except ValidationError as exc:
             logger.warning(
-                "🟨 Skip invalid websocket message for room %s: %s",
+                "Skipping invalid websocket message for room %s: %s",
                 room,
-                e,
+                exc,
             )
             return None
 
-    async def dispatch_message(self, data: Any) -> None:
-        room = data.room if hasattr(data, "room") else data.get("room")
+    async def dispatch_message(
+        self,
+        data: Any,
+    ) -> None:
+        if hasattr(data, "room"):
+            room = data.room
+        elif isinstance(data, dict):
+            room = data.get("room")
+        else:
+            logger.debug(
+                "Skipping websocket message without room information"
+            )
+            return
+
         if not room:
             return
 
         callbacks = self._callbacks.get(room)
+
         if not callbacks:
             return
 
-        async_tasks: list[Awaitable[Any]] = []
+        async_callbacks: list[
+            tuple[MessageCallback, Awaitable[Any]]
+        ] = []
+
         for callback in callbacks:
             try:
                 result = callback(data)
-                if asyncio.iscoroutine(result):
-                    async_tasks.append(result)
 
-            except Exception as e:
-                logger.error(
-                    "🟨 callback error for room %s: %s",
+            except Exception:
+                logger.exception(
+                    "Callback failed for websocket room %s: %r",
                     room,
-                    e,
+                    callback,
+                )
+                continue
+
+            if inspect.isawaitable(result):
+                async_callbacks.append(
+                    (callback, result)
                 )
 
-        if async_tasks:
-            result = await asyncio.gather(*async_tasks, return_exceptions=True)
+        if not async_callbacks:
+            return
 
-            for callback, res in zip(callbacks, result):
-                if isinstance(res, Exception):
-                    logger.exception(
-                        "🟨 exception is callback: %s", callback, exc_info=res
-                        )
+        results = await asyncio.gather(
+            *(awaitable for _, awaitable in async_callbacks),
+            return_exceptions=True,
+        )
+
+        for (callback, _), result in zip(
+            async_callbacks,
+            results,
+        ):
+            if isinstance(result, BaseException):
+                logger.error(
+                    "Async callback failed for websocket room %s: %r",
+                    room,
+                    callback,
+                    exc_info=(
+                        type(result),
+                        result,
+                        result.__traceback__,
+                    ),
+                )

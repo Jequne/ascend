@@ -1,20 +1,13 @@
-from curl_cffi import AsyncSession
 from typing import Any, Awaitable, Callable, List, Literal, Optional, TypeVar
 import logging
 import asyncio
 
-from .models.auth import AxiomAgentData
-from .auth.auth_manager import AuthManager
+from .auth import AuthManager
 from .agent_selector import AgentSelector
-from .endpoints.ws import AxiomTradeWebsocket
-from .endpoints.endpoints import AxiomTradeEndpoints
-from .models.endpoints.pair_chart_v2 import PairChartV2Params, PairChartV2Response
-from .models.endpoints.dev_tokens_v3 import DevTokensV3Response
-from .models.endpoints.token_info import TokenInfoResponse
-from .models.endpoints.pair_info import PairInfoResponse
+from .models import *
+from .endpoints import *
 
 
-FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
 logger = logging.getLogger(__name__)
 ResponseModelT = TypeVar("ResponseModelT")
 
@@ -41,10 +34,10 @@ class AxiomTradeClient:
         self._agent_selector.add_agents(agents)
 
     def connect_websocket(
-            self,
-            rooms: List[Literal["new_pairs", "sol_price", "migrations"]] = \
-                ["new_pairs", "sol_price", "migrations"]
-            ) -> None:
+        self,
+        rooms: List[Literal["new_pairs", "sol_price", "migrations"]] = \
+            ["new_pairs", "sol_price", "migrations"]
+    ) -> None:
         """Connect to WebSocket and run stream in background"""
         random_session_and_agent = self._agent_selector.random_websocket_agent()
 
@@ -54,7 +47,13 @@ class AxiomTradeClient:
                 rooms=rooms
                 )
         )
-    
+
+    async def ensure_validation(self):
+        sessions_and_agents = self._agent_selector.get_agents_and_sessions()
+
+        for session_and_agent in sessions_and_agents:
+            await self._auth_manager.ensure_validation(session_and_agent)
+
     def on_sol_price(self, callback: Callable[[Any], Any]) -> None:
         """Register callback for SOL price updates"""
         self._wsocket.register_callback("sol_price", callback)
@@ -64,21 +63,21 @@ class AxiomTradeClient:
         self._wsocket.register_callback("new_pairs", callback)
 
     async def _call_with_random_agent(
-            self,
-            endpoint_method: Callable[..., Awaitable[Optional[ResponseModelT]]],
-            **kwargs: Any,
-            ) -> Optional[ResponseModelT]:
+        self,
+        endpoint_method: Callable[..., Awaitable[Optional[ResponseModelT]]],
+        **kwargs: Any,
+    ) -> Optional[ResponseModelT]:
         random_session_and_agent = self._agent_selector.random_agent()
         return await endpoint_method(
             session_and_agent=random_session_and_agent, **kwargs
             )
 
     async def pair_chart_v2(
-            self,
-            pair_address: str,
-            chart_from: int,
-            chart_to: int
-            ) -> Optional[PairChartV2Response]:
+        self,
+        pair_address: str,
+        chart_from: int,
+        chart_to: int
+    ) -> Optional[PairChartV2Response]:
         """Get chart data for a pair"""
         pair_chart_v2_params = PairChartV2Params(
             pair_address=pair_address,
@@ -92,8 +91,8 @@ class AxiomTradeClient:
         )
     
     async def dev_tokens_v3(
-            self,
-            dev_address: str
+        self,
+        dev_address: str
     ) -> Optional[DevTokensV3Response]:
         return await self._call_with_random_agent(
             self._endpoints.dev_tokens_v3,
@@ -101,8 +100,8 @@ class AxiomTradeClient:
         )
     
     async def token_info(
-            self,
-            pair_address: str
+        self,
+        pair_address: str
     ) -> Optional[TokenInfoResponse]:
         return await self._call_with_random_agent(
             self._endpoints.token_info,
@@ -110,8 +109,8 @@ class AxiomTradeClient:
         )
     
     async def pair_info(
-            self,
-            pair_address: str
+        self,
+        pair_address: str
     ) -> Optional[PairInfoResponse]:
         return await self._call_with_random_agent(
             self._endpoints.pair_info,
