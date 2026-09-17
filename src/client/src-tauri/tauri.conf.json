@@ -15,7 +15,7 @@
         "title": "Ascend",
         "width": 450,
         "height": 600,
-        "minWidth": 450,
+        "minWidth": 250,
         "minHeight": 500
       }
     ],
