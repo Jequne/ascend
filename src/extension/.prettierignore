@@ -1,0 +1,8 @@
+.output
+.wxt
+coverage
+e2e/.tmp
+node_modules
+package-lock.json
+playwright-report
+test-results

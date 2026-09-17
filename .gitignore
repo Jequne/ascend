@@ -8,6 +8,14 @@ ascend.db
 TODO.md
 .cursor
 
+# Browser extension build and test artifacts
+src/extension/.output/
+src/extension/.wxt/
+src/extension/coverage/
+src/extension/e2e/.tmp/
+src/extension/playwright-report/
+src/extension/test-results/
+
 
 .DS_Store
 node_modules
