@@ -194,6 +194,22 @@
     captureRenderState("installed", 0);
 
     globalThis.__ascendAxiomProbe = {
+        navigate: (pairAddress, chain = "sol") => {
+            if (
+                !/^[A-Za-z0-9_-]{1,128}$/.test(pairAddress) ||
+                (chain !== "sol" && chain !== "bsc")
+            ) {
+                throw new TypeError("Invalid pair address or chain.");
+            }
+            const url = new URL(`/meme/${pairAddress}`, location.origin);
+            for (const name of networkParameters) {
+                url.searchParams.set(name, chain);
+            }
+            history.pushState(history.state, "", url);
+            window.dispatchEvent(
+                new PopStateEvent("popstate", { state: history.state }),
+            );
+        },
         report: () => JSON.stringify(observations, null, 2),
         stop: () => {
             history.pushState = originalPushState;
@@ -207,5 +223,7 @@
         },
     };
 
-    console.info("Axiom navigation probe is recording.");
+    console.info(
+        "Axiom navigation probe is recording. Use __ascendAxiomProbe.navigate(pairAddress) to test SPA navigation.",
+    );
 })();

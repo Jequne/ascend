@@ -103,9 +103,7 @@ export function parseNavigationResult(value: unknown): NavigationResult | null {
             value.status !== "superseded" &&
             value.status !== "ignored" &&
             value.status !== "failed") ||
-        (value.method !== undefined &&
-            value.method !== "history" &&
-            value.method !== "same_tab_reload") ||
+        (value.method !== undefined && value.method !== "history") ||
         (value.errorCode !== undefined && typeof value.errorCode !== "string")
     ) {
         return null;

@@ -6,7 +6,6 @@ const commandId = "123e4567-e89b-42d3-a456-426614174000";
 describe("content navigation", () => {
     it("rejects another origin without side effects", async () => {
         const tryHistoryNavigation = vi.fn();
-        const assignCurrentPage = vi.fn();
 
         await expect(
             navigateInContent(
@@ -18,12 +17,10 @@ describe("content navigation", () => {
                 {
                     getCurrentUrl: () => "https://axiom.trade/",
                     tryHistoryNavigation,
-                    assignCurrentPage,
                 },
             ),
         ).resolves.toMatchObject({ status: "failed" });
         expect(tryHistoryNavigation).not.toHaveBeenCalled();
-        expect(assignCurrentPage).not.toHaveBeenCalled();
     });
 
     it("ignores an already open normalized URL", async () => {
@@ -37,7 +34,6 @@ describe("content navigation", () => {
                 getCurrentUrl: () =>
                     "https://axiom.trade/meme/pair?chain=sol&trackerChains=sol",
                 tryHistoryNavigation: vi.fn(),
-                assignCurrentPage: vi.fn(),
             },
         );
 
@@ -49,36 +45,28 @@ describe("content navigation", () => {
     });
 
     it("reports confirmed history navigation", async () => {
-        const assignCurrentPage = vi.fn();
         const result = await navigateInContent(request(), {
             getCurrentUrl: () => "https://axiom.trade/",
             tryHistoryNavigation: vi.fn().mockResolvedValue(true),
-            assignCurrentPage,
         });
 
         expect(result).toMatchObject({
             status: "completed",
             method: "history",
         });
-        expect(assignCurrentPage).not.toHaveBeenCalled();
     });
 
-    it("falls back to a same-tab reload", async () => {
-        const assignCurrentPage = vi.fn();
+    it("fails safely without reloading when SPA navigation is unconfirmed", async () => {
         const result = await navigateInContent(request(), {
             getCurrentUrl: () => "https://axiom.trade/",
             tryHistoryNavigation: vi.fn().mockResolvedValue(false),
-            assignCurrentPage,
         });
 
-        expect(result).toMatchObject({
-            status: "completed",
-            method: "same_tab_reload",
+        expect(result).toEqual({
+            commandId,
+            status: "failed",
+            errorCode: "spa_navigation_unconfirmed",
         });
-        await new Promise<void>((resolve) => setTimeout(resolve, 0));
-        expect(assignCurrentPage).toHaveBeenCalledWith(
-            "https://axiom.trade/meme/pair?chain=sol",
-        );
     });
 });
 

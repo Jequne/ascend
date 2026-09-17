@@ -170,17 +170,6 @@ async function executeNavigation(
                 errorCode: "invalid_content_response",
             };
         }
-        if (
-            result.status === "completed" &&
-            result.method === "same_tab_reload" &&
-            !(await waitForTabNavigation(state.tabId, command.url))
-        ) {
-            return {
-                commandId: command.commandId,
-                status: "failed",
-                errorCode: "reload_unconfirmed",
-            };
-        }
         return result;
     } catch {
         return {
@@ -189,55 +178,6 @@ async function executeNavigation(
             errorCode: "content_unavailable",
         };
     }
-}
-
-function waitForTabNavigation(
-    tabId: number,
-    targetUrl: string,
-    timeoutMs = 10_000,
-): Promise<boolean> {
-    return new Promise((resolve) => {
-        let settled = false;
-        const finish = (confirmed: boolean) => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(timeout);
-            browser.tabs.onUpdated.removeListener(onUpdated);
-            browser.tabs.onRemoved.removeListener(onRemoved);
-            resolve(confirmed);
-        };
-        const onUpdated = (
-            updatedTabId: number,
-            _changeInfo: { status?: string; url?: string },
-            tab: { status?: string; url?: string },
-        ) => {
-            if (updatedTabId !== tabId) return;
-            if (isCompletedTarget(tab, targetUrl)) finish(true);
-            else if (tab.url && !validateAxiomTokenUrl(tab.url).ok)
-                finish(false);
-        };
-        const onRemoved = (removedTabId: number) => {
-            if (removedTabId === tabId) finish(false);
-        };
-        const timeout = setTimeout(() => finish(false), timeoutMs);
-
-        browser.tabs.onUpdated.addListener(onUpdated);
-        browser.tabs.onRemoved.addListener(onRemoved);
-        void browser.tabs
-            .get(tabId)
-            .then((tab) => {
-                if (isCompletedTarget(tab, targetUrl)) finish(true);
-            })
-            .catch(() => finish(false));
-    });
-}
-
-function isCompletedTarget(
-    tab: { status?: string; url?: string },
-    targetUrl: string,
-): boolean {
-    const current = validateAxiomTokenUrl(tab.url);
-    return current.ok && current.url === targetUrl && tab.status === "complete";
 }
 
 function toTabCandidate(tab: {

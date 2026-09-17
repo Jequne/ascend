@@ -5,7 +5,6 @@ import type { NavigationResult } from "../types/navigation";
 export type ContentNavigationDependencies = {
     getCurrentUrl: () => string;
     tryHistoryNavigation: (url: string) => Promise<boolean>;
-    assignCurrentPage: (url: string) => void;
 };
 
 export async function navigateInContent(
@@ -38,10 +37,9 @@ export async function navigateInContent(
         };
     }
 
-    setTimeout(() => dependencies.assignCurrentPage(validation.url), 0);
     return {
         commandId: request.commandId,
-        status: "completed",
-        method: "same_tab_reload",
+        status: "failed",
+        errorCode: "spa_navigation_unconfirmed",
     };
 }

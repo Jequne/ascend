@@ -11,7 +11,27 @@
             <output id="rendered-token" aria-live="polite">initial</output>
         </main>
         <script>
+            globalThis.__fixtureDocumentId = crypto.randomUUID();
             globalThis.__fixtureNavigationCount = 0;
+
+            window.addEventListener("popstate", () => {
+                const token = location.pathname.split("/").at(-1);
+                if (!token || !location.pathname.startsWith("/meme/")) return;
+
+                const loading = document.createElement("div");
+                loading.setAttribute("role", "progressbar");
+                loading.setAttribute("aria-label", "Loading token");
+                document.body.append(loading);
+
+                const delay = token === "slow-pair" ? 350 : 0;
+                setTimeout(() => {
+                    loading.remove();
+                    document.querySelector("#rendered-token").textContent =
+                        token;
+                    document.title = `${token} | Axiom SOL`;
+                    globalThis.__fixtureNavigationCount += 1;
+                }, delay);
+            });
         </script>
     </body>
 </html>

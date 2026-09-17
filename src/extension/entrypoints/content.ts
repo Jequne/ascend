@@ -15,7 +15,6 @@ export default defineContentScript({
                 void navigateInContent(request, {
                     getCurrentUrl: () => window.location.href,
                     tryHistoryNavigation: navigateWithAxiomHistory,
-                    assignCurrentPage: (url) => window.location.assign(url),
                 }).then(sendResponse);
                 return true;
             },

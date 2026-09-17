@@ -3,7 +3,7 @@ import { expect, test } from "./fixtures";
 
 const validCommandId = "123e4567-e89b-42d3-a456-426614174000";
 
-test("assigns one Axiom target and reloads it without opening or focusing a tab", async ({
+test("assigns one Axiom target and navigates without reload, a new tab, or focus", async ({
     context,
     extensionId,
     installAxiomFixture,
@@ -40,6 +40,7 @@ test("assigns one Axiom target and reloads it without opening or focusing a tab"
     await observerPage.bringToFront();
     const activeTabBefore = await getActiveTabId(extensionPage);
     const pageCountBefore = context.pages().length;
+    const documentIdBefore = await getFixtureDocumentId(targetPage);
 
     const rejectedResponse = await sendExtensionMessage(extensionPage, {
         type: "navigate_target",
@@ -61,11 +62,14 @@ test("assigns one Axiom target and reloads it without opening or focusing a tab"
     });
     expect(navigationResponse).toMatchObject({
         type: "navigation_result",
-        result: { status: "completed", method: "same_tab_reload" },
+        result: { status: "completed", method: "history" },
     });
     await expect(targetPage).toHaveURL(
         "https://axiom.trade/meme/pair-one?chain=sol",
     );
+    await expect(targetPage.locator("#rendered-token")).toHaveText("pair-one");
+    expect(await getFixtureDocumentId(targetPage)).toBe(documentIdBefore);
+    expect(await getFixtureNavigationCount(targetPage)).toBe(1);
     expect(context.pages()).toHaveLength(pageCountBefore);
     expect(await getActiveTabId(extensionPage)).toBe(activeTabBefore);
 
@@ -140,13 +144,13 @@ test("deduplicates commands and keeps only the latest pending token", async ({
     });
 
     await expect(first).resolves.toMatchObject({
-        result: { status: "completed", method: "same_tab_reload" },
+        result: { status: "completed", method: "history" },
     });
     await expect(superseded).resolves.toMatchObject({
         result: { status: "superseded" },
     });
     await expect(latest).resolves.toMatchObject({
-        result: { status: "completed", method: "same_tab_reload" },
+        result: { status: "completed", method: "history" },
     });
     await expect(targetPage).toHaveURL(
         "https://axiom.trade/meme/pair-three?chain=sol",
@@ -159,10 +163,13 @@ test("deduplicates commands and keeps only the latest pending token", async ({
         issuedAt: "2026-09-17T12:01:03.000Z",
     });
     expect(duplicate).toMatchObject({
-        result: { status: "completed", method: "same_tab_reload" },
+        result: { status: "completed", method: "history" },
     });
     await expect(targetPage).toHaveURL(
         "https://axiom.trade/meme/pair-three?chain=sol",
+    );
+    await expect(targetPage.locator("#rendered-token")).toHaveText(
+        "pair-three",
     );
 
     const alreadyOpen = await sendExtensionMessage(extensionPage, {
@@ -251,4 +258,22 @@ function isSuccessfulAction(value: unknown): boolean {
 
 function delay(durationMs: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, durationMs));
+}
+
+async function getFixtureDocumentId(page: Page): Promise<string> {
+    return page.evaluate(() => {
+        const fixtureGlobal = globalThis as unknown as {
+            __fixtureDocumentId: string;
+        };
+        return fixtureGlobal.__fixtureDocumentId;
+    });
+}
+
+async function getFixtureNavigationCount(page: Page): Promise<number> {
+    return page.evaluate(() => {
+        const fixtureGlobal = globalThis as unknown as {
+            __fixtureNavigationCount: number;
+        };
+        return fixtureGlobal.__fixtureNavigationCount;
+    });
 }
