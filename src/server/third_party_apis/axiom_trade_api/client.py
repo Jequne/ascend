@@ -6,7 +6,11 @@ from .auth import AuthManager
 from .agent_selector import AgentSelector
 from .models import *
 from .endpoints import *
-from .endpoints.exceptions import AxiomHTTPStatusError
+from .endpoints.exceptions import (
+    AxiomHTTPStatusError,
+    AxiomRequestError,
+    AxiomWebSocketError,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -40,6 +44,10 @@ class AxiomTradeClient:
             ["new_pairs", "sol_price", "migrations"]
     ) -> None:
         """Connect to WebSocket and run stream in background"""
+        if self._ws_task is not None and not self._ws_task.done():
+            logger.debug("Axiom WebSocket task is already running")
+            return
+
         random_session_and_agent = self._agent_selector.random_websocket_agent()
 
         self._ws_task = asyncio.create_task(
@@ -48,6 +56,29 @@ class AxiomTradeClient:
                 rooms=rooms
                 )
         )
+        self._ws_task.add_done_callback(self._handle_websocket_task_done)
+
+    @staticmethod
+    def _handle_websocket_task_done(task: asyncio.Task[Any]) -> None:
+        """Retrieve background errors so asyncio never reports an orphan task."""
+        if task.cancelled():
+            return
+
+        try:
+            exception = task.exception()
+        except asyncio.CancelledError:
+            return
+
+        if exception is not None:
+            logger.error(
+                "Axiom WebSocket background task stopped: %s",
+                exception,
+                exc_info=(
+                    type(exception),
+                    exception,
+                    exception.__traceback__,
+                ),
+            )
 
     async def ensure_validation(self):
         sessions_and_agents = self._agent_selector.get_agents_and_sessions()
@@ -108,6 +139,18 @@ class AxiomTradeClient:
                     "%s rate limited; retrying via another proxy route",
                     session_and_agent[1].agent_name,
                 )
+            except AxiomRequestError:
+                self._agent_selector.mark_unavailable(session_and_agent)
+                if attempt == max_attempts - 1:
+                    raise
+
+                excluded_routes.add(
+                    self._agent_selector.route_key(session_and_agent)
+                )
+                logger.warning(
+                    "%s request failed; retrying via another proxy route",
+                    session_and_agent[1].agent_name,
+                )
             finally:
                 self._agent_selector.release_agent(session_and_agent)
 
@@ -161,11 +204,17 @@ class AxiomTradeClient:
     async def close(self) -> None:
         """Close all connections"""
         if self._ws_task:
-            self._ws_task.cancel()
+            if not self._ws_task.done():
+                self._ws_task.cancel()
             try:
                 await self._ws_task
             except asyncio.CancelledError:
                 pass
+            except AxiomWebSocketError:
+                # The task callback has already logged the terminal error.
+                pass
+            finally:
+                self._ws_task = None
         # await self._session.close()
 
         cancel_tasks = []

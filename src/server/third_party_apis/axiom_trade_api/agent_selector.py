@@ -17,6 +17,7 @@ class AgentSelector:
         ] = []
         self._in_flight: dict[int, int] = {}
         self._rate_limited_until: dict[str, float] = {}
+        self._unavailable_until: dict[str, float] = {}
         self._route_cursor = 0
         self._agent_cursors: dict[str, int] = {}
 
@@ -66,6 +67,9 @@ class AgentSelector:
             for session_and_agent in self._agents_and_sessions
             if self.route_key(session_and_agent) not in excluded_routes
             and self._rate_limited_until.get(
+                self.route_key(session_and_agent), 0.0
+            ) <= now
+            and self._unavailable_until.get(
                 self.route_key(session_and_agent), 0.0
             ) <= now
         ]
@@ -135,6 +139,18 @@ class AgentSelector:
             time.monotonic() + cooldown,
         )
 
+    def mark_unavailable(
+        self,
+        session_and_agent: Tuple[AsyncSession, AxiomAgentData],
+        cooldown: float = 5.0,
+    ) -> None:
+        """Temporarily stop routing requests through a failed proxy."""
+        route = self.route_key(session_and_agent)
+        self._unavailable_until[route] = max(
+            self._unavailable_until.get(route, 0.0),
+            time.monotonic() + cooldown,
+        )
+
     def next_available_delay(
         self,
         excluded_routes: set[str] | None = None,
@@ -144,8 +160,13 @@ class AgentSelector:
         waits = [
             max(
                 0.0,
-                self._rate_limited_until.get(
-                    self.route_key(session_and_agent), 0.0
+                max(
+                    self._rate_limited_until.get(
+                        self.route_key(session_and_agent), 0.0
+                    ),
+                    self._unavailable_until.get(
+                        self.route_key(session_and_agent), 0.0
+                    ),
                 ) - now,
             )
             for session_and_agent in self._agents_and_sessions

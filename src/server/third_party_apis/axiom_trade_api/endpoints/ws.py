@@ -12,6 +12,7 @@ from curl_cffi.requests.websockets import (
 
 from ..auth import AuthManager
 from .exceptions import (
+    AxiomApiError,
     AxiomWebSocketCloseError,
     AxiomWebSocketConnectionError,
     AxiomWebSocketNotConnectedError,
@@ -123,7 +124,7 @@ class AxiomTradeWebsocket:
                 proxy=agent_data.proxy,
             )
 
-        except CurlError as exc:
+        except (CurlError, AxiomApiError) as exc:
             raise AxiomWebSocketConnectionError(
                 f"{agent_data.agent_name}: "
                 "failed to connect to Axiom WebSocket"
@@ -191,7 +192,7 @@ class AxiomTradeWebsocket:
                     validated_data
                 )
 
-        except WebSocketError as exc:
+        except (WebSocketError, CurlError) as exc:
             raise AxiomWebSocketReceiveError(
                 "Error while receiving WebSocket messages"
             ) from exc

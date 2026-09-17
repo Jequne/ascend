@@ -17,6 +17,7 @@ from .services.ws_streaming.token_feed_broadcaster import token_feed_broadcaster
 from .services.ws_streaming.ping_broadcaster import ping_broadcaster
 from .services.ws_streaming.price_broadcaster import sol_price_broadcaster
 from .core.expired_access_keys_cleaner import clean_expired_access_keys
+from .core.axiom_client_provider import client_instance
 
 
 
@@ -27,6 +28,7 @@ async def lifespan(app: FastAPI):
     await collector.start()
 
     sol_price_broadcaster()
+    client_instance.connect_websocket()
 
     stop_event = asyncio.Event()
     access_keys_cleaner_task = asyncio.create_task(
@@ -39,11 +41,19 @@ async def lifespan(app: FastAPI):
     ping_task = asyncio.create_task(
         ping_broadcaster(ws_manager, stop_event=stop_event, interval=30)
     )
-    yield
-    stop_event.set()
-    broadcaster_task.cancel()
-    ping_task.cancel()
-    access_keys_cleaner_task.cancel()
+    try:
+        yield
+    finally:
+        stop_event.set()
+        background_tasks = (
+            broadcaster_task,
+            ping_task,
+            access_keys_cleaner_task,
+        )
+        for task in background_tasks:
+            task.cancel()
+        await asyncio.gather(*background_tasks, return_exceptions=True)
+        await client_instance.close()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)

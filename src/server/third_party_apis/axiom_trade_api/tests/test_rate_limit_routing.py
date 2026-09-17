@@ -4,6 +4,7 @@ from third_party_apis.axiom_trade_api.agent_selector import AgentSelector
 from third_party_apis.axiom_trade_api.client import AxiomTradeClient
 from third_party_apis.axiom_trade_api.endpoints.exceptions import (
     AxiomHTTPStatusError,
+    AxiomRequestError,
 )
 from third_party_apis.axiom_trade_api.models.auth import AxiomAgentData
 
@@ -91,6 +92,29 @@ class AgentSelectorTests(unittest.IsolatedAsyncioTestCase):
 
 
 class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_network_error_is_retried_through_another_proxy(self) -> None:
+        client = AxiomTradeClient([
+            _agent(1, "socks5://proxy-1"),
+            _agent(2, "socks5://proxy-2"),
+        ])
+        called_routes: list[str] = []
+
+        async def endpoint(session_and_agent, **kwargs):
+            route = client._agent_selector.route_key(session_and_agent)
+            called_routes.append(route)
+            if len(called_routes) == 1:
+                raise AxiomRequestError("proxy connection failed")
+            return "ok"
+
+        try:
+            result = await client._call_with_random_agent(endpoint)
+        finally:
+            await client.close()
+
+        self.assertEqual(result, "ok")
+        self.assertEqual(len(called_routes), 2)
+        self.assertNotEqual(called_routes[0], called_routes[1])
+
     async def test_429_is_retried_through_another_proxy(self) -> None:
         client = AxiomTradeClient([
             _agent(1, "socks5://proxy-1"),
