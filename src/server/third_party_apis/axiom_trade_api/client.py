@@ -6,6 +6,7 @@ from .auth import AuthManager
 from .agent_selector import AgentSelector
 from .models import *
 from .endpoints import *
+from .endpoints.exceptions import AxiomHTTPStatusError
 
 
 logger = logging.getLogger(__name__)
@@ -67,10 +68,50 @@ class AxiomTradeClient:
         endpoint_method: Callable[..., Awaitable[Optional[ResponseModelT]]],
         **kwargs: Any,
     ) -> Optional[ResponseModelT]:
-        random_session_and_agent = self._agent_selector.random_agent()
-        return await endpoint_method(
-            session_and_agent=random_session_and_agent, **kwargs
+        max_attempts = min(max(self._agent_selector.route_count, 2), 3)
+        excluded_routes: set[str] = set()
+
+        for attempt in range(max_attempts):
+            session_and_agent = self._agent_selector.acquire_agent(
+                excluded_routes=excluded_routes
             )
+
+            if session_and_agent is None:
+                # Every unused route is cooling down. Once all routes have
+                # been tried, allow the quickest one to recover for a retry.
+                excluded_routes.clear()
+                while session_and_agent is None:
+                    delay = self._agent_selector.next_available_delay()
+                    await asyncio.sleep(delay)
+                    session_and_agent = self._agent_selector.acquire_agent()
+
+            try:
+                return await endpoint_method(
+                    session_and_agent=session_and_agent,
+                    **kwargs,
+                )
+            except AxiomHTTPStatusError as exc:
+                if exc.status_code != 429:
+                    raise
+
+                self._agent_selector.mark_rate_limited(
+                    session_and_agent,
+                    retry_after=exc.retry_after,
+                )
+                if attempt == max_attempts - 1:
+                    raise
+
+                excluded_routes.add(
+                    self._agent_selector.route_key(session_and_agent)
+                )
+                logger.warning(
+                    "%s rate limited; retrying via another proxy route",
+                    session_and_agent[1].agent_name,
+                )
+            finally:
+                self._agent_selector.release_agent(session_and_agent)
+
+        raise RuntimeError("unreachable")
 
     async def pair_chart_v2(
         self,

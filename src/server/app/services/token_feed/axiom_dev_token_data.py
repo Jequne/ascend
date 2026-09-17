@@ -1,4 +1,4 @@
-from  typing import List, Callable, Optional
+from  typing import Any, Awaitable, Callable, List, Optional
 import asyncio
 from  datetime import datetime, timedelta, timezone
 import logging
@@ -23,6 +23,15 @@ class AxiomDevTokenData():
 
     _client: AxiomTradeClient = client_instance
     _semaphore = shared_axiom_api_semaphore
+
+    @classmethod
+    async def _run_bounded_request(
+        cls,
+        request: Callable[..., Awaitable[Any]],
+        **kwargs: Any,
+    ) -> Any:
+        async with cls._semaphore:
+            return await request(**kwargs)
 
     @staticmethod
     def _get_timestamp_interval_for_token_chart_data(
@@ -50,26 +59,35 @@ class AxiomDevTokenData():
             cls._get_timestamp_interval_for_token_chart_data()
         
         requests_by_token = []
+        all_tasks: list[asyncio.Task[Any]] = []
 
-        async with cls._semaphore:
-            for token in tokens:
-                pair_info_task = asyncio.create_task(
-                    cls._client.pair_info(token.pair_address)
+        for token in tokens:
+            pair_info_task = asyncio.create_task(
+                cls._run_bounded_request(
+                    cls._client.pair_info,
+                    pair_address=token.pair_address,
                 )
-                token_info_task = asyncio.create_task(
-                    cls._client.token_info(token.pair_address)
+            )
+            token_info_task = asyncio.create_task(
+                cls._run_bounded_request(
+                    cls._client.token_info,
+                    pair_address=token.pair_address,
                 )
-                pair_chart_task = asyncio.create_task(
-                    cls._client.pair_chart_v2(
-                        pair_address=token.pair_address,
-                        chart_from=chart_from,
-                        chart_to=chart_to
-                    )
+            )
+            pair_chart_task = asyncio.create_task(
+                cls._run_bounded_request(
+                    cls._client.pair_chart_v2,
+                    pair_address=token.pair_address,
+                    chart_from=chart_from,
+                    chart_to=chart_to,
                 )
+            )
 
-                requests_by_token.append(
-                    (token, pair_info_task, token_info_task, pair_chart_task)
-                )
+            token_tasks = (
+                pair_info_task, token_info_task, pair_chart_task
+            )
+            all_tasks.extend(token_tasks)
+            requests_by_token.append((token, *token_tasks))
 
         deployed_tokens: list[DeployedToken] = []
 
@@ -85,8 +103,11 @@ class AxiomDevTokenData():
 
             except Exception as e:
                 logger.warning("⚠️ api endpoint coroutine runtime error: %s", e)
-                raise e
-                continue
+                for task in all_tasks:
+                    if not task.done():
+                        task.cancel()
+                await asyncio.gather(*all_tasks, return_exceptions=True)
+                raise
             
             if pair_info_data is None or token_info_data \
                 is None or pair_chart_task is None:

@@ -1,5 +1,7 @@
 import logging
 import random
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Type, TypeVar
 
 from curl_cffi import AsyncSession
@@ -16,6 +18,26 @@ from ..urls import AAllBaseUrls, AxiomTradeApiUrls
 logger = logging.getLogger(__name__)
 
 ResponseModelT = TypeVar("ResponseModelT")
+
+
+def _get_retry_after_seconds(response: Response) -> float | None:
+    retry_after = response.headers.get("Retry-After")
+    if not retry_after:
+        return None
+
+    try:
+        return max(0.0, float(retry_after))
+    except ValueError:
+        try:
+            retry_at = parsedate_to_datetime(retry_after)
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=timezone.utc)
+            return max(
+                0.0,
+                (retry_at - datetime.now(timezone.utc)).total_seconds(),
+            )
+        except (TypeError, ValueError, OverflowError):
+            return None
 
 
 def _response_summary(json_data: dict) -> str:
@@ -94,7 +116,9 @@ class AxiomTradeEndpoints:
         if response.status_code != 200:
             raise AxiomHTTPStatusError(
                 f"{agent_data.agent_name}: "
-                f"{endpoint_name} returned status {response.status_code}"
+                f"{endpoint_name} returned status {response.status_code}",
+                status_code=response.status_code,
+                retry_after=_get_retry_after_seconds(response),
             )
 
         try:

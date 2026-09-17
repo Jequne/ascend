@@ -13,6 +13,16 @@ class AxiomRequestError(AxiomApiError):
 class AxiomHTTPStatusError(AxiomApiError):
     """The API returned an unexpected HTTP status code."""
 
+    def __init__(
+        self,
+        message: str,
+        status_code: int | None = None,
+        retry_after: float | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.retry_after = retry_after
+
 
 class AxiomResponseError(AxiomApiError):
     """The API returned an invalid response."""

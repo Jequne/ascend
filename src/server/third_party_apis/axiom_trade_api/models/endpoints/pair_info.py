@@ -46,8 +46,8 @@ class PairInfoResponse(BaseModel):
     token_image: Optional[str] = Field(None, alias="tokenImage")
     token_name: str = Field(..., alias="tokenName")
     token_ticker: str = Field(..., alias="tokenTicker")
-    token_uri: str = Field(..., alias="tokenUri")
-    top10_holders: float = Field(..., alias="top10Holders")
+    token_uri: str | None = Field(None, alias="tokenUri")
+    top10_holders: float | None = Field(None, alias="top10Holders")
     twitter: Optional[str]
     updated_at: datetime = Field(..., alias="updatedAt")
     user_count: int = Field(..., alias="userCount")

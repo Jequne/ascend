@@ -20,4 +20,4 @@ class TokenFeedPreparer(Protocol):
         pass
 
 
-shared_axiom_api_semaphore = asyncio.Semaphore(10)
+shared_axiom_api_semaphore = asyncio.Semaphore(20)
