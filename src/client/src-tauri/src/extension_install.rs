@@ -44,7 +44,7 @@ pub fn open_extension_installation_folder(
     Ok(installation)
 }
 
-fn prepare_installation(
+pub(crate) fn prepare_installation(
     app: &AppHandle,
 ) -> Result<ExtensionInstallationInfo, ExtensionInstallationError> {
     let source = app
@@ -63,7 +63,7 @@ fn prepare_installation(
     let destination = install_root.join(format!("ascend-ext-{}", env!("CARGO_PKG_VERSION")));
     let marker = destination.join(COMPLETE_MARKER);
 
-    if !marker.is_file() {
+    if !installation_is_current(&source, &destination, &marker) {
         if destination.exists() {
             fs::remove_dir_all(&destination)
                 .map_err(|_| ExtensionInstallationError::new("extension_copy_failed"))?;
@@ -80,6 +80,55 @@ fn prepare_installation(
         path: destination.to_string_lossy().into_owned(),
         version: env!("CARGO_PKG_VERSION"),
     })
+}
+
+fn installation_is_current(source: &Path, destination: &Path, marker: &Path) -> bool {
+    marker.is_file()
+        && fs::read_to_string(marker).is_ok_and(|version| version == env!("CARGO_PKG_VERSION"))
+        && directories_match(source, destination, true).unwrap_or(false)
+}
+
+fn directories_match(source: &Path, destination: &Path, is_root: bool) -> Result<bool, io::Error> {
+    if !source.is_dir() || !destination.is_dir() {
+        return Ok(false);
+    }
+
+    let mut source_entries = fs::read_dir(source)?
+        .map(|entry| entry.map(|entry| entry.file_name()))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut destination_entries = fs::read_dir(destination)?
+        .filter_map(|entry| match entry {
+            Ok(entry) if is_root && entry.file_name() == COMPLETE_MARKER => None,
+            result => Some(result.map(|entry| entry.file_name())),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    source_entries.sort();
+    destination_entries.sort();
+    if source_entries != destination_entries {
+        return Ok(false);
+    }
+
+    for name in source_entries {
+        let source_entry = source.join(&name);
+        let destination_entry = destination.join(name);
+        let source_type = fs::symlink_metadata(&source_entry)?.file_type();
+        let destination_type = fs::symlink_metadata(&destination_entry)?.file_type();
+        if source_type.is_symlink() || destination_type.is_symlink() {
+            return Ok(false);
+        }
+        if source_type.is_dir() && destination_type.is_dir() {
+            if !directories_match(&source_entry, &destination_entry, false)? {
+                return Ok(false);
+            }
+        } else if source_type.is_file() && destination_type.is_file() {
+            if fs::read(source_entry)? != fs::read(destination_entry)? {
+                return Ok(false);
+            }
+        } else {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 fn validate_extension_bundle(path: &Path) -> Result<(), io::Error> {
@@ -178,6 +227,33 @@ mod tests {
         .expect("write manifest");
 
         assert!(validate_extension_bundle(&root).is_err());
+        fs::remove_dir_all(root).expect("remove fixture");
+    }
+
+    #[test]
+    fn detects_stale_installations_even_when_the_version_is_unchanged() {
+        let root = temporary_directory("freshness");
+        let source = root.join("source");
+        let destination = root.join("destination");
+        fs::create_dir_all(source.join("assets")).expect("create source");
+        fs::create_dir_all(destination.join("assets")).expect("create destination");
+        fs::write(source.join("manifest.json"), "current manifest").expect("write source");
+        fs::write(source.join("assets/background.js"), "protocol 1").expect("write source");
+        fs::write(destination.join("manifest.json"), "current manifest")
+            .expect("write destination");
+        fs::write(destination.join("assets/background.js"), "protocol 2")
+            .expect("write destination");
+        let marker = destination.join(COMPLETE_MARKER);
+        fs::write(&marker, env!("CARGO_PKG_VERSION")).expect("write marker");
+
+        assert!(!installation_is_current(&source, &destination, &marker));
+
+        fs::write(destination.join("assets/background.js"), "protocol 1")
+            .expect("refresh destination");
+        assert!(installation_is_current(&source, &destination, &marker));
+
+        fs::write(destination.join("stale.js"), "stale file").expect("write stale file");
+        assert!(!installation_is_current(&source, &destination, &marker));
         fs::remove_dir_all(root).expect("remove fixture");
     }
 }

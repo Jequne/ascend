@@ -9,6 +9,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            // Keep an already-loaded unpacked extension in sync with this app
+            // even when the application version did not change between builds.
+            let _ = extension_install::prepare_installation(app.handle());
             let app_data_dir = app.path().app_data_dir()?;
             let bridge = BridgeState::initialize(app_data_dir)?;
             app.manage(bridge.clone());
