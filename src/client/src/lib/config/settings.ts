@@ -1,9 +1,10 @@
 import { DEFAULT_FILTERS } from "$lib/config/constants";
 import type {
     AutoOpenMode,
+    DeveloperLabels,
     FeesMode,
     FilterSettings,
-    SettingsEnvelopeV3,
+    SettingsEnvelopeV4,
     SettingsSections,
     Terminal,
 } from "$lib/types";
@@ -11,7 +12,7 @@ import { normalizeBlacklistEntries } from "$lib/utils/blacklist";
 
 export const SETTINGS_STORAGE_KEY = "ascend_trenches.user_settings";
 export const SETTINGS_EXPORT_SCHEMA = "ascend_trenches.settings";
-export const SETTINGS_EXPORT_SCHEMA_VERSION = 3;
+export const SETTINGS_EXPORT_SCHEMA_VERSION = 4;
 export const SETTINGS_EXPORT_FILENAME = "ascend-trenches-settings.json";
 export const SETTINGS_IMPORT_MAX_BYTES = 1_000_000;
 
@@ -121,9 +122,26 @@ export function normalizeFilters(filters: unknown = {}): FilterSettings {
     };
 }
 
+export function normalizeDeveloperLabels(value: unknown): DeveloperLabels {
+    if (!isPlainObject(value)) return {};
+
+    const labels: DeveloperLabels = {};
+
+    for (const [rawWallet, rawLabel] of Object.entries(value)) {
+        const wallet = rawWallet.trim();
+        const label = typeof rawLabel === "string" ? rawLabel.trim() : "";
+
+        if (!wallet || !label) continue;
+        labels[wallet] = label.slice(0, 48);
+    }
+
+    return labels;
+}
+
 export function cloneDefaultSettings(): SettingsSections {
     return {
         filters: normalizeFilters(DEFAULT_FILTERS),
+        developerLabels: {},
     };
 }
 
@@ -165,12 +183,13 @@ export function normalizeSettingsSections(
     const sections = extractSections(candidate) ?? {};
     return {
         filters: normalizeFilters(sections.filters),
+        developerLabels: normalizeDeveloperLabels(sections.developerLabels),
     };
 }
 
 export function createSettingsExportPayload(
     sections: unknown,
-): SettingsEnvelopeV3 {
+): SettingsEnvelopeV4 {
     return {
         schema: SETTINGS_EXPORT_SCHEMA,
         schemaVersion: SETTINGS_EXPORT_SCHEMA_VERSION,
@@ -198,6 +217,7 @@ export function parseSettingsImport(rawInput: unknown): SettingsSections {
         parsed.schemaVersion !== undefined &&
         parsed.schemaVersion !== 1 &&
         parsed.schemaVersion !== 2 &&
+        parsed.schemaVersion !== 3 &&
         parsed.schemaVersion !== SETTINGS_EXPORT_SCHEMA_VERSION
     ) {
         throw new Error("Unsupported settings schema version.");

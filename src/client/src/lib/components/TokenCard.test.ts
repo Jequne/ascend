@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { tick } from "svelte";
 import { DEFAULT_FILTERS } from "$lib/config/constants";
+import { developerLabelsStore } from "$lib/stores/developerLabels.svelte";
 import { filtersStore } from "$lib/stores/filters.svelte";
 import TokenCard from "./TokenCard.svelte";
 import { createLastDeployedToken, createTokenFeed } from "./tokenFeed.fixture";
@@ -21,6 +22,7 @@ describe("TokenCard", () => {
         vi.mocked(openUrl).mockClear();
         vi.mocked(invoke).mockClear();
         filtersStore.updateFilters(DEFAULT_FILTERS);
+        developerLabelsStore.replace({});
     });
 
     it("marks migrated previous tokens and toggles their row highlight", async () => {
@@ -193,5 +195,26 @@ describe("TokenCard", () => {
                 name: "Remove developer wallet from blacklist",
             }),
         ).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("edits and immediately persists a developer label on the card", async () => {
+        render(TokenCard, { feed: createTokenFeed() });
+
+        await fireEvent.click(
+            screen.getByRole("button", { name: "Add developer label" }),
+        );
+        const input = screen.getByLabelText(
+            "Label for developer wallet dev-wallet",
+        );
+        await fireEvent.input(input, { target: { value: "Trusted dev" } });
+
+        expect(developerLabelsStore.getLabel("dev-wallet")).toBe("Trusted dev");
+        await fireEvent.keyDown(input, { key: "Enter" });
+        await tick();
+        expect(
+            screen.getByRole("button", {
+                name: "Edit developer label Trusted dev",
+            }),
+        ).toBeVisible();
     });
 });

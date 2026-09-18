@@ -1,7 +1,9 @@
 export type Terminal = "axiom" | "gmgn";
 export type AutoOpenMode = "off" | "new_tab" | "current_axiom_tab";
 export type FeesMode = "avg" | "total" | "fixed";
-export type SettingsTab = "filters" | "blacklist" | "transfer";
+export type SettingsTab = "filters" | "labels" | "blacklist" | "transfer";
+
+export type DeveloperLabels = Record<string, string>;
 
 export interface LastDeployedToken {
     blockchain: string;
@@ -79,6 +81,7 @@ export interface FilterSettings {
 
 export interface SettingsSections {
     filters: FilterSettings;
+    developerLabels: DeveloperLabels;
 }
 
 export interface SettingsEnvelopeV1 {
@@ -107,6 +110,15 @@ export interface SettingsEnvelopeV2 {
 export interface SettingsEnvelopeV3 {
     schema: "ascend_trenches.settings";
     schemaVersion: 3;
+    exportedAt: string;
+    settings: {
+        filters: FilterSettings;
+    };
+}
+
+export interface SettingsEnvelopeV4 {
+    schema: "ascend_trenches.settings";
+    schemaVersion: 4;
     exportedAt: string;
     settings: SettingsSections;
 }

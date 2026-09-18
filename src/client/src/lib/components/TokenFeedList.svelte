@@ -29,8 +29,13 @@
         margin: 0 auto;
         padding: 8px 12px;
         overflow-y: auto;
+        scrollbar-width: none;
         flex-grow: 1;
         box-sizing: border-box;
+    }
+
+    .feed-container::-webkit-scrollbar {
+        display: none;
     }
 
     .empty-state {

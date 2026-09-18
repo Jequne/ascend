@@ -4,6 +4,7 @@ import {
     SETTINGS_EXPORT_SCHEMA,
     SETTINGS_EXPORT_SCHEMA_VERSION,
     createSettingsExportPayload,
+    normalizeDeveloperLabels,
     normalizeFilters,
     parseSettingsImport,
 } from "$lib/config/settings";
@@ -50,17 +51,33 @@ describe("settings import compatibility", () => {
         });
     });
 
-    it("exports schema v3 without the legacy boolean", () => {
+    it("normalizes developer wallets and labels without changing wallet case", () => {
+        expect(
+            normalizeDeveloperLabels({
+                " WalletCase ": "  Reliable dev  ",
+                empty: "   ",
+                invalid: 42,
+            }),
+        ).toEqual({ WalletCase: "Reliable dev" });
+    });
+
+    it("exports schema v4 with developer labels and without legacy fields", () => {
         const exported = createSettingsExportPayload({
             filters: {
                 ...DEFAULT_FILTERS,
                 autoOpenMode: "current_axiom_tab",
                 autoOpenInNewTab: true,
             },
+            developerLabels: {
+                "dev-wallet": "Reliable dev",
+            },
         });
 
         expect(exported.schemaVersion).toBe(SETTINGS_EXPORT_SCHEMA_VERSION);
-        expect(exported.schemaVersion).toBe(3);
+        expect(exported.schemaVersion).toBe(4);
+        expect(exported.settings.developerLabels).toEqual({
+            "dev-wallet": "Reliable dev",
+        });
         expect(exported.settings.filters.autoOpenMode).toBe(
             "current_axiom_tab",
         );
@@ -121,8 +138,11 @@ describe("settings import compatibility", () => {
                 settings: {
                     filters: { ...DEFAULT_FILTERS, autoOpenMode: "surprise" },
                 },
-            }).filters.autoOpenMode,
-        ).toBe("off");
+            }),
+        ).toMatchObject({
+            filters: { autoOpenMode: "off" },
+            developerLabels: {},
+        });
     });
 
     it("rejects malformed JSON and unsupported envelopes", () => {
@@ -137,7 +157,7 @@ describe("settings import compatibility", () => {
         expect(() =>
             parseSettingsImport({
                 schema: SETTINGS_EXPORT_SCHEMA,
-                schemaVersion: 4,
+                schemaVersion: 5,
                 settings: { filters: DEFAULT_FILTERS },
             }),
         ).toThrow("Unsupported settings schema version.");

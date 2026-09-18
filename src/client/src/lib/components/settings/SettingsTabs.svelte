@@ -15,6 +15,11 @@
             description: "Token selection rules",
         },
         {
+            id: "labels",
+            title: "Dev labels",
+            description: "Names for developer wallets",
+        },
+        {
             id: "blacklist",
             title: "Blacklist",
             description: "Hidden wallets and names",
@@ -27,6 +32,15 @@
     ];
 
     let buttons: HTMLButtonElement[] = [];
+
+    const activeTabClass = [
+        "border-accent-blue/40 bg-accent-blue/15 text-foreground",
+        "shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]",
+    ].join(" ");
+    const inactiveTabClass = [
+        "text-muted hover:text-foreground border-transparent bg-white/[0.025]",
+        "hover:border-white/10 hover:bg-white/[0.05]",
+    ].join(" ");
 
     function selectAt(index: number): void {
         const normalizedIndex = (index + tabs.length) % tabs.length;
@@ -57,16 +71,21 @@
 </script>
 
 <div
-    class="grid grid-cols-3 gap-1.5 border-y border-white/[0.06] bg-black/10 px-3 py-2"
+    class="grid grid-cols-2 gap-1.5 border-y border-white/[0.06] bg-black/10 px-3 py-2 sm:grid-cols-4"
     role="tablist"
     aria-label="Settings sections"
 >
     {#each tabs as tab, index (tab.id)}
         <button
-            class="focus-visible:ring-accent-purple focus-visible:ring-offset-canvas flex h-14 min-w-0 flex-col items-center justify-center rounded-lg border px-1.5 text-center transition-[background-color,border-color,color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:outline-none {activeTab ===
-            tab.id
-                ? 'border-accent-blue/40 bg-accent-blue/15 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-                : 'text-muted hover:text-foreground border-transparent bg-white/[0.025] hover:border-white/10 hover:bg-white/[0.05]'}"
+            class={[
+                "focus-visible:ring-accent-purple focus-visible:ring-offset-canvas",
+                "flex h-14 min-w-0 flex-col items-center justify-center rounded-lg",
+                "border px-1.5 text-center duration-150",
+                "transition-[background-color,border-color,color,box-shadow]",
+                "focus-visible:ring-2 focus-visible:ring-offset-1",
+                "focus-visible:outline-none",
+                activeTab === tab.id ? activeTabClass : inactiveTabClass,
+            ]}
             type="button"
             role="tab"
             id={`settings-tab-${tab.id}`}

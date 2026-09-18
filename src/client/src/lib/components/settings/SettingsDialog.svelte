@@ -1,14 +1,23 @@
 <script lang="ts">
     import AutoOpenControl from "$lib/components/settings/AutoOpenControl.svelte";
     import BlacklistPanel from "$lib/components/settings/BlacklistPanel.svelte";
+    import DeveloperLabelsPanel from "$lib/components/settings/DeveloperLabelsPanel.svelte";
     import FiltersPanel from "$lib/components/settings/FiltersPanel.svelte";
     import SettingsTabs from "$lib/components/settings/SettingsTabs.svelte";
     import TransferPanel from "$lib/components/settings/TransferPanel.svelte";
     import { DEFAULT_FILTERS } from "$lib/config/constants";
-    import { normalizeFilters } from "$lib/config/settings";
+    import {
+        normalizeDeveloperLabels,
+        normalizeFilters,
+    } from "$lib/config/settings";
+    import { developerLabelsStore } from "$lib/stores/developerLabels.svelte";
     import { filtersStore } from "$lib/stores/filters.svelte";
     import { extensionBridgeStore } from "$lib/stores/extensionBridge.svelte";
-    import type { FilterSettings, SettingsTab } from "$lib/types";
+    import type {
+        DeveloperLabels,
+        FilterSettings,
+        SettingsTab,
+    } from "$lib/types";
     import {
         blacklistEntriesToText,
         normalizeBlacklistEntries,
@@ -23,10 +32,14 @@
     let wasOpen = false;
     let activeTab: SettingsTab = "filters";
     let draft: FilterSettings = normalizeFilters(DEFAULT_FILTERS);
+    let developerLabelsDraft: DeveloperLabels = {};
     let blacklistText = "";
 
     $: if (dialog && open && !wasOpen) {
         draft = normalizeFilters(filtersStore.filters);
+        developerLabelsDraft = normalizeDeveloperLabels(
+            developerLabelsStore.labels,
+        );
         blacklistText = blacklistEntriesToText(draft.blacklist);
         activeTab = "filters";
         wasOpen = true;
@@ -60,6 +73,7 @@
             ...draft,
             blacklist: normalizeBlacklistEntries(blacklistText),
         });
+        developerLabelsStore.replace(developerLabelsDraft);
         void extensionBridgeStore.setMode(draft.autoOpenMode);
         closeDialog();
     }
@@ -148,6 +162,17 @@
             <div
                 class="settings-panel"
                 role="tabpanel"
+                id="settings-panel-labels"
+                aria-labelledby="settings-tab-labels"
+                hidden={activeTab !== "labels"}
+                tabindex={activeTab === "labels" ? 0 : -1}
+            >
+                <DeveloperLabelsPanel bind:value={developerLabelsDraft} />
+            </div>
+
+            <div
+                class="settings-panel"
+                role="tabpanel"
                 id="settings-panel-filters"
                 aria-labelledby="settings-tab-filters"
                 hidden={activeTab !== "filters"}
@@ -175,7 +200,11 @@
                 hidden={activeTab !== "transfer"}
                 tabindex={activeTab === "transfer" ? 0 : -1}
             >
-                <TransferPanel bind:settings={draft} bind:blacklistText />
+                <TransferPanel
+                    bind:settings={draft}
+                    bind:blacklistText
+                    bind:developerLabels={developerLabelsDraft}
+                />
             </div>
         </div>
 

@@ -5,7 +5,7 @@
         createSettingsExportPayload,
         parseSettingsImport,
     } from "$lib/config/settings";
-    import type { FilterSettings } from "$lib/types";
+    import type { DeveloperLabels, FilterSettings } from "$lib/types";
     import {
         blacklistEntriesToText,
         normalizeBlacklistEntries,
@@ -14,6 +14,7 @@
 
     export let settings: FilterSettings;
     export let blacklistText: string;
+    export let developerLabels: DeveloperLabels;
 
     let importText = "";
     let message = "";
@@ -25,6 +26,7 @@
                 ...settings,
                 blacklist: normalizeBlacklistEntries(blacklistText),
             },
+            developerLabels,
         }),
         null,
         2,
@@ -51,6 +53,7 @@
         const imported = parseSettingsImport(rawJson);
         settings = imported.filters;
         blacklistText = blacklistEntriesToText(imported.filters.blacklist);
+        developerLabels = imported.developerLabels;
         showSuccess(
             "Settings loaded into the draft. Press Save to apply them.",
         );

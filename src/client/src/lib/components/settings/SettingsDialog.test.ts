@@ -20,6 +20,7 @@ import {
 import { DEFAULT_FILTERS } from "$lib/config/constants";
 import { createSettingsExportPayload } from "$lib/config/settings";
 import { extensionBridgeService } from "$lib/services/extensionBridge";
+import { developerLabelsStore } from "$lib/stores/developerLabels.svelte";
 import { filtersStore } from "$lib/stores/filters.svelte";
 import TopPanel from "$lib/components/TopPanel.svelte";
 
@@ -43,6 +44,7 @@ afterAll(() => {
 
 beforeEach(() => {
     filtersStore.updateFilters(DEFAULT_FILTERS);
+    developerLabelsStore.replace({});
 });
 
 afterEach(() => {
@@ -132,6 +134,9 @@ describe("SettingsDialog", () => {
         const blacklistTab = within(dialog).getByRole("tab", {
             name: /Blacklist/,
         });
+        const labelsTab = within(dialog).getByRole("tab", {
+            name: /Dev labels/,
+        });
         const transferTab = within(dialog).getByRole("tab", {
             name: /Import \/ Export/,
         });
@@ -142,6 +147,9 @@ describe("SettingsDialog", () => {
         );
         expect(filtersTab).toHaveAttribute("aria-selected", "true");
         await user.click(filtersTab);
+        await user.keyboard("{ArrowRight}");
+        expect(labelsTab).toHaveFocus();
+        expect(labelsTab).toHaveAttribute("aria-selected", "true");
         await user.keyboard("{ArrowRight}");
         expect(blacklistTab).toHaveFocus();
         expect(blacklistTab).toHaveAttribute("aria-selected", "true");
@@ -350,16 +358,6 @@ describe("SettingsDialog", () => {
             within(dialog).getByLabelText("2 unique blacklist entries"),
         ).toHaveTextContent("2 unique");
         expect(
-            within(dialog).queryByRole("list", {
-                name: "Normalized blacklist preview",
-            }),
-        ).toBeNull();
-        await user.click(
-            within(dialog).getByRole("button", {
-                name: /Show 2 blacklist entries/,
-            }),
-        );
-        expect(
             within(dialog).getByRole("list", {
                 name: "Normalized blacklist preview",
             }),
@@ -367,6 +365,53 @@ describe("SettingsDialog", () => {
         await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
         expect(filtersStore.blacklist).toEqual(["Wallet-1", "Token Name"]);
+    });
+
+    it("searches and removes one blacklist entry", async () => {
+        filtersStore.blacklist = [
+            "Wallet-1",
+            "Accidental-wallet",
+            "Token Name",
+        ];
+        const { user, dialog } = await openSettings();
+
+        await user.click(
+            within(dialog).getByRole("tab", { name: /Blacklist/ }),
+        );
+        const search = within(dialog).getByLabelText("Search blacklist");
+        await user.type(search, "accidental");
+
+        expect(within(dialog).getByText("Accidental-wallet")).toBeVisible();
+        expect(within(dialog).queryByText("Wallet-1")).toBeNull();
+        await user.click(
+            within(dialog).getByRole("button", {
+                name: "Remove Accidental-wallet from blacklist",
+            }),
+        );
+        await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+        expect(filtersStore.blacklist).toEqual(["Wallet-1", "Token Name"]);
+    });
+
+    it("adds a developer label from settings and persists it on Save", async () => {
+        const { user, dialog } = await openSettings();
+
+        await user.click(
+            within(dialog).getByRole("tab", { name: /Dev labels/ }),
+        );
+        await user.type(
+            within(dialog).getByLabelText("Developer wallet"),
+            "dev-wallet",
+        );
+        await user.type(within(dialog).getByLabelText("Label"), "Reliable dev");
+        await user.click(
+            within(dialog).getByRole("button", { name: "Add label" }),
+        );
+        await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+        expect(developerLabelsStore.getLabel("dev-wallet")).toBe(
+            "Reliable dev",
+        );
     });
 
     it("requires confirmation before clearing all blacklist entries", async () => {
@@ -435,7 +480,7 @@ describe("SettingsDialog", () => {
             within(dialog).getByRole("button", { name: "Copy JSON" }),
         );
         expect(writeText).toHaveBeenCalledOnce();
-        expect(writeText.mock.calls[0]?.[0]).toContain('"schemaVersion": 3');
+        expect(writeText.mock.calls[0]?.[0]).toContain('"schemaVersion": 4');
 
         await user.click(
             within(dialog).getByRole("button", { name: "Download JSON" }),
@@ -475,6 +520,9 @@ describe("SettingsDialog", () => {
                     minMigrationPercent: 81,
                     blacklist: ["uploaded-wallet"],
                 },
+                developerLabels: {
+                    "uploaded-dev": "Imported label",
+                },
             }),
         );
         const file = new File([uploadedPayload], "settings.json", {
@@ -494,5 +542,8 @@ describe("SettingsDialog", () => {
         await user.click(within(dialog).getByRole("button", { name: "Save" }));
         expect(filtersStore.minMigrationPercent).toBe(81);
         expect(filtersStore.blacklist).toEqual(["uploaded-wallet"]);
+        expect(developerLabelsStore.getLabel("uploaded-dev")).toBe(
+            "Imported label",
+        );
     });
 });

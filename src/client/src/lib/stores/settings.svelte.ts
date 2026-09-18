@@ -40,6 +40,17 @@ class SettingsStore {
         this.persist();
     }
 
+    replaceSection<K extends keyof SettingsSections>(
+        sectionName: K,
+        nextSection: SettingsSections[K],
+    ): void {
+        this.sections = {
+            ...this.sections,
+            [sectionName]: nextSection,
+        };
+        this.persist();
+    }
+
     replaceSections(nextSections: unknown): void {
         this.sections = normalizeSettingsSections(nextSections);
         this.persist();
