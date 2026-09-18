@@ -106,7 +106,7 @@ test("assigns one Axiom target and navigates without reload, a new tab, or focus
     });
 });
 
-test("deduplicates commands and opens the latest token without waiting for an older render", async ({
+test("deduplicates commands and opens every token in FIFO order without waiting for render", async ({
     context,
     extensionId,
     installAxiomFixture,
@@ -155,10 +155,13 @@ test("deduplicates commands and opens the latest token without waiting for an ol
     );
 
     await expect(first).resolves.toMatchObject({
-        status: "superseded",
+        status: "completed",
+        method: "history",
     });
-    const secondResult = await second;
-    expect(["completed", "superseded"]).toContain(secondResult.status);
+    await expect(second).resolves.toMatchObject({
+        status: "completed",
+        method: "history",
+    });
     await expect(targetPage).toHaveURL(
         "https://axiom.trade/meme/pair-three?chain=sol",
         { timeout: 1_000 },
@@ -182,6 +185,11 @@ test("deduplicates commands and opens the latest token without waiting for an ol
         method: "history",
     });
     expect(performance.now() - burstStartedAt).toBeLessThan(1_000);
+    expect(await getFixtureNavigationHistory(targetPage)).toEqual([
+        "slow-pair",
+        "pair-two",
+        "pair-three",
+    ]);
     await expect(targetPage).toHaveURL(
         "https://axiom.trade/meme/pair-three?chain=sol",
     );
@@ -361,5 +369,14 @@ async function getFixtureNavigationCount(page: Page): Promise<number> {
             __fixtureNavigationCount: number;
         };
         return fixtureGlobal.__fixtureNavigationCount;
+    });
+}
+
+async function getFixtureNavigationHistory(page: Page): Promise<string[]> {
+    return page.evaluate(() => {
+        const value = Reflect.get(globalThis, "__fixtureNavigationHistory");
+        return Array.isArray(value)
+            ? value.filter((item): item is string => typeof item === "string")
+            : [];
     });
 }

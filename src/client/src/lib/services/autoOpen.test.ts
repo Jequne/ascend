@@ -81,18 +81,69 @@ describe("DefaultAutoOpenDispatcher", () => {
         );
     });
 
-    it("never falls back to new_tab when the bridge rejects", async () => {
+    it("dispatches every current-tab token in FIFO order", async () => {
+        const first = createDeferred<void>();
+        const second = createDeferred<void>();
+        const { dispatcher, navigate } = createHarness();
+        navigate
+            .mockReturnValueOnce(first.promise)
+            .mockReturnValueOnce(second.promise);
+
+        dispatcher.dispatch(
+            createTokenFeed({ pair_address: "pair-one" }),
+            createSnapshot("current_axiom_tab"),
+        );
+        dispatcher.dispatch(
+            createTokenFeed({ pair_address: "pair-two" }),
+            createSnapshot("current_axiom_tab"),
+        );
+
+        expect(navigate).toHaveBeenCalledOnce();
+        expect(navigate.mock.calls[0]?.[0].url).toContain("pair-one");
+
+        first.resolve();
+        await first.promise;
+        await Promise.resolve();
+        expect(navigate).toHaveBeenCalledTimes(2);
+        expect(navigate.mock.calls[1]?.[0].url).toContain("pair-two");
+
+        second.resolve();
+        await second.promise;
+    });
+
+    it("continues the queue without falling back when one bridge call rejects", async () => {
         const { dispatcher, open, navigate } = createHarness();
         const consoleError = vi
             .spyOn(console, "error")
             .mockImplementation(() => undefined);
-        navigate.mockRejectedValue(new Error("extension unavailable"));
+        navigate.mockRejectedValueOnce(new Error("extension unavailable"));
         dispatcher.dispatch(
-            createTokenFeed(),
+            createTokenFeed({ pair_address: "pair-one" }),
+            createSnapshot("current_axiom_tab"),
+        );
+        dispatcher.dispatch(
+            createTokenFeed({ pair_address: "pair-two" }),
             createSnapshot("current_axiom_tab"),
         );
         await Promise.resolve();
+        await Promise.resolve();
         expect(open).not.toHaveBeenCalled();
         expect(consoleError).toHaveBeenCalledOnce();
+        expect(navigate).toHaveBeenCalledTimes(2);
+        expect(navigate.mock.calls[1]?.[0].url).toContain("pair-two");
     });
 });
+
+function createDeferred<T>(): {
+    promise: Promise<T>;
+    resolve: (value: T) => void;
+} {
+    let resolvePromise: ((value: T) => void) | undefined;
+    const promise = new Promise<T>((resolve) => {
+        resolvePromise = resolve;
+    });
+    return {
+        promise,
+        resolve: (value) => resolvePromise?.(value),
+    };
+}

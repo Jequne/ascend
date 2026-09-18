@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
     AXIOM_NAVIGATE_EVENT,
     AXIOM_NAVIGATION_RESULT_EVENT,
@@ -15,11 +15,21 @@ afterEach(() => {
     removeNavigationListener?.();
     removeNavigationListener = undefined;
     document.title = "Axiom";
+    vi.useRealTimers();
 });
 
 describe("Axiom SPA adapter", () => {
-    it("stops waiting for an obsolete render when navigation is aborted", async () => {
+    it("resolves as soon as the SPA accepts navigation without waiting for render", async () => {
+        vi.useFakeTimers();
         installAcknowledgingMainWorld();
+        const timerCountBefore = vi.getTimerCount();
+
+        await expect(navigateWithAxiomHistory(targetUrl)).resolves.toBe(true);
+
+        expect(vi.getTimerCount()).toBe(timerCountBefore);
+    });
+
+    it("stops waiting for a missing main-world response when navigation is aborted", async () => {
         const controller = new AbortController();
         const navigation = navigateWithAxiomHistory(
             targetUrl,

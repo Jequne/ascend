@@ -13,10 +13,12 @@
         <script>
             globalThis.__fixtureDocumentId = crypto.randomUUID();
             globalThis.__fixtureNavigationCount = 0;
+            globalThis.__fixtureNavigationHistory = [];
 
             window.addEventListener("popstate", () => {
                 const token = location.pathname.split("/").at(-1);
                 if (!token || !location.pathname.startsWith("/meme/")) return;
+                globalThis.__fixtureNavigationHistory.push(token);
 
                 const loading = document.createElement("div");
                 loading.setAttribute("role", "progressbar");
