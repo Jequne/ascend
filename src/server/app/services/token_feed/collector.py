@@ -4,9 +4,6 @@ import logging
 
 from ...schemas.token_feed_models import TokenFeedBase
 from .token_feed_preparer import TokenFeedPreparer
-from ...config import settings
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -16,6 +13,7 @@ class TokenFeedCollector():
 
     def __init__(self, token_feed_sources: List[TokenFeedPreparer]):
         self.token_feed_sources: List[TokenFeedPreparer] = token_feed_sources
+        self._preparation_tasks: set[asyncio.Task[None]] = set()
         
     @staticmethod
     def _str_token_feed_data_for_print(prepared_token_feed: TokenFeedBase) -> str:
@@ -73,9 +71,33 @@ class TokenFeedCollector():
                         )
                     )
 
+    def schedule_token_feed_data(self, websocket_message_data: Any) -> None:
+        """Start enrichment without blocking the upstream WebSocket reader."""
+        task = asyncio.create_task(
+            self.collect_token_feed_data(websocket_message_data)
+        )
+        self._preparation_tasks.add(task)
+        task.add_done_callback(self._finish_preparation_task)
+
+    def _finish_preparation_task(self, task: asyncio.Task[None]) -> None:
+        self._preparation_tasks.discard(task)
+        if task.cancelled():
+            return
+        try:
+            task.result()
+        except Exception:
+            logger.exception("Token feed preparation failed")
+
     async def start(self):
         for token_feed_source in self.token_feed_sources:
-            token_feed_source.set_callback(self.collect_token_feed_data)
+            token_feed_source.set_callback(self.schedule_token_feed_data)
+
+    async def stop(self) -> None:
+        tasks = tuple(self._preparation_tasks)
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 async def main():

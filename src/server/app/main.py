@@ -45,6 +45,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         stop_event.set()
+        await collector.stop()
         background_tasks = (
             broadcaster_task,
             ping_task,

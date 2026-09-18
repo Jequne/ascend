@@ -106,7 +106,7 @@ test("assigns one Axiom target and navigates without reload, a new tab, or focus
     });
 });
 
-test("deduplicates commands and prioritizes the latest token without waiting for render", async ({
+test("deduplicates commands and opens every token in order without waiting for render", async ({
     context,
     extensionId,
     installAxiomFixture,
@@ -158,8 +158,10 @@ test("deduplicates commands and prioritizes the latest token without waiting for
         status: "completed",
         method: "history",
     });
-    const secondResult = await second;
-    expect(["completed", "superseded"]).toContain(secondResult.status);
+    await expect(second).resolves.toMatchObject({
+        status: "completed",
+        method: "history",
+    });
     await expect(targetPage).toHaveURL(
         "https://axiom.trade/meme/pair-three?chain=sol",
         { timeout: 1_000 },
@@ -184,8 +186,7 @@ test("deduplicates commands and prioritizes the latest token without waiting for
     });
     expect(performance.now() - burstStartedAt).toBeLessThan(1_000);
     const navigationHistory = await getFixtureNavigationHistory(targetPage);
-    expect(navigationHistory[0]).toBe("slow-pair");
-    expect(navigationHistory.at(-1)).toBe("pair-three");
+    expect(navigationHistory).toEqual(["slow-pair", "pair-two", "pair-three"]);
     await expect(targetPage).toHaveURL(
         "https://axiom.trade/meme/pair-three?chain=sol",
     );

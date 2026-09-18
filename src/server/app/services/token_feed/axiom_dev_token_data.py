@@ -1,17 +1,12 @@
 from  typing import Any, Awaitable, Callable, List, Optional
 import asyncio
-from  datetime import datetime, timedelta, timezone
 import logging
-from pydantic import ValidationError
-
 from ...schemas.token_feed_models import TokenFeedBase, DeployedToken
 from third_party_apis.axiom_trade_api.client import AxiomTradeClient
-from third_party_apis.axiom_trade_api.models.auth import AxiomAgentData
 from third_party_apis.axiom_trade_api.models.endpoints.dev_tokens_v3 \
     import DevTokensV3Response, Token
 from third_party_apis.axiom_trade_api.models.websockets.subscription_message \
     import NewPairsRoomMessage
-from ...config import settings
 from app.core.axiom_client_provider import client_instance
 from .token_feed_preparer import shared_axiom_api_semaphore
 
@@ -33,19 +28,6 @@ class AxiomDevTokenData():
         async with cls._semaphore:
             return await request(**kwargs)
 
-    @staticmethod
-    def _get_timestamp_interval_for_token_chart_data(
-        interval_in_years_to_current_time: int = 3
-        ) -> tuple[int, int]:
-        now_utc = datetime.now(timezone.utc)
-        current_timestamp = int(now_utc.timestamp())
-
-        interval_start = \
-            now_utc - timedelta(days=interval_in_years_to_current_time * 365)
-        data_from_timestamp = int(interval_start.timestamp())
-
-        return data_from_timestamp, current_timestamp
-    
     @classmethod
     async def _get_full_info_about_recent_tokens(
             cls,
@@ -55,9 +37,6 @@ class AxiomDevTokenData():
 
             ) -> list[DeployedToken]:
 
-        chart_from, chart_to = \
-            cls._get_timestamp_interval_for_token_chart_data()
-        
         requests_by_token = []
         all_tasks: list[asyncio.Task[Any]] = []
 
@@ -74,31 +53,19 @@ class AxiomDevTokenData():
                     pair_address=token.pair_address,
                 )
             )
-            pair_chart_task = asyncio.create_task(
-                cls._run_bounded_request(
-                    cls._client.pair_chart_v2,
-                    pair_address=token.pair_address,
-                    chart_from=chart_from,
-                    chart_to=chart_to,
-                )
-            )
-
-            token_tasks = (
-                pair_info_task, token_info_task, pair_chart_task
-            )
+            token_tasks = (pair_info_task, token_info_task)
             all_tasks.extend(token_tasks)
             requests_by_token.append((token, *token_tasks))
 
         deployed_tokens: list[DeployedToken] = []
 
-        for token, pair_info_task, token_info_task, pair_chart_task \
+        for token, pair_info_task, token_info_task \
             in requests_by_token:
 
             try:
-                pair_info_data, token_info_data, _ = await asyncio.gather(
+                pair_info_data, token_info_data = await asyncio.gather(
                     pair_info_task,
                     token_info_task,
-                    pair_chart_task,
                 )
 
             except Exception as e:
@@ -109,8 +76,7 @@ class AxiomDevTokenData():
                 await asyncio.gather(*all_tasks, return_exceptions=True)
                 raise
             
-            if pair_info_data is None or token_info_data \
-                is None or pair_chart_task is None:
+            if pair_info_data is None or token_info_data is None:
                 continue
 
             deployed_tokens.append(

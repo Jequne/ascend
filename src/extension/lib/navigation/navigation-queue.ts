@@ -12,7 +12,7 @@ type ResultRecord = {
 
 export class NavigationQueue {
     private active: QueueItem | null = null;
-    private pending: QueueItem | null = null;
+    private readonly pending: QueueItem[] = [];
     private readonly results = new Map<string, ResultRecord>();
     private readonly resultOrder: string[] = [];
 
@@ -49,22 +49,15 @@ export class NavigationQueue {
             this.active = item;
             void this.runActive();
         } else {
-            this.pending?.resolve({
-                commandId: this.pending.command.commandId,
-                status: "superseded",
-            });
-            this.pending = item;
+            this.pending.push(item);
         }
         return resultPromise;
     }
 
     cancelActive(errorCode: string): void {
-        const items = [
-            ...(this.active ? [this.active] : []),
-            ...(this.pending ? [this.pending] : []),
-        ];
+        const items = [...(this.active ? [this.active] : []), ...this.pending];
         this.active = null;
-        this.pending = null;
+        this.pending.length = 0;
         for (const item of items) {
             item.resolve({
                 commandId: item.command.commandId,
@@ -91,8 +84,7 @@ export class NavigationQueue {
         if (this.active !== item) return;
 
         item.resolve(result);
-        this.active = this.pending;
-        this.pending = null;
+        this.active = this.pending.shift() ?? null;
         if (this.active) void this.runActive();
     }
 
