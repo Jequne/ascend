@@ -9,7 +9,7 @@ const ids = [
 ];
 
 describe("NavigationQueue", () => {
-    it("starts every command in FIFO order without waiting for earlier results", async () => {
+    it("keeps only the latest pending command while navigation is busy", async () => {
         const executions: Array<Deferred<NavigationResult>> = [];
         const execute = vi.fn((command: NavigateCommand) => {
             const deferred = createDeferred<NavigationResult>();
@@ -25,18 +25,20 @@ describe("NavigationQueue", () => {
         const second = queue.submit(command(ids[1]));
         const third = queue.submit(command(ids[2]));
 
-        expect(execute).toHaveBeenCalledTimes(3);
+        expect(execute).toHaveBeenCalledOnce();
         expect(execute.mock.calls[0]?.[0].commandId).toBe(ids[0]);
-        expect(execute.mock.calls[1]?.[0].commandId).toBe(ids[1]);
-        expect(execute.mock.calls[2]?.[0].commandId).toBe(ids[2]);
-
-        executions[2]?.resolve({ commandId: ids[2]!, status: "completed" });
-        await expect(third).resolves.toMatchObject({ status: "completed" });
+        await expect(second).resolves.toEqual({
+            commandId: ids[1],
+            status: "superseded",
+        });
 
         executions[0]?.resolve({ commandId: ids[0]!, status: "completed" });
-        executions[1]?.resolve({ commandId: ids[1]!, status: "completed" });
         await expect(first).resolves.toMatchObject({ status: "completed" });
-        await expect(second).resolves.toMatchObject({ status: "completed" });
+        expect(execute).toHaveBeenCalledTimes(2);
+        expect(execute.mock.calls[1]?.[0].commandId).toBe(ids[2]);
+
+        executions[1]?.resolve({ commandId: ids[2]!, status: "completed" });
+        await expect(third).resolves.toMatchObject({ status: "completed" });
     });
 
     it("deduplicates in-flight and completed command IDs", async () => {
@@ -56,7 +58,7 @@ describe("NavigationQueue", () => {
         expect(execute).toHaveBeenCalledTimes(1);
     });
 
-    it("cancels every in-flight command when navigation becomes unavailable", async () => {
+    it("cancels the active and latest pending commands when navigation becomes unavailable", async () => {
         const deferred = createDeferred<NavigationResult>();
         const queue = new NavigationQueue(() => deferred.promise);
         const active = queue.submit(command(ids[0]));

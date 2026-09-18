@@ -29,16 +29,13 @@ describe("Axiom SPA adapter", () => {
         expect(vi.getTimerCount()).toBe(timerCountBefore);
     });
 
-    it("stops waiting for a missing main-world response when navigation is aborted", async () => {
-        const controller = new AbortController();
-        const navigation = navigateWithAxiomHistory(
-            targetUrl,
-            controller.signal,
-        );
+    it("fails immediately without a throttled timer when the main-world bridge is missing", async () => {
+        vi.useFakeTimers();
+        const timerCountBefore = vi.getTimerCount();
 
-        controller.abort();
+        await expect(navigateWithAxiomHistory(targetUrl)).resolves.toBe(false);
 
-        await expect(navigation).resolves.toBe(false);
+        expect(vi.getTimerCount()).toBe(timerCountBefore);
     });
 });
 

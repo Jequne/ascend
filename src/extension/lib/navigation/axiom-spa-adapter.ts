@@ -6,8 +6,6 @@ import {
     serializeMainWorldMessage,
 } from "./axiom-main-world-protocol";
 
-const BRIDGE_TIMEOUT_MS = 1_000;
-
 export async function navigateWithAxiomHistory(
     url: string,
     signal?: AbortSignal,
@@ -24,8 +22,10 @@ function requestMainWorldNavigation(
 ): Promise<boolean> {
     const requestId = crypto.randomUUID();
     return new Promise((resolve) => {
+        let settled = false;
         const finish = (result: boolean) => {
-            clearTimeout(timeout);
+            if (settled) return;
+            settled = true;
             signal?.removeEventListener("abort", handleAbort);
             window.removeEventListener(
                 AXIOM_NAVIGATION_RESULT_EVENT,
@@ -40,7 +40,6 @@ function requestMainWorldNavigation(
             finish(response.ok);
         };
         const handleAbort = () => finish(false);
-        const timeout = setTimeout(() => finish(false), BRIDGE_TIMEOUT_MS);
 
         window.addEventListener(AXIOM_NAVIGATION_RESULT_EVENT, handleResponse);
         signal?.addEventListener("abort", handleAbort, { once: true });
@@ -53,5 +52,6 @@ function requestMainWorldNavigation(
                 detail: serializeMainWorldMessage({ requestId, url }),
             }),
         );
+        if (!settled) finish(window.location.href === url);
     });
 }
