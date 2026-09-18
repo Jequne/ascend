@@ -68,3 +68,43 @@ npm run test:e2e    # 2 tests passed
 ```
 
 The production manifest was inspected after the build: Manifest V3, Chrome 116 minimum, exact Axiom host access, `storage` and `tabs` permissions only, no web-accessible remote code, and an extension-page CSP restricted to bundled scripts.
+
+## Stage 2 — secure desktop integration
+
+Status: automated Stage 2 coverage is complete. Packaging the extension as a Tauri resource and the final Chrome, Edge, and Brave manual matrix remain in Stage 3.
+
+Coverage added on 2026-09-18:
+
+- the Rust bridge binds the fixed loopback address, checks the exact extension Origin, pairing secret, protocol version, and extension version before exposing state;
+- pairing secrets are generated from 256 bits of operating-system randomness, persist in app data, survive restart, and are revoked by rotation;
+- malformed messages, binary frames, unsafe Axiom URLs, invalid UUIDs, invalid timestamps, duplicate command IDs, and unknown navigation results are rejected without navigation;
+- the extension waits for the authenticated state before reporting pairing success, sends heartbeats, reconnects with bounded exponential backoff and jitter, and stops retrying on pairing or version rejection;
+- settings migrate v1, v2, and legacy values to schema v3 and preserve all three `AutoOpenMode` values;
+- accepted feeds dispatch exactly once to the selected path: the existing Axiom/GMGN system opener for `new_tab`, the bridge for `current_axiom_tab`, and no side effect for `off`;
+- desktop and popup mode changes synchronize in both directions without falling back to `new_tab` when the extension is unavailable;
+- Playwright starts a loopback mock bridge that verifies the extension Origin and pairing handshake, confirms `set_mode`, sends real `navigate` protocol messages, and receives correlated navigation results.
+
+Completed Stage 2 checks:
+
+```text
+Client:
+npm run format:check
+npm run lint
+npm run check
+npm run test        # 67 tests passed
+npm run build
+
+Extension:
+npm run format:check
+npm run lint
+npm run check
+npm run test        # 62 tests passed
+npm run build
+npm run test:e2e    # 2 tests passed
+
+Rust:
+cargo fmt --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test          # 9 tests passed
+cargo check
+```

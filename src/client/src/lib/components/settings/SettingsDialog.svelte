@@ -7,6 +7,7 @@
     import { DEFAULT_FILTERS } from "$lib/config/constants";
     import { normalizeFilters } from "$lib/config/settings";
     import { filtersStore } from "$lib/stores/filters.svelte";
+    import { extensionBridgeStore } from "$lib/stores/extensionBridge.svelte";
     import type { FilterSettings, SettingsTab } from "$lib/types";
     import {
         blacklistEntriesToText,
@@ -37,7 +38,7 @@
         wasOpen = true;
         dialog.showModal();
         void tick().then(() => {
-            dialog.querySelector<HTMLButtonElement>('[role="switch"]')?.focus();
+            dialog.querySelector<HTMLButtonElement>('[role="radio"]')?.focus();
         });
     }
 
@@ -65,6 +66,7 @@
             ...draft,
             blacklist: normalizeBlacklistEntries(blacklistText),
         });
+        void extensionBridgeStore.setMode(draft.autoOpenMode);
         closeDialog();
     }
 
@@ -118,7 +120,7 @@
         </header>
 
         <AutoOpenControl
-            bind:checked={draft.autoOpenInNewTab}
+            bind:mode={draft.autoOpenMode}
             bind:terminal={draft.terminal}
             bind:highlightMigratedTokens={draft.highlightMigratedTokens}
         />

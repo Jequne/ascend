@@ -16,7 +16,8 @@ export default defineConfig({
         permissions: ["storage", "tabs"],
         host_permissions: ["https://axiom.trade/*"],
         content_security_policy: {
-            extension_pages: "script-src 'self'; object-src 'self';",
+            extension_pages:
+                "script-src 'self'; object-src 'self'; connect-src ws://127.0.0.1:17321;",
         },
         icons: {
             16: "icon/16.png",

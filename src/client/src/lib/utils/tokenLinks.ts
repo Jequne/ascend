@@ -50,3 +50,13 @@ export function buildTerminalUrl(
         `https://axiom.trade/meme/${token.pair_address}?chain=${blockchain}`,
     );
 }
+
+export function buildAxiomTokenUrl(token: LinkableToken): string | null {
+    const address = token.pair_address.trim();
+    if (!/^[A-Za-z0-9_-]+$/.test(address)) return null;
+    if (token.blockchain !== "sol" && token.blockchain !== "bsc") return null;
+
+    const url = new URL(`https://axiom.trade/meme/${address}`);
+    url.searchParams.set("chain", token.blockchain);
+    return url.toString();
+}

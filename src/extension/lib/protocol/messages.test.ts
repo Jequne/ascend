@@ -15,6 +15,12 @@ describe("internal protocol parsing", () => {
         });
         expect(
             parseInternalRequest({
+                type: "pair_bridge",
+                pairingCode: "pairing-code",
+            }),
+        ).toEqual({ type: "pair_bridge", pairingCode: "pairing-code" });
+        expect(
+            parseInternalRequest({
                 type: "navigate_target",
                 commandId,
                 url: "https://axiom.trade/meme/pair?chain=sol",
@@ -69,6 +75,11 @@ describe("internal protocol parsing", () => {
                 state: {
                     activePage: { kind: "other" },
                     target: { kind: "idle" },
+                    bridge: {
+                        connection: "connected",
+                        mode: "off",
+                        reconnectAttempt: 0,
+                    },
                 },
             }),
         ).toBe(true);
@@ -80,6 +91,11 @@ describe("internal protocol parsing", () => {
                 state: {
                     activePage: { kind: "other" },
                     target: { kind: "idle" },
+                    bridge: {
+                        connection: "connected",
+                        mode: "off",
+                        reconnectAttempt: 0,
+                    },
                 },
             }),
         ).toBe(false);

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTokenFeed } from "$lib/components/tokenFeed.fixture";
 import { DEFAULT_FILTERS } from "$lib/config/constants";
-import type { UrlOpener } from "$lib/services/opener";
+import type { AutoOpenDispatcher } from "$lib/services/autoOpen";
 import { filtersStore } from "$lib/stores/filters.svelte";
 import {
     WebSocketStore,
@@ -52,7 +52,7 @@ function tokenMessage(overrides: Partial<TokenFeedPayload> = {}): string {
     });
 }
 
-function createHarness(opener: UrlOpener): {
+function createHarness(dispatcher: AutoOpenDispatcher): {
     store: WebSocketStore;
     sockets: FakeWebSocket[];
 } {
@@ -63,7 +63,7 @@ function createHarness(opener: UrlOpener): {
         return socket as unknown as WebSocket;
     };
     return {
-        store: new WebSocketStore(opener, factory),
+        store: new WebSocketStore(dispatcher, factory),
         sockets,
     };
 }
@@ -71,7 +71,7 @@ function createHarness(opener: UrlOpener): {
 beforeEach(() => {
     filtersStore.updateFilters({
         ...DEFAULT_FILTERS,
-        autoOpenInNewTab: true,
+        autoOpenMode: "new_tab",
     });
 });
 
@@ -84,12 +84,11 @@ describe("WebSocketStore realtime pipeline", () => {
     it("parses once and invokes opener synchronously before updating accepted state", () => {
         let acceptedCountAtOpen = -1;
         let totalCountAtOpen = -1;
-        const open = vi.fn<(url: string) => Promise<void>>(() => {
+        const dispatch = vi.fn<AutoOpenDispatcher["dispatch"]>(() => {
             acceptedCountAtOpen = store.tokenFeedCount;
             totalCountAtOpen = store.tokenFeedTotalCount;
-            return Promise.resolve();
         });
-        const { store, sockets } = createHarness({ open });
+        const { store, sockets } = createHarness({ dispatch });
         const parse = vi.spyOn(JSON, "parse");
         const timer = vi.spyOn(globalThis, "setTimeout");
         const windowOpen = vi.spyOn(window, "open");
@@ -101,10 +100,7 @@ describe("WebSocketStore realtime pipeline", () => {
         socket?.receive(tokenMessage());
 
         expect(parse).toHaveBeenCalledOnce();
-        expect(open).toHaveBeenCalledOnce();
-        expect(open).toHaveBeenCalledWith(
-            "https://axiom.trade/meme/pair?chain=sol",
-        );
+        expect(dispatch).toHaveBeenCalledOnce();
         expect(acceptedCountAtOpen).toBe(0);
         expect(totalCountAtOpen).toBe(0);
         expect(store.tokenFeedCount).toBe(1);
@@ -114,12 +110,12 @@ describe("WebSocketStore realtime pipeline", () => {
         expect(windowOpen).not.toHaveBeenCalled();
 
         socket?.receive(tokenMessage({ dev_holds_percent: null }));
-        expect(open).toHaveBeenCalledOnce();
+        expect(dispatch).toHaveBeenCalledOnce();
         expect(store.tokenFeedCount).toBe(1);
         expect(store.tokenFeedTotalCount).toBe(2);
 
         socket?.receive(tokenMessage());
-        expect(open).toHaveBeenCalledTimes(2);
+        expect(dispatch).toHaveBeenCalledTimes(2);
         expect(store.tokenFeeds).toHaveLength(2);
 
         store.clearTokens();
@@ -130,14 +126,14 @@ describe("WebSocketStore realtime pipeline", () => {
     });
 
     it("keeps rendering after invalid URLs, malformed JSON, and opener rejection", async () => {
-        const rejection = new Error("opener unavailable");
-        const open = vi
-            .fn<(url: string) => Promise<void>>()
-            .mockRejectedValue(rejection);
+        const rejection = new Error("dispatcher unavailable");
+        const dispatch = vi.fn<AutoOpenDispatcher["dispatch"]>(() => {
+            throw rejection;
+        });
         const consoleError = vi
             .spyOn(console, "error")
             .mockImplementation(() => undefined);
-        const { store, sockets } = createHarness({ open });
+        const { store, sockets } = createHarness({ dispatch });
 
         store.connect();
         const socket = sockets[0];
@@ -148,14 +144,13 @@ describe("WebSocketStore realtime pipeline", () => {
         socket?.receive(tokenMessage());
         expect(store.tokenFeeds).toHaveLength(1);
         expect(store.tokenFeedCount).toBe(1);
-        await Promise.resolve();
         expect(consoleError).toHaveBeenCalledWith(
-            "Failed to open token URL:",
+            "Failed to dispatch token URL:",
             rejection,
         );
 
         socket?.receive(tokenMessage({ pair_address: "" }));
-        expect(open).toHaveBeenCalledOnce();
+        expect(dispatch).toHaveBeenCalledTimes(2);
         expect(store.tokenFeeds).toHaveLength(2);
         expect(store.isConnected).toBe(true);
 
@@ -170,10 +165,8 @@ describe("WebSocketStore realtime pipeline", () => {
     it("handles ping, price, reconnect, and manual disconnect lifecycle", () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date("2026-08-11T12:00:00.100Z"));
-        const open = vi
-            .fn<(url: string) => Promise<void>>()
-            .mockResolvedValue();
-        const { store, sockets } = createHarness({ open });
+        const dispatch = vi.fn<AutoOpenDispatcher["dispatch"]>();
+        const { store, sockets } = createHarness({ dispatch });
 
         store.connect();
         sockets[0]?.open();

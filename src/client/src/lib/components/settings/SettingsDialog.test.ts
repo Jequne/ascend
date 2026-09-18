@@ -73,20 +73,26 @@ async function openSettings(): Promise<{
 describe("SettingsDialog", () => {
     it("supports dialog focus, switch, tab keyboard navigation, and Cancel", async () => {
         const { user, trigger, dialog } = await openSettings();
-        const autoOpen = within(dialog).getByRole("switch", {
-            name: "Automatically open accepted tokens",
+        const autoOpenGroup = within(dialog).getByRole("radiogroup", {
+            name: "Auto-open mode",
+        });
+        const autoOpenOff = within(autoOpenGroup).getByRole("radio", {
+            name: /Off/,
+        });
+        const autoOpenNewTab = within(autoOpenGroup).getByRole("radio", {
+            name: /New tab/,
         });
         const migratedHighlight = within(dialog).getByRole("switch", {
             name: "Highlight migrated previous tokens",
         });
 
-        expect(autoOpen).toHaveFocus();
-        expect(autoOpen).toHaveAttribute("aria-checked", "false");
+        expect(autoOpenOff).toHaveFocus();
+        expect(autoOpenOff).toHaveAttribute("aria-checked", "true");
         expect(migratedHighlight).toHaveAttribute("aria-checked", "true");
         await user.click(migratedHighlight);
         expect(migratedHighlight).toHaveAttribute("aria-checked", "false");
-        await user.click(autoOpen);
-        expect(autoOpen).toHaveAttribute("aria-checked", "true");
+        await user.click(autoOpenNewTab);
+        expect(autoOpenNewTab).toHaveAttribute("aria-checked", "true");
 
         const terminal = within(dialog).getByRole("radiogroup", {
             name: "Token terminal",
@@ -142,7 +148,7 @@ describe("SettingsDialog", () => {
         expect(filtersStore.minMigrationPercent).toBe(
             DEFAULT_FILTERS.minMigrationPercent,
         );
-        expect(filtersStore.autoOpenInNewTab).toBe(false);
+        expect(filtersStore.autoOpenMode).toBe("off");
         expect(filtersStore.terminal).toBe(DEFAULT_FILTERS.terminal);
         expect(filtersStore.highlightMigratedTokens).toBe(true);
     });
@@ -188,6 +194,28 @@ describe("SettingsDialog", () => {
         await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
         expect(filtersStore.highlightMigratedTokens).toBe(false);
+    });
+
+    it("opens extension setup separately and restores trigger focus", async () => {
+        const { user, dialog } = await openSettings();
+        const setupTrigger = within(dialog).getByRole("button", {
+            name: "Install / connect extension",
+        });
+
+        await user.click(setupTrigger);
+        const setup = within(dialog).getByRole("dialog", {
+            name: "Connect Ascend ext",
+        });
+        expect(setup).toBeVisible();
+        expect(
+            within(setup).getByRole("combobox", {
+                name: /Choose a browser/,
+            }),
+        ).toHaveFocus();
+
+        await user.click(within(setup).getByRole("button", { name: "Close" }));
+        expect(setup).not.toHaveAttribute("open");
+        expect(setupTrigger).toHaveFocus();
     });
 
     it("updates the developer-holds track as the selected range changes", async () => {
@@ -305,7 +333,7 @@ describe("SettingsDialog", () => {
             within(dialog).getByRole("button", { name: "Copy JSON" }),
         );
         expect(writeText).toHaveBeenCalledOnce();
-        expect(writeText.mock.calls[0]?.[0]).toContain('"schemaVersion": 2');
+        expect(writeText.mock.calls[0]?.[0]).toContain('"schemaVersion": 3');
 
         await user.click(
             within(dialog).getByRole("button", { name: "Download JSON" }),

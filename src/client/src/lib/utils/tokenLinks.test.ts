@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createTokenFeed } from "$lib/components/tokenFeed.fixture";
-import { buildTerminalUrl, normalizeExternalUrl } from "$lib/utils/tokenLinks";
+import {
+    buildAxiomTokenUrl,
+    buildTerminalUrl,
+    normalizeExternalUrl,
+} from "$lib/utils/tokenLinks";
 
 describe("token links", () => {
     it("builds the existing Axiom and GMGN terminal routes", () => {
@@ -34,5 +38,27 @@ describe("token links", () => {
         expect(normalizeExternalUrl("javascript:alert(1)")).toBeNull();
         expect(normalizeExternalUrl("file:///tmp/token")).toBeNull();
         expect(normalizeExternalUrl("not a url")).toBeNull();
+    });
+
+    it("builds current-tab URLs only for safe Axiom addresses and chains", () => {
+        expect(buildAxiomTokenUrl(createTokenFeed())).toBe(
+            "https://axiom.trade/meme/pair?chain=sol",
+        );
+        expect(
+            buildAxiomTokenUrl(
+                createTokenFeed({
+                    blockchain: "bsc",
+                    pair_address: "safe_Address-9",
+                }),
+            ),
+        ).toBe("https://axiom.trade/meme/safe_Address-9?chain=bsc");
+        expect(
+            buildAxiomTokenUrl(
+                createTokenFeed({ pair_address: "../redirect" }),
+            ),
+        ).toBeNull();
+        expect(
+            buildAxiomTokenUrl(createTokenFeed({ blockchain: "eth" as "sol" })),
+        ).toBeNull();
     });
 });

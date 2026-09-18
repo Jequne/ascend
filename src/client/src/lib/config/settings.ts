@@ -1,8 +1,9 @@
 import { DEFAULT_FILTERS } from "$lib/config/constants";
 import type {
+    AutoOpenMode,
     FeesMode,
     FilterSettings,
-    SettingsEnvelopeV2,
+    SettingsEnvelopeV3,
     SettingsSections,
     Terminal,
 } from "$lib/types";
@@ -10,12 +11,17 @@ import { normalizeBlacklistEntries } from "$lib/utils/blacklist";
 
 export const SETTINGS_STORAGE_KEY = "ascend_trenches.user_settings";
 export const SETTINGS_EXPORT_SCHEMA = "ascend_trenches.settings";
-export const SETTINGS_EXPORT_SCHEMA_VERSION = 2;
+export const SETTINGS_EXPORT_SCHEMA_VERSION = 3;
 export const SETTINGS_EXPORT_FILENAME = "ascend-trenches-settings.json";
 export const SETTINGS_IMPORT_MAX_BYTES = 1_000_000;
 
 const ALLOWED_FEES_MODES = new Set<FeesMode>(["avg", "total", "fixed"]);
 const ALLOWED_TERMINALS = new Set<Terminal>(["axiom", "gmgn"]);
+const ALLOWED_AUTO_OPEN_MODES = new Set<AutoOpenMode>([
+    "off",
+    "new_tab",
+    "current_axiom_tab",
+]);
 
 export function isPlainObject(
     value: unknown,
@@ -45,6 +51,19 @@ function normalizeTerminal(value: unknown): Terminal {
     return typeof value === "string" && ALLOWED_TERMINALS.has(value as Terminal)
         ? (value as Terminal)
         : DEFAULT_FILTERS.terminal;
+}
+
+function normalizeAutoOpenMode(
+    value: unknown,
+    legacyAutoOpenInNewTab: unknown,
+): AutoOpenMode {
+    if (
+        typeof value === "string" &&
+        ALLOWED_AUTO_OPEN_MODES.has(value as AutoOpenMode)
+    ) {
+        return value as AutoOpenMode;
+    }
+    return legacyAutoOpenInNewTab === true ? "new_tab" : "off";
 }
 
 export function normalizeFilters(filters: unknown = {}): FilterSettings {
@@ -94,7 +113,10 @@ export function normalizeFilters(filters: unknown = {}): FilterSettings {
         ),
         blacklist: normalizeBlacklistEntries(source.blacklist),
         terminal: normalizeTerminal(source.terminal),
-        autoOpenInNewTab: source.autoOpenInNewTab === true,
+        autoOpenMode: normalizeAutoOpenMode(
+            source.autoOpenMode,
+            source.autoOpenInNewTab,
+        ),
         highlightMigratedTokens: source.highlightMigratedTokens !== false,
     };
 }
@@ -119,6 +141,7 @@ function looksLikeLegacyFilters(candidate: unknown): boolean {
         "blacklist",
         "terminal",
         "autoOpenInNewTab",
+        "autoOpenMode",
         "highlightMigratedTokens",
         "aggressiveAutoOpen",
     ].some((key) => Object.hasOwn(candidate, key));
@@ -147,7 +170,7 @@ export function normalizeSettingsSections(
 
 export function createSettingsExportPayload(
     sections: unknown,
-): SettingsEnvelopeV2 {
+): SettingsEnvelopeV3 {
     return {
         schema: SETTINGS_EXPORT_SCHEMA,
         schemaVersion: SETTINGS_EXPORT_SCHEMA_VERSION,
@@ -174,6 +197,7 @@ export function parseSettingsImport(rawInput: unknown): SettingsSections {
     if (
         parsed.schemaVersion !== undefined &&
         parsed.schemaVersion !== 1 &&
+        parsed.schemaVersion !== 2 &&
         parsed.schemaVersion !== SETTINGS_EXPORT_SCHEMA_VERSION
     ) {
         throw new Error("Unsupported settings schema version.");

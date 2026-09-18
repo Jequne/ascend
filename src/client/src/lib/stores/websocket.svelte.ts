@@ -1,10 +1,12 @@
 import { getStoredKey } from "$lib/api/auth";
 import { WS_BASE_URL } from "$lib/config/constants";
-import { openerService, type UrlOpener } from "$lib/services/opener";
+import {
+    autoOpenDispatcher,
+    type AutoOpenDispatcher,
+} from "$lib/services/autoOpen";
 import { filtersStore } from "$lib/stores/filters.svelte";
 import type { FilterSnapshot, TokenFeed } from "$lib/types";
 import { evaluateTokenFeed, prependRollingFeed } from "$lib/utils/feed";
-import { buildTerminalUrl } from "$lib/utils/tokenLinks";
 import { parseWebSocketMessage } from "$lib/utils/websocketMessage";
 
 export type WebSocketFactory = (url: string) => WebSocket;
@@ -24,23 +26,16 @@ export class WebSocketStore {
     tokenFeeds = $state<TokenFeed[]>([]);
 
     constructor(
-        private readonly opener: UrlOpener = openerService,
+        private readonly dispatcher: AutoOpenDispatcher = autoOpenDispatcher,
         private readonly createSocket: WebSocketFactory = (url) =>
             new WebSocket(url),
     ) {}
 
     private openAcceptedFeed(feed: TokenFeed, snapshot: FilterSnapshot): void {
-        if (!snapshot.filters.autoOpenInNewTab) return;
-
-        const url = buildTerminalUrl(feed, snapshot.filters.terminal);
-        if (!url) return;
-
         try {
-            void this.opener.open(url).catch((error: unknown) => {
-                console.error("Failed to open token URL:", error);
-            });
+            this.dispatcher.dispatch(feed, snapshot);
         } catch (error: unknown) {
-            console.error("Failed to open token URL:", error);
+            console.error("Failed to dispatch token URL:", error);
         }
     }
 

@@ -15,6 +15,11 @@ describe("popup browser client", () => {
                     state: {
                         activePage: { kind: "other" },
                         target: { kind: "idle" },
+                        bridge: {
+                            connection: "connected",
+                            mode: "off",
+                            reconnectAttempt: 0,
+                        },
                     },
                 });
                 return true;

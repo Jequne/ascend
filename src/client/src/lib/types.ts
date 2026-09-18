@@ -1,4 +1,5 @@
 export type Terminal = "axiom" | "gmgn";
+export type AutoOpenMode = "off" | "new_tab" | "current_axiom_tab";
 export type FeesMode = "avg" | "total" | "fixed";
 export type SettingsTab = "filters" | "blacklist" | "transfer";
 
@@ -72,7 +73,7 @@ export interface FilterSettings {
     lastTokensRequiredCount: number;
     blacklist: string[];
     terminal: Terminal;
-    autoOpenInNewTab: boolean;
+    autoOpenMode: AutoOpenMode;
     highlightMigratedTokens: boolean;
 }
 
@@ -85,13 +86,27 @@ export interface SettingsEnvelopeV1 {
     schemaVersion: 1;
     exportedAt: string;
     settings: {
-        filters: FilterSettings & { aggressiveAutoOpen?: boolean };
+        filters: Omit<FilterSettings, "autoOpenMode"> & {
+            autoOpenInNewTab?: boolean;
+            aggressiveAutoOpen?: boolean;
+        };
     };
 }
 
 export interface SettingsEnvelopeV2 {
     schema: "ascend_trenches.settings";
     schemaVersion: 2;
+    exportedAt: string;
+    settings: {
+        filters: Omit<FilterSettings, "autoOpenMode"> & {
+            autoOpenInNewTab?: boolean;
+        };
+    };
+}
+
+export interface SettingsEnvelopeV3 {
+    schema: "ascend_trenches.settings";
+    schemaVersion: 3;
     exportedAt: string;
     settings: SettingsSections;
 }

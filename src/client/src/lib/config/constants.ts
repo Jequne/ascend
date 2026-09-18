@@ -17,6 +17,6 @@ export const DEFAULT_FILTERS = {
     lastTokensRequiredCount: 0,
     blacklist: [],
     terminal: "axiom",
-    autoOpenInNewTab: false,
+    autoOpenMode: "off",
     highlightMigratedTokens: true,
 } satisfies FilterSettings;

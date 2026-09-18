@@ -6,6 +6,8 @@ export type InternalRequest =
     | { type: "get_popup_state" }
     | { type: "start_target" }
     | { type: "stop_target" }
+    | { type: "pair_bridge"; pairingCode: string }
+    | { type: "retry_bridge" }
     | ({ type: "navigate_target" } & NavigateCommand);
 
 export type InternalResponse =
@@ -36,9 +38,14 @@ export function parseInternalRequest(value: unknown): InternalRequest | null {
     if (
         value.type === "get_popup_state" ||
         value.type === "start_target" ||
-        value.type === "stop_target"
+        value.type === "stop_target" ||
+        value.type === "retry_bridge"
     ) {
         return { type: value.type };
+    }
+
+    if (value.type === "pair_bridge" && typeof value.pairingCode === "string") {
+        return { type: value.type, pairingCode: value.pairingCode };
     }
 
     if (
@@ -149,7 +156,20 @@ function isPopupSnapshot(value: unknown): value is PopupSnapshot {
             (value.target.reason === "target_closed" ||
                 value.target.reason === "target_left_axiom" ||
                 value.target.reason === "target_missing"));
-    return activePageValid && targetValid;
+    const bridgeValid =
+        isRecord(value.bridge) &&
+        (value.bridge.connection === "unpaired" ||
+            value.bridge.connection === "connecting" ||
+            value.bridge.connection === "connected" ||
+            value.bridge.connection === "reconnecting" ||
+            value.bridge.connection === "pairing_rejected" ||
+            value.bridge.connection === "version_mismatch" ||
+            value.bridge.connection === "unavailable") &&
+        (value.bridge.mode === "off" ||
+            value.bridge.mode === "new_tab" ||
+            value.bridge.mode === "current_axiom_tab") &&
+        Number.isInteger(value.bridge.reconnectAttempt);
+    return activePageValid && targetValid && bridgeValid;
 }
 
 function isUuid(value: unknown): value is string {

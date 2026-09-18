@@ -10,7 +10,7 @@ export async function validateKey(apiKey: string): Promise<boolean> {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "X-Api-Key": apiKey
+                "X-Api-Key": apiKey,
             },
             // body: JSON.stringify({ api_key: apiKey }),
         });

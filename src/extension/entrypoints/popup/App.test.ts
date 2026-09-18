@@ -23,6 +23,11 @@ describe("popup target controls", () => {
             state: {
                 activePage: { kind: "other" },
                 target: { kind: "idle" },
+                bridge: {
+                    connection: "connected",
+                    mode: "off",
+                    reconnectAttempt: 0,
+                },
             },
         });
 
@@ -48,6 +53,11 @@ describe("popup target controls", () => {
                         url: "https://axiom.trade/",
                     },
                     target: { kind: "idle" },
+                    bridge: {
+                        connection: "connected",
+                        mode: "off",
+                        reconnectAttempt: 0,
+                    },
                 },
             })
             .mockResolvedValueOnce({
@@ -65,6 +75,11 @@ describe("popup target controls", () => {
                         tabId: 7,
                         title: "Axiom",
                         url: "https://axiom.trade/",
+                    },
+                    bridge: {
+                        connection: "connected",
+                        mode: "current_axiom_tab",
+                        reconnectAttempt: 0,
                     },
                 },
             });
@@ -91,6 +106,11 @@ describe("popup target controls", () => {
             state: {
                 activePage: { kind: "other" },
                 target: { kind: "paused", reason: "target_closed" },
+                bridge: {
+                    connection: "connected",
+                    mode: "current_axiom_tab",
+                    reconnectAttempt: 0,
+                },
             },
         });
         render(App);

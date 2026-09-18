@@ -5,6 +5,8 @@ import type {
     TargetState,
 } from "../types/popup";
 
+type TargetPopupSnapshot = Omit<PopupSnapshot, "bridge">;
+
 const TARGET_STATE_KEY = "targetTabState";
 
 export type TabCandidate = {
@@ -48,7 +50,7 @@ export class TargetTabService {
         return this.state;
     }
 
-    async getPopupSnapshot(): Promise<PopupSnapshot> {
+    async getPopupSnapshot(): Promise<TargetPopupSnapshot> {
         return {
             activePage: toActivePageState(
                 await this.dependencies.getActiveTab(),
@@ -58,8 +60,8 @@ export class TargetTabService {
     }
 
     async startOnActiveTab(): Promise<
-        | { ok: true; state: PopupSnapshot }
-        | { ok: false; errorCode: string; state: PopupSnapshot }
+        | { ok: true; state: TargetPopupSnapshot }
+        | { ok: false; errorCode: string; state: TargetPopupSnapshot }
     > {
         const tab = await this.dependencies.getActiveTab();
         if (!tab || tab.id === undefined || !isAxiomPageUrl(tab.url)) {
@@ -74,7 +76,7 @@ export class TargetTabService {
         return { ok: true, state: await this.getPopupSnapshot() };
     }
 
-    async stop(): Promise<PopupSnapshot> {
+    async stop(): Promise<TargetPopupSnapshot> {
         this.state = { kind: "idle" };
         await this.persist();
         return this.getPopupSnapshot();

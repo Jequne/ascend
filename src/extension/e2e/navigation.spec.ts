@@ -7,12 +7,15 @@ test("assigns one Axiom target and navigates without reload, a new tab, or focus
     context,
     extensionId,
     installAxiomFixture,
+    mockBridge,
+    pairExtension,
 }) => {
     await installAxiomFixture();
     const targetPage = await context.newPage();
     await targetPage.goto("https://axiom.trade/");
     const extensionPage = await context.newPage();
     await extensionPage.goto(`chrome-extension://${extensionId}/popup.html`);
+    await pairExtension(extensionPage);
 
     await targetPage.bringToFront();
     await expect
@@ -54,15 +57,14 @@ test("assigns one Axiom target and navigates without reload, a new tab, or focus
     });
     await expect(targetPage).toHaveURL("https://axiom.trade/");
 
-    const navigationResponse = await sendExtensionMessage(extensionPage, {
-        type: "navigate_target",
-        commandId: "123e4567-e89b-42d3-a456-426614174001",
-        url: "https://axiom.trade/meme/pair-one?chain=sol",
-        issuedAt: "2026-09-17T12:00:01.000Z",
-    });
+    const navigationResponse = await mockBridge.navigate(
+        "123e4567-e89b-42d3-a456-426614174001",
+        "https://axiom.trade/meme/pair-one?chain=sol",
+        "2026-09-17T12:00:01.000Z",
+    );
     expect(navigationResponse).toMatchObject({
-        type: "navigation_result",
-        result: { status: "completed", method: "history" },
+        status: "completed",
+        method: "history",
     });
     await expect(targetPage).toHaveURL(
         "https://axiom.trade/meme/pair-one?chain=sol",
@@ -84,15 +86,14 @@ test("assigns one Axiom target and navigates without reload, a new tab, or focus
                 : "invalid";
         })
         .toBe("paused");
-    const missingTargetResponse = await sendExtensionMessage(extensionPage, {
-        type: "navigate_target",
-        commandId: "123e4567-e89b-42d3-a456-426614174002",
-        url: "https://axiom.trade/meme/pair-two?chain=sol",
-        issuedAt: "2026-09-17T12:00:02.000Z",
-    });
+    const missingTargetResponse = await mockBridge.navigate(
+        "123e4567-e89b-42d3-a456-426614174002",
+        "https://axiom.trade/meme/pair-two?chain=sol",
+        "2026-09-17T12:00:02.000Z",
+    );
     expect(missingTargetResponse).toMatchObject({
-        type: "navigation_result",
-        result: { status: "ignored", errorCode: "target_missing" },
+        status: "ignored",
+        errorCode: "target_missing",
     });
 });
 
@@ -100,12 +101,14 @@ test("deduplicates commands and keeps only the latest pending token", async ({
     context,
     extensionId,
     installAxiomFixture,
+    pairExtension,
 }) => {
     await installAxiomFixture();
     const targetPage = await context.newPage();
     await targetPage.goto("https://axiom.trade/");
     const extensionPage = await context.newPage();
     await extensionPage.goto(`chrome-extension://${extensionId}/popup.html`);
+    await pairExtension(extensionPage);
     await targetPage.bringToFront();
     await expect
         .poll(async () => {

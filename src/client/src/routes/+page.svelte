@@ -4,11 +4,13 @@
     import TopPanel from "$lib/components/TopPanel.svelte";
     import { authStore } from "$lib/stores/auth.svelte";
     import { filtersStore } from "$lib/stores/filters.svelte";
+    import { extensionBridgeStore } from "$lib/stores/extensionBridge.svelte";
     import { onMount } from "svelte";
     import { fade } from "svelte/transition";
 
     onMount(() => {
         filtersStore.init();
+        void extensionBridgeStore.init();
         void authStore.init();
     });
 </script>

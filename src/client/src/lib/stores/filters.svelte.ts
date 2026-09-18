@@ -6,6 +6,7 @@ import {
 import { settingsStore } from "$lib/stores/settings.svelte";
 import type {
     BlacklistMatcher,
+    AutoOpenMode,
     FeesMode,
     FilterSnapshot,
     FilterSettings,
@@ -102,12 +103,12 @@ class FiltersStore {
         this.updateFilters({ terminal: value });
     }
 
-    get autoOpenInNewTab(): boolean {
-        return this.filters.autoOpenInNewTab;
+    get autoOpenMode(): AutoOpenMode {
+        return this.filters.autoOpenMode;
     }
 
-    set autoOpenInNewTab(value: boolean) {
-        this.updateFilters({ autoOpenInNewTab: value });
+    set autoOpenMode(value: AutoOpenMode) {
+        this.updateFilters({ autoOpenMode: value });
     }
 
     get highlightMigratedTokens(): boolean {

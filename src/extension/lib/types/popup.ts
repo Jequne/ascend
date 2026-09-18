@@ -24,4 +24,6 @@ export type ActivePageState =
 export type PopupSnapshot = {
     activePage: ActivePageState;
     target: TargetState;
+    bridge: ExtensionBridgeSnapshot;
 };
+import type { ExtensionBridgeSnapshot } from "./bridge";

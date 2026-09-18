@@ -8,9 +8,13 @@ import {
     parseSettingsImport,
 } from "$lib/config/settings";
 
+const legacyDefaults = Object.fromEntries(
+    Object.entries(DEFAULT_FILTERS).filter(([key]) => key !== "autoOpenMode"),
+);
 const legacyFilters = {
-    ...DEFAULT_FILTERS,
+    ...legacyDefaults,
     minMigrationPercent: 42,
+    autoOpenInNewTab: true,
     aggressiveAutoOpen: true,
 };
 
@@ -27,6 +31,7 @@ describe("settings import compatibility", () => {
                 lastTokensRequiredCount: 2.6,
                 blacklist: [" Wallet ", "wallet", "Token"],
                 terminal: "unsupported",
+                autoOpenMode: "unsupported",
                 autoOpenInNewTab: "false",
                 highlightMigratedTokens: false,
             }),
@@ -40,18 +45,28 @@ describe("settings import compatibility", () => {
             lastTokensRequiredCount: 3,
             blacklist: ["Wallet", "Token"],
             terminal: DEFAULT_FILTERS.terminal,
-            autoOpenInNewTab: false,
+            autoOpenMode: "off",
             highlightMigratedTokens: false,
         });
     });
 
-    it("exports schema v2 without the retired aggressive mode", () => {
+    it("exports schema v3 without the legacy boolean", () => {
         const exported = createSettingsExportPayload({
-            filters: legacyFilters,
+            filters: {
+                ...DEFAULT_FILTERS,
+                autoOpenMode: "current_axiom_tab",
+                autoOpenInNewTab: true,
+            },
         });
 
         expect(exported.schemaVersion).toBe(SETTINGS_EXPORT_SCHEMA_VERSION);
-        expect(exported.schemaVersion).toBe(2);
+        expect(exported.schemaVersion).toBe(3);
+        expect(exported.settings.filters.autoOpenMode).toBe(
+            "current_axiom_tab",
+        );
+        expect(exported.settings.filters).not.toHaveProperty(
+            "autoOpenInNewTab",
+        );
         expect(exported.settings.filters).not.toHaveProperty(
             "aggressiveAutoOpen",
         );
@@ -76,15 +91,38 @@ describe("settings import compatibility", () => {
                 settings: { filters: legacyFilters },
             },
         },
-        {
-            name: "legacy flat settings",
-            input: legacyFilters,
-        },
-    ])("imports $name and silently removes aggressive mode", ({ input }) => {
+        { name: "legacy flat settings", input: legacyFilters },
+    ])("migrates $name to new_tab", ({ input }) => {
         const imported = parseSettingsImport(JSON.stringify(input));
 
         expect(imported.filters.minMigrationPercent).toBe(42);
+        expect(imported.filters.autoOpenMode).toBe("new_tab");
+        expect(imported.filters).not.toHaveProperty("autoOpenInNewTab");
         expect(imported.filters).not.toHaveProperty("aggressiveAutoOpen");
+    });
+
+    it("preserves every v3 mode and normalizes an unknown mode to off", () => {
+        for (const autoOpenMode of [
+            "off",
+            "new_tab",
+            "current_axiom_tab",
+        ] as const) {
+            const imported = parseSettingsImport(
+                createSettingsExportPayload({
+                    filters: { ...DEFAULT_FILTERS, autoOpenMode },
+                }),
+            );
+            expect(imported.filters.autoOpenMode).toBe(autoOpenMode);
+        }
+        expect(
+            parseSettingsImport({
+                schema: SETTINGS_EXPORT_SCHEMA,
+                schemaVersion: 3,
+                settings: {
+                    filters: { ...DEFAULT_FILTERS, autoOpenMode: "surprise" },
+                },
+            }).filters.autoOpenMode,
+        ).toBe("off");
     });
 
     it("rejects malformed JSON and unsupported envelopes", () => {
@@ -92,14 +130,14 @@ describe("settings import compatibility", () => {
         expect(() =>
             parseSettingsImport({
                 schema: "another.settings",
-                schemaVersion: 2,
+                schemaVersion: 3,
                 settings: { filters: DEFAULT_FILTERS },
             }),
         ).toThrow("Unsupported settings schema.");
         expect(() =>
             parseSettingsImport({
                 schema: SETTINGS_EXPORT_SCHEMA,
-                schemaVersion: 3,
+                schemaVersion: 4,
                 settings: { filters: DEFAULT_FILTERS },
             }),
         ).toThrow("Unsupported settings schema version.");

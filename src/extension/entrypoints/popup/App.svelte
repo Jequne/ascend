@@ -1,32 +1,67 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { sendPopupRequest } from "../../lib/popup/client";
+    import type { BridgeConnectionState } from "../../lib/types/bridge";
     import type { PopupSnapshot } from "../../lib/types/popup";
 
     let snapshot: PopupSnapshot | null = null;
     let busy = false;
     let errorMessage = "";
+    let pairingCode = "";
 
     const targetRunning = () => snapshot?.target.kind === "running";
-    const canStart = () => snapshot?.activePage.kind === "axiom";
+    const canStart = () =>
+        snapshot?.activePage.kind === "axiom" &&
+        snapshot?.bridge.connection === "connected";
 
     onMount(() => {
         void refresh();
+        const timer = setInterval(() => void refresh(false), 1_000);
+        return () => clearInterval(timer);
     });
 
-    async function refresh(): Promise<void> {
-        errorMessage = "";
+    async function refresh(showError = true): Promise<void> {
+        if (showError) errorMessage = "";
         try {
             const response = await sendPopupRequest({
                 type: "get_popup_state",
             });
-            if (response.type !== "popup_state") {
+            if (response.type !== "popup_state")
                 throw new Error("unexpected_response");
-            }
             snapshot = response.state;
         } catch {
-            errorMessage = "The extension background service is unavailable.";
+            if (showError)
+                errorMessage =
+                    "The extension background service is unavailable.";
         }
+    }
+
+    async function pair(): Promise<void> {
+        if (busy) return;
+        busy = true;
+        errorMessage = "";
+        try {
+            const response = await sendPopupRequest({
+                type: "pair_bridge",
+                pairingCode,
+            });
+            if (response.type !== "action_result")
+                throw new Error("unexpected_response");
+            snapshot = response.state;
+            if (!response.ok)
+                errorMessage =
+                    "Enter the 43-character pairing code from Ascend.";
+            else pairingCode = "";
+        } catch {
+            errorMessage = "The pairing code could not be saved.";
+        } finally {
+            busy = false;
+        }
+    }
+
+    async function retry(): Promise<void> {
+        const response = await sendPopupRequest({ type: "retry_bridge" });
+        if (response.type === "action_result") snapshot = response.state;
     }
 
     async function toggleTarget(): Promise<void> {
@@ -37,15 +72,16 @@
             const response = await sendPopupRequest({
                 type: targetRunning() ? "stop_target" : "start_target",
             });
-            if (response.type !== "action_result") {
+            if (response.type !== "action_result")
                 throw new Error("unexpected_response");
-            }
             snapshot = response.state;
             if (!response.ok) {
                 errorMessage =
                     response.errorCode === "active_tab_not_axiom"
                         ? "Open axiom.trade in the active tab and try again."
-                        : "The target tab could not be updated.";
+                        : response.errorCode === "bridge_not_connected"
+                          ? "Connect Ascend ext to the desktop client first."
+                          : "The target tab could not be updated.";
             }
         } catch {
             errorMessage = "The target tab could not be updated.";
@@ -56,15 +92,29 @@
 
     function targetLabel(): string {
         if (!snapshot) return "Loading target state…";
-        if (snapshot.target.kind === "running") {
+        if (snapshot.target.kind === "running")
             return `Selected: ${snapshot.target.title}`;
-        }
         if (snapshot.target.kind === "paused") {
             return snapshot.target.reason === "target_closed"
                 ? "Paused: the selected tab was closed"
                 : "Paused: select an Axiom tab again";
         }
-        return "No Axiom tab selected";
+        return snapshot.bridge.mode === "current_axiom_tab"
+            ? "Waiting for an Axiom tab"
+            : "No Axiom tab selected";
+    }
+
+    function connectionLabel(connection?: BridgeConnectionState): string {
+        const labels: Record<BridgeConnectionState, string> = {
+            unpaired: "Not paired",
+            connecting: "Connecting",
+            connected: "Connected",
+            reconnecting: "Reconnecting",
+            pairing_rejected: "Pairing rejected",
+            version_mismatch: "Update required",
+            unavailable: "Unavailable",
+        };
+        return connection ? labels[connection] : "Loading";
     }
 </script>
 
@@ -79,7 +129,7 @@
         />
         <div>
             <h1 class="text-base font-semibold tracking-tight">Ascend ext</h1>
-            <p class="text-muted text-xs">Axiom current-tab foundation</p>
+            <p class="text-muted text-xs">Axiom current-tab auto-opening</p>
         </div>
     </header>
 
@@ -93,13 +143,43 @@
             </h2>
             <span
                 class="bg-surface-elevated text-muted rounded-full px-2 py-1 text-xs"
+                aria-live="polite"
             >
-                Not connected
+                {connectionLabel(snapshot?.bridge.connection)}
             </span>
         </div>
-        <p class="text-muted mt-2 text-xs leading-5">
-            Pairing becomes available with the secure desktop bridge.
-        </p>
+        {#if !snapshot || snapshot.bridge.connection === "unpaired" || snapshot.bridge.connection === "pairing_rejected"}
+            <form
+                class="mt-3 grid gap-2"
+                onsubmit={(event) => {
+                    event.preventDefault();
+                    void pair();
+                }}
+            >
+                <label class="text-muted text-xs" for="pairing-code"
+                    >Pairing code from Ascend</label
+                >
+                <input
+                    id="pairing-code"
+                    type="password"
+                    autocomplete="off"
+                    bind:value={pairingCode}
+                    class="border-border bg-surface-elevated focus-visible:outline-accent-blue min-h-10 rounded-lg border px-3 text-xs focus-visible:outline-2"
+                />
+                <button
+                    type="submit"
+                    disabled={busy || pairingCode.trim().length !== 43}
+                    class="focus-visible:outline-accent-blue min-h-10 rounded-lg border border-blue-400/30 bg-blue-500/15 text-xs font-semibold text-blue-100 focus-visible:outline-2 disabled:opacity-45"
+                    >Pair extension</button
+                >
+            </form>
+        {:else if snapshot.bridge.connection !== "connected"}
+            <button
+                type="button"
+                class="border-border focus-visible:outline-accent-blue mt-3 min-h-10 w-full rounded-lg border text-xs focus-visible:outline-2"
+                onclick={() => void retry()}>Retry connection</button
+            >
+        {/if}
     </section>
 
     <section
@@ -113,7 +193,6 @@
         >
             {targetLabel()}
         </p>
-
         <button
             type="button"
             class="from-accent-blue to-accent-purple focus-visible:outline-accent-blue mt-3 min-h-11 w-full rounded-lg bg-gradient-to-r px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none"
@@ -126,8 +205,7 @@
                   ? "Stop auto-opening"
                   : "Start auto-opening here"}
         </button>
-
-        {#if snapshot && !targetRunning() && !canStart()}
+        {#if snapshot && !targetRunning() && snapshot.activePage.kind !== "axiom"}
             <p class="text-muted mt-2 text-xs leading-5">
                 Open <span class="text-foreground">https://axiom.trade</span> in this
                 tab to select it.
@@ -144,10 +222,17 @@
     >
         <summary
             class="text-muted focus-visible:outline-accent-blue cursor-pointer select-none focus-visible:outline-2 focus-visible:outline-offset-2"
+            >Diagnostics</summary
         >
-            Diagnostics
-        </summary>
         <dl class="text-muted mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+            <dt>Connection</dt>
+            <dd class="text-foreground text-right">
+                {snapshot?.bridge.connection ?? "unknown"}
+            </dd>
+            <dt>Mode</dt>
+            <dd class="text-foreground text-right">
+                {snapshot?.bridge.mode ?? "unknown"}
+            </dd>
             <dt>Page</dt>
             <dd class="text-foreground text-right">
                 {snapshot?.activePage.kind ?? "unknown"}
