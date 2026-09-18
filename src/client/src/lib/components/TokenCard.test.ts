@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { fireEvent, render, screen } from "@testing-library/svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,9 +12,14 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
     openUrl: vi.fn(() => Promise.resolve()),
 }));
 
+vi.mock("@tauri-apps/api/core", () => ({
+    invoke: vi.fn(() => Promise.resolve()),
+}));
+
 describe("TokenCard", () => {
     beforeEach(() => {
         vi.mocked(openUrl).mockClear();
+        vi.mocked(invoke).mockClear();
         filtersStore.updateFilters(DEFAULT_FILTERS);
     });
 
@@ -109,6 +115,42 @@ describe("TokenCard", () => {
         await fireEvent.click(adminLink);
 
         expect(openUrl).toHaveBeenCalledWith("https://x.com/Eustazzeus");
+    });
+
+    it("opens current and previous token cards in the selected Axiom tab", async () => {
+        filtersStore.autoOpenMode = "current_axiom_tab";
+        render(TokenCard, {
+            feed: createTokenFeed({
+                last_deployed_tokens: [createLastDeployedToken()],
+            }),
+        });
+
+        await fireEvent.click(
+            screen.getByRole("button", {
+                name: "Open Example Token in AXIOM",
+            }),
+        );
+        await fireEvent.click(
+            screen.getByRole("button", {
+                name: "Open Last Token in AXIOM",
+            }),
+        );
+
+        expect(openUrl).not.toHaveBeenCalled();
+        expect(invoke).toHaveBeenNthCalledWith(
+            1,
+            "send_extension_navigation",
+            expect.objectContaining({
+                url: "https://axiom.trade/meme/pair?chain=sol",
+            }),
+        );
+        expect(invoke).toHaveBeenNthCalledWith(
+            2,
+            "send_extension_navigation",
+            expect.objectContaining({
+                url: "https://axiom.trade/meme/last-pair?chain=sol",
+            }),
+        );
     });
 
     it("hides an invalid developer X nickname", () => {

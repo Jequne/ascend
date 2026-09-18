@@ -1,20 +1,22 @@
 <script lang="ts">
     import SocialLinks from "$lib/components/token-card/SocialLinks.svelte";
-    import { openExternalUrl } from "$lib/services/opener";
+    import { tokenNavigationService } from "$lib/services/tokenNavigation";
     import {
         filtersStore,
         migratedHighlightStore,
     } from "$lib/stores/filters.svelte";
     import type { LastDeployedToken } from "$lib/types";
-    import { buildTerminalUrl } from "$lib/utils/tokenLinks";
     import { formatCompactNumber, timeAgo } from "$lib/utils/tokenDisplay";
     import { ChartNoAxesCombined, Clock3, Zap } from "@lucide/svelte";
 
     export let tokens: LastDeployedToken[];
 
     function openTerminal(token: LastDeployedToken): void {
-        const url = buildTerminalUrl(token, filtersStore.terminal);
-        if (url) openExternalUrl(url);
+        tokenNavigationService.open(
+            token,
+            filtersStore.terminal,
+            filtersStore.autoOpenMode,
+        );
     }
 
     function handleClick(event: MouseEvent, token: LastDeployedToken): void {

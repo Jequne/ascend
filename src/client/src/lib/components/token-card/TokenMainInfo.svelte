@@ -5,16 +5,20 @@
     import { filtersStore } from "$lib/stores/filters.svelte";
     import type { TokenFeed } from "$lib/types";
     import { openExternalUrl } from "$lib/services/opener";
+    import { tokenNavigationService } from "$lib/services/tokenNavigation";
     import { resolveTokenImageUrl } from "$lib/utils/tokenImage";
-    import { buildTerminalUrl, buildXProfileUrl } from "$lib/utils/tokenLinks";
+    import { buildXProfileUrl } from "$lib/utils/tokenLinks";
 
     export let feed: TokenFeed;
 
     $: tokenImageUrl = resolveTokenImageUrl(feed);
 
     function openTerminal(): void {
-        const url = buildTerminalUrl(feed, filtersStore.terminal);
-        if (url) openExternalUrl(url);
+        tokenNavigationService.open(
+            feed,
+            filtersStore.terminal,
+            filtersStore.autoOpenMode,
+        );
     }
 
     function handleClick(event: MouseEvent): void {
