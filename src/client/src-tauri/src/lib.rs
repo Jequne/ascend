@@ -1,4 +1,5 @@
 mod bridge;
+mod extension_install;
 
 use bridge::BridgeState;
 use tauri::Manager;
@@ -20,6 +21,8 @@ pub fn run() {
             bridge::rotate_extension_pairing_code,
             bridge::set_extension_auto_open_mode,
             bridge::send_extension_navigation,
+            extension_install::prepare_extension_installation,
+            extension_install::open_extension_installation_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

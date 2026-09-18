@@ -15,6 +15,7 @@ src/extension/coverage/
 src/extension/e2e/.tmp/
 src/extension/playwright-report/
 src/extension/test-results/
+src/client/src-tauri/resources/extension/chrome-mv3/
 
 
 .DS_Store

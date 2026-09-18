@@ -12,7 +12,6 @@ type ResultRecord = {
 
 export class NavigationQueue {
     private active: QueueItem | null = null;
-    private pending: QueueItem | null = null;
     private readonly results = new Map<string, ResultRecord>();
     private readonly resultOrder: string[] = [];
 
@@ -45,36 +44,28 @@ export class NavigationQueue {
         };
         this.remember(command.commandId, record);
 
-        if (!this.active) {
-            this.active = item;
-            void this.runActive();
-            return resultPromise;
-        }
-
-        if (this.pending) {
-            this.pending.resolve({
-                commandId: this.pending.command.commandId,
+        if (this.active) {
+            this.active.resolve({
+                commandId: this.active.command.commandId,
                 status: "superseded",
             });
         }
-        this.pending = item;
+        this.active = item;
+        void this.run(item);
         return resultPromise;
     }
 
-    clearPending(errorCode: string): void {
-        if (!this.pending) return;
-        this.pending.resolve({
-            commandId: this.pending.command.commandId,
+    cancelActive(errorCode: string): void {
+        if (!this.active) return;
+        this.active.resolve({
+            commandId: this.active.command.commandId,
             status: "ignored",
             errorCode,
         });
-        this.pending = null;
+        this.active = null;
     }
 
-    private async runActive(): Promise<void> {
-        const item = this.active;
-        if (!item) return;
-
+    private async run(item: QueueItem): Promise<void> {
         let result: NavigationResult;
         try {
             result = await this.execute(item.command);
@@ -85,11 +76,10 @@ export class NavigationQueue {
                 errorCode: "navigation_failed",
             };
         }
-        item.resolve(result);
+        if (this.active !== item) return;
 
-        this.active = this.pending;
-        this.pending = null;
-        if (this.active) void this.runActive();
+        item.resolve(result);
+        this.active = null;
     }
 
     private remember(commandId: string, result: ResultRecord): void {

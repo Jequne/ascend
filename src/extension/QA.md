@@ -43,7 +43,7 @@ Unit and component coverage:
 - malformed internal messages and content-script responses;
 - target assignment, session restoration, target closure, and leaving Axiom;
 - popup start/stop eligibility, paused state, accessible text, and disabled state;
-- one active navigation, one pending slot, `latest wins`, command deduplication, pending cleanup, and recovery after failure;
+- immediate `latest wins` preemption, command deduplication, active-command cancellation, and recovery after failure;
 - already-open handling, cross-world message validation, confirmed SPA navigation, and rejection without reload side effects.
 
 Playwright runs the production unpacked extension in a persistent Chromium profile against a fixture served on the exact `https://axiom.trade` origin. Covered scenarios:
@@ -52,7 +52,7 @@ Playwright runs the production unpacked extension in a persistent Chromium profi
 - rejection of a lookalike origin;
 - `pushState` plus `popstate` navigation with the same document identity, no new tab, and no focus change;
 - target closure and `target_missing`;
-- burst commands with only the latest pending URL retained;
+- burst commands with the newest URL dispatched without waiting for an older render;
 - repeated `commandId` without repeated navigation;
 - already-open URL handling.
 
@@ -108,3 +108,62 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test          # 9 tests passed
 cargo check
 ```
+
+## Stage 3 — setup and reliability hardening
+
+Status: complete. On 2026-09-18 the project owner accepted the automated Chromium gate and explicitly waived the incomplete real-browser matrix as a completion blocker.
+
+Automated coverage added on 2026-09-18:
+
+- the Tauri build runs the production WXT build, copies it into an ignored resource staging directory, and includes that directory through `bundle.resources`;
+- Rust validates the bundled Manifest V3 name and version, rejects symlinks, copies the build into a versioned app-data directory, and exposes only the computed installation path to the frontend;
+- the setup dialog provides one Chrome/Edge/Brave flow, exact installation path copy/open actions, pairing-code reveal, confirmed rotation, clear connection status, and contextual recovery guidance without exposing secrets in diagnostics;
+- desktop surfaces occupied-port, pairing-rejected, unavailable, missing-target, and version-mismatch states;
+- popup distinguishes selected from actively running targets, reports reconnect attempts and version mismatch, and does not show a reconnecting target as running;
+- Playwright verifies wrong-secret rejection, version mismatch, reconnection without repeating pairing, mode/target resynchronization, target closure, leaving Axiom, burst commands, deduplication, and correlated bridge navigation results;
+- burst navigation preempts an unfinished render immediately, cancels the obsolete content-script observer, ignores stale loading indicators, and confirms that the newest token renders in under one second in the deterministic fixture;
+- the desktop settings header and footer remain fixed while one central region containing auto-open controls, tabs, and the active settings panel scrolls as a unit;
+- long utility-class attributes in the Stage 3 settings components are grouped into readable Svelte class arrays without changing the rendered classes;
+- client tests retain Axiom and GMGN `new_tab` routing through the existing system opener, current-tab routing through the bridge only, and manual-link behavior.
+
+Automated compatibility coverage uses the production Manifest V3 bundle in Playwright's current Chromium build with a persistent isolated profile. This is the repeatable regression gate for current and upcoming Chromium behavior. Chrome 137 removed command-line unpacked-extension loading, and Playwright has no first-class Brave channel, so installed Chrome and Brave cannot be represented honestly by the same unattended unpacked-extension job. The real-browser rows below remain release smoke checks rather than per-change development work.
+
+Completed automated checks:
+
+```text
+Client:
+npm run format:check
+npm run lint
+npm run check
+npm run test        # 74 tests passed
+npm run build
+
+Extension:
+npm run format:check
+npm run lint
+npm run check
+npm run test        # 65 tests passed
+npm run build
+npm run test:e2e    # 3 tests passed
+
+Rust and Tauri:
+cargo fmt --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test          # 11 tests passed
+cargo check
+npm run tauri -- build --debug --no-bundle
+```
+
+### Optional release smoke matrix
+
+The following checks require user-controlled installed browser profiles and an authenticated clean Axiom account. They were explicitly waived for Stage 3 completion and remain an optional release smoke matrix. Reported checks are recorded individually; no browser row is complete yet.
+
+| Browser | Install unpacked build | Pair    | Start/stop and reassign | Logout and target loss | Browser/client restart | Axiom/GMGN `new_tab` regression |
+| ------- | ---------------------- | ------- | ----------------------- | ---------------------- | ---------------------- | ------------------------------- |
+| Chrome  | Pending                | Pending | Pending                 | Pending                | Pending                | Pending                         |
+| Edge    | Pass                   | Pass    | Partial                 | Pending                | Pending                | Pending                         |
+| Brave   | Pending                | Pending | Pending                 | Pending                | Pending                | Pending                         |
+
+Do not record cookies, local storage, pairing codes, API keys, wallet details, or screenshots containing private account data while completing this matrix.
+
+Edge smoke check reported on 2026-09-18: unpacked installation, pairing, target selection, and current-tab navigation passed. Stop/reassign, logout, target loss, restart, and `new_tab` regressions remain pending, so the Edge row is not complete.

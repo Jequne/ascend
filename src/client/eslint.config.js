@@ -42,6 +42,7 @@ export default tseslint.config(
             "build/**",
             "node_modules/**",
             "src-tauri/gen/**",
+            "src-tauri/resources/extension/chrome-mv3/**",
             "src-tauri/target/**",
         ],
     },

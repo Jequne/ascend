@@ -97,7 +97,10 @@ describe("popup target controls", () => {
                 screen.getByRole("button", { name: "Stop auto-opening" }),
             ).toBeEnabled(),
         );
-        expect(screen.getByText("Selected: Axiom")).toBeVisible();
+        expect(screen.getByText("Running in: Axiom")).toBeVisible();
+        expect(
+            screen.getByText("Current-tab auto-opening is active."),
+        ).toBeVisible();
     });
 
     it("announces a paused target without relying on color", async () => {
@@ -117,6 +120,67 @@ describe("popup target controls", () => {
 
         expect(
             await screen.findByText("Paused: the selected tab was closed"),
+        ).toBeVisible();
+    });
+
+    it("does not report a selected target as running while reconnecting", async () => {
+        sendPopupRequest.mockResolvedValueOnce({
+            type: "popup_state",
+            state: {
+                activePage: { kind: "other" },
+                target: {
+                    kind: "running",
+                    tabId: 7,
+                    title: "Axiom",
+                    url: "https://axiom.trade/",
+                },
+                bridge: {
+                    connection: "reconnecting",
+                    mode: "current_axiom_tab",
+                    reconnectAttempt: 3,
+                },
+            },
+        });
+        render(App);
+
+        expect(
+            await screen.findByText(
+                "Paused: Axiom is selected while desktop reconnects",
+            ),
+        ).toBeVisible();
+        expect(
+            screen.getByText(
+                "Current-tab mode is paused until the connection and target are ready.",
+            ),
+        ).toBeVisible();
+        expect(screen.queryByText(/auto-opening is active/i)).toBeNull();
+    });
+
+    it("explains an incompatible client version", async () => {
+        sendPopupRequest.mockResolvedValueOnce({
+            type: "popup_state",
+            state: {
+                activePage: {
+                    kind: "axiom",
+                    tabId: 7,
+                    title: "Axiom",
+                    url: "https://axiom.trade/",
+                },
+                target: { kind: "idle" },
+                bridge: {
+                    connection: "version_mismatch",
+                    mode: "off",
+                    reconnectAttempt: 0,
+                },
+            },
+        });
+        render(App);
+
+        expect(await screen.findByText("Update required")).toBeVisible();
+        expect(
+            screen.getByText(
+                "Update Ascend or Ascend ext so their versions match.",
+            ),
         ).toBeVisible();
     });
 });

@@ -5,7 +5,10 @@
     "type": "module",
     "scripts": {
         "dev": "vite dev",
+        "dev:tauri": "npm run build:extension-resource && vite dev",
         "build": "vite build",
+        "build:tauri": "npm run build:extension-resource && vite build",
+        "build:extension-resource": "npm --prefix ../extension run build && node scripts/sync-extension-build.mjs",
         "preview": "vite preview",
         "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
         "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",

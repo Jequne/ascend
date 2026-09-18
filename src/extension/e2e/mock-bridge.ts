@@ -20,6 +20,7 @@ export class MockBridge {
     private readonly server: WebSocketServer;
     private socket: WebSocket | null = null;
     private mode: "off" | "current_axiom_tab" = "off";
+    private modeRequestCount = 0;
     private readonly pending = new Map<string, PendingNavigation>();
 
     private constructor(extensionId: string) {
@@ -64,6 +65,24 @@ export class MockBridge {
             }),
         );
         return result;
+    }
+
+    send(message: unknown): void {
+        if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+            throw new Error("mock_bridge_not_connected");
+        }
+        this.socket.send(JSON.stringify(message));
+    }
+
+    disconnect(code = 1012, reason = "test_disconnect"): void {
+        if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+            throw new Error("mock_bridge_not_connected");
+        }
+        this.socket.close(code, reason);
+    }
+
+    getModeRequestCount(): number {
+        return this.modeRequestCount;
     }
 
     async close(): Promise<void> {
@@ -120,6 +139,7 @@ export class MockBridge {
                 (message.mode === "off" || message.mode === "current_axiom_tab")
             ) {
                 this.mode = message.mode;
+                this.modeRequestCount += 1;
                 socket.send(
                     JSON.stringify({
                         type: "mode_result",
@@ -165,6 +185,7 @@ export class MockBridge {
         socket.on("close", () => {
             if (this.socket === socket) this.socket = null;
         });
+        socket.on("error", () => undefined);
     }
 }
 

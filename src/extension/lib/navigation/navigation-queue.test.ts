@@ -9,7 +9,7 @@ const ids = [
 ];
 
 describe("NavigationQueue", () => {
-    it("runs one command and keeps only the latest pending command", async () => {
+    it("starts the latest command immediately and supersedes every older command", async () => {
         const executions: Array<Deferred<NavigationResult>> = [];
         const execute = vi.fn((command: NavigateCommand) => {
             const deferred = createDeferred<NavigationResult>();
@@ -25,18 +25,21 @@ describe("NavigationQueue", () => {
         const second = queue.submit(command(ids[1]));
         const third = queue.submit(command(ids[2]));
 
+        await expect(first).resolves.toEqual({
+            commandId: ids[0],
+            status: "superseded",
+        });
         await expect(second).resolves.toEqual({
             commandId: ids[1],
             status: "superseded",
         });
-        expect(execute).toHaveBeenCalledTimes(1);
+        expect(execute).toHaveBeenCalledTimes(3);
+        expect(execute.mock.calls[2]?.[0].commandId).toBe(ids[2]);
 
         executions[0]?.resolve({ commandId: ids[0]!, status: "completed" });
-        await expect(first).resolves.toMatchObject({ status: "completed" });
-        await vi.waitFor(() => expect(execute).toHaveBeenCalledTimes(2));
-        expect(execute.mock.calls[1]?.[0].commandId).toBe(ids[2]);
+        executions[1]?.resolve({ commandId: ids[1]!, status: "completed" });
 
-        executions[1]?.resolve({ commandId: ids[2]!, status: "completed" });
+        executions[2]?.resolve({ commandId: ids[2]!, status: "completed" });
         await expect(third).resolves.toMatchObject({ status: "completed" });
     });
 
@@ -57,21 +60,19 @@ describe("NavigationQueue", () => {
         expect(execute).toHaveBeenCalledTimes(1);
     });
 
-    it("clears the pending slot without cancelling the active command", async () => {
+    it("cancels the latest command when navigation becomes unavailable", async () => {
         const deferred = createDeferred<NavigationResult>();
         const queue = new NavigationQueue(() => deferred.promise);
         const active = queue.submit(command(ids[0]));
-        const pending = queue.submit(command(ids[1]));
 
-        queue.clearPending("target_missing");
-        await expect(pending).resolves.toEqual({
-            commandId: ids[1],
+        queue.cancelActive("target_missing");
+        await expect(active).resolves.toEqual({
+            commandId: ids[0],
             status: "ignored",
             errorCode: "target_missing",
         });
 
         deferred.resolve({ commandId: ids[0]!, status: "completed" });
-        await expect(active).resolves.toMatchObject({ status: "completed" });
     });
 
     it("continues after an execution failure", async () => {

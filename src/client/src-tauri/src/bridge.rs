@@ -55,6 +55,7 @@ struct RuntimeState {
     connection: Option<ConnectionHandle>,
     target_selected: bool,
     pending_navigation_ids: HashSet<String>,
+    connection_error: Option<ConnectionError>,
 }
 
 struct ConnectionHandle {
@@ -77,6 +78,12 @@ enum ListenerStatus {
     Ready,
     PortInUse,
     Unavailable,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum ConnectionError {
+    PairingRejected,
+    VersionMismatch,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -233,6 +240,7 @@ impl BridgeState {
                     connection: None,
                     target_selected: false,
                     pending_navigation_ids: HashSet::new(),
+                    connection_error: None,
                 }),
                 next_connection_id: AtomicU64::new(1),
             }),
@@ -258,7 +266,11 @@ impl BridgeState {
             connection_status: if runtime.connection.is_some() {
                 "connected"
             } else {
-                "disconnected"
+                match runtime.connection_error {
+                    Some(ConnectionError::PairingRejected) => "pairing_rejected",
+                    Some(ConnectionError::VersionMismatch) => "version_mismatch",
+                    None => "disconnected",
+                }
             },
             target_status: if runtime.target_selected {
                 "selected"
@@ -336,14 +348,17 @@ impl BridgeState {
         };
 
         if protocol_version != PROTOCOL_VERSION {
+            self.set_connection_error(ConnectionError::VersionMismatch, &app);
             close_socket(&mut socket, 4002, "protocol_mismatch").await;
             return;
         }
         if !is_compatible_extension_version(&extension_version) {
+            self.set_connection_error(ConnectionError::VersionMismatch, &app);
             close_socket(&mut socket, 4003, "extension_version_mismatch").await;
             return;
         }
         if !self.matches_secret(&pairing_secret) {
+            self.set_connection_error(ConnectionError::PairingRejected, &app);
             close_socket(&mut socket, 4001, "pairing_rejected").await;
             return;
         }
@@ -357,6 +372,7 @@ impl BridgeState {
             let mut runtime = self.inner.runtime.lock().unwrap_or_else(|e| e.into_inner());
             runtime.target_selected = false;
             runtime.pending_navigation_ids.clear();
+            runtime.connection_error = None;
             runtime.connection.replace(ConnectionHandle {
                 id: connection_id,
                 sender,
@@ -540,6 +556,20 @@ impl BridgeState {
         }
     }
 
+    fn set_connection_error(&self, error: ConnectionError, app: &AppHandle) {
+        let mut runtime = self
+            .inner
+            .runtime
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if runtime.connection.is_some() {
+            return;
+        }
+        runtime.connection_error = Some(error);
+        drop(runtime);
+        self.emit_snapshot(app);
+    }
+
     fn set_mode(&self, mode: AutoOpenMode, app: &AppHandle) {
         let message = {
             let mut runtime = self.inner.runtime.lock().unwrap_or_else(|e| e.into_inner());
@@ -621,12 +651,11 @@ impl BridgeState {
             .unwrap_or_else(|e| e.into_inner())
             .connection
             .take();
-        self.inner
-            .runtime
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .pending_navigation_ids
-            .clear();
+        {
+            let mut runtime = self.inner.runtime.lock().unwrap_or_else(|e| e.into_inner());
+            runtime.pending_navigation_ids.clear();
+            runtime.connection_error = None;
+        }
         if let Some(connection) = connection {
             let _ = connection
                 .sender

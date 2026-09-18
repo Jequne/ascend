@@ -30,6 +30,8 @@ function createHarness() {
         getState: vi.fn(),
         getPairingCode: vi.fn(),
         rotatePairingCode: vi.fn(),
+        prepareInstallation: vi.fn(),
+        openInstallationFolder: vi.fn(),
         setMode: vi.fn(),
         navigate,
     };

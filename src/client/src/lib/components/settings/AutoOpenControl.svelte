@@ -2,7 +2,6 @@
     import ExtensionSetup from "$lib/components/settings/ExtensionSetup.svelte";
     import SwitchControl from "$lib/components/settings/SwitchControl.svelte";
     import TerminalSelector from "$lib/components/settings/TerminalSelector.svelte";
-    import { extensionBridgeStore } from "$lib/stores/extensionBridge.svelte";
     import type { AutoOpenMode, Terminal } from "$lib/types";
 
     export let mode: AutoOpenMode;
@@ -27,23 +26,19 @@
         },
         {
             value: "current_axiom_tab",
-            title: "Current Axiom tab",
+            title: "Current Tab",
             description:
-                "Axiom only — requires a paired extension and selected tab.",
+                "Axiom only for now — opens tokens in your selected Axiom tab.",
         },
     ];
 
-    function bridgeStatus(): string {
-        const state = extensionBridgeStore.state;
-        if (state.listenerStatus === "port_in_use")
-            return "Bridge unavailable — port in use";
-        if (state.listenerStatus === "unavailable") return "Bridge unavailable";
-        if (state.listenerStatus === "starting") return "Connecting";
-        if (state.connectionStatus !== "connected")
-            return "Not installed / not paired";
-        return state.targetStatus === "selected"
-            ? "Connected — target selected"
-            : "Connected — select an Axiom tab";
+    $: if (mode === "current_axiom_tab" && terminal === "gmgn") {
+        terminal = "axiom";
+    }
+
+    function selectMode(nextMode: AutoOpenMode): void {
+        mode = nextMode;
+        if (nextMode === "current_axiom_tab") terminal = "axiom";
     }
 
     function handleModeKeydown(event: KeyboardEvent, index: number): void {
@@ -65,7 +60,7 @@
         event.preventDefault();
         const nextMode = modes[nextIndex];
         if (!nextMode) return;
-        mode = nextMode.value;
+        selectMode(nextMode.value);
         const group = (event.currentTarget as HTMLElement).parentElement;
         group
             ?.querySelectorAll<HTMLButtonElement>('[role="radio"]')
@@ -79,24 +74,16 @@
 >
     <div class="mx-auto flex w-full max-w-[560px] flex-col gap-2">
         <div class="rounded-xl border border-white/[0.07] bg-white/[0.018] p-3">
-            <div class="flex items-center justify-between gap-3">
-                <div>
-                    <h3
-                        id="auto-open-title"
-                        class="text-foreground m-0 text-xs font-bold"
-                    >
-                        Auto-open accepted tokens
-                    </h3>
-                    <p
-                        class="text-muted mt-0.5 mb-0 text-[0.64rem] leading-snug"
-                    >
-                        Choose exactly one destination for accepted feed tokens.
-                    </p>
-                </div>
-                <span
-                    class="text-muted rounded-full border border-white/10 bg-white/[0.035] px-2 py-1 text-[0.6rem]"
-                    aria-live="polite">{bridgeStatus()}</span
+            <div>
+                <h3
+                    id="auto-open-title"
+                    class="text-foreground m-0 text-xs font-bold"
                 >
+                    Auto-open accepted tokens
+                </h3>
+                <p class="text-muted mt-0.5 mb-0 text-[0.64rem] leading-snug">
+                    Choose exactly one destination for accepted feed tokens.
+                </p>
             </div>
 
             <div
@@ -110,8 +97,15 @@
                         role="radio"
                         aria-checked={mode === option.value}
                         tabindex={mode === option.value ? 0 : -1}
-                        class={`focus-visible:ring-accent-blue min-h-11 rounded-lg border px-3 py-2 text-left transition-colors hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:outline-none ${mode === option.value ? "border-blue-400/45 bg-blue-500/10" : "border-white/[0.07] bg-white/[0.02]"}`}
-                        onclick={() => (mode = option.value)}
+                        class={[
+                            "focus-visible:ring-accent-blue min-h-11 rounded-lg border",
+                            "px-3 py-2 text-left transition-colors hover:bg-white/[0.05]",
+                            "focus-visible:ring-2 focus-visible:outline-none",
+                            mode === option.value
+                                ? "border-blue-400/45 bg-blue-500/10"
+                                : "border-white/[0.07] bg-white/[0.02]",
+                        ]}
+                        onclick={() => selectMode(option.value)}
                         onkeydown={(event) => handleModeKeydown(event, index)}
                     >
                         <span class="text-foreground block text-xs font-bold"
@@ -127,20 +121,38 @@
         </div>
 
         <div class="flex flex-col gap-1">
-            <span class="px-1 text-[0.62rem] font-semibold text-slate-400"
-                >Open manual links and new tabs with</span
-            >
-            <TerminalSelector bind:value={terminal} />
+            <span class="px-1 text-[0.62rem] font-semibold text-slate-400">
+                {mode === "current_axiom_tab"
+                    ? "Current Tab terminal"
+                    : "Open manual links and new tabs with"}
+            </span>
+            {#if mode === "current_axiom_tab"}
+                <p class="text-muted m-0 px-1 text-[0.6rem] leading-snug">
+                    Current Tab currently supports Axiom only. GMGN remains
+                    available in New tab mode.
+                </p>
+            {/if}
+            <TerminalSelector
+                bind:value={terminal}
+                gmgnDisabled={mode === "current_axiom_tab"}
+            ></TerminalSelector>
         </div>
 
         <ExtensionSetup />
 
         <div
-            class="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.018] px-3 py-2"
+            class={[
+                "flex items-center justify-between gap-3 rounded-xl border",
+                "border-white/[0.07] bg-white/[0.018] px-3 py-2",
+            ]}
         >
             <div class="flex min-w-0 items-center gap-2.5">
                 <span
-                    class="text-success border-success/25 bg-success/10 inline-flex size-6 shrink-0 items-center justify-center rounded-md border text-[0.68rem] font-black"
+                    class={[
+                        "text-success border-success/25 bg-success/10 inline-flex",
+                        "size-6 shrink-0 items-center justify-center rounded-md border",
+                        "text-[0.68rem] font-black",
+                    ]}
                     aria-hidden="true">M</span
                 >
                 <div class="min-w-0">

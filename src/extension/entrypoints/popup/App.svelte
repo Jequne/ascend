@@ -9,7 +9,11 @@
     let errorMessage = "";
     let pairingCode = "";
 
-    const targetRunning = () => snapshot?.target.kind === "running";
+    const targetSelected = () => snapshot?.target.kind === "running";
+    const targetRunning = () =>
+        targetSelected() &&
+        snapshot?.bridge.connection === "connected" &&
+        snapshot.bridge.mode === "current_axiom_tab";
     const canStart = () =>
         snapshot?.activePage.kind === "axiom" &&
         snapshot?.bridge.connection === "connected";
@@ -48,10 +52,14 @@
             if (response.type !== "action_result")
                 throw new Error("unexpected_response");
             snapshot = response.state;
-            if (!response.ok)
+            if (!response.ok) {
                 errorMessage =
-                    "Enter the 43-character pairing code from Ascend.";
-            else pairingCode = "";
+                    response.errorCode === "invalid_pairing_code"
+                        ? "Enter the 43-character pairing code from Ascend."
+                        : "Pairing was rejected. Check that Ascend is open and the code is current.";
+            } else {
+                pairingCode = "";
+            }
         } catch {
             errorMessage = "The pairing code could not be saved.";
         } finally {
@@ -60,8 +68,19 @@
     }
 
     async function retry(): Promise<void> {
-        const response = await sendPopupRequest({ type: "retry_bridge" });
-        if (response.type === "action_result") snapshot = response.state;
+        if (busy) return;
+        busy = true;
+        errorMessage = "";
+        try {
+            const response = await sendPopupRequest({ type: "retry_bridge" });
+            if (response.type !== "action_result")
+                throw new Error("unexpected_response");
+            snapshot = response.state;
+        } catch {
+            errorMessage = "The desktop connection could not be retried.";
+        } finally {
+            busy = false;
+        }
     }
 
     async function toggleTarget(): Promise<void> {
@@ -70,7 +89,7 @@
         errorMessage = "";
         try {
             const response = await sendPopupRequest({
-                type: targetRunning() ? "stop_target" : "start_target",
+                type: targetSelected() ? "stop_target" : "start_target",
             });
             if (response.type !== "action_result")
                 throw new Error("unexpected_response");
@@ -92,8 +111,11 @@
 
     function targetLabel(): string {
         if (!snapshot) return "Loading target state…";
-        if (snapshot.target.kind === "running")
-            return `Selected: ${snapshot.target.title}`;
+        if (snapshot.target.kind === "running") {
+            return targetRunning()
+                ? `Running in: ${snapshot.target.title}`
+                : `Paused: ${snapshot.target.title} is selected while desktop reconnects`;
+        }
         if (snapshot.target.kind === "paused") {
             return snapshot.target.reason === "target_closed"
                 ? "Paused: the selected tab was closed"
@@ -115,6 +137,19 @@
             unavailable: "Unavailable",
         };
         return connection ? labels[connection] : "Loading";
+    }
+
+    function modeDescription(): string {
+        if (!snapshot) return "Loading mode…";
+        if (snapshot.bridge.mode === "new_tab") {
+            return "Desktop is using the system new-tab opener.";
+        }
+        if (snapshot.bridge.mode === "current_axiom_tab") {
+            return targetRunning()
+                ? "Current-tab auto-opening is active."
+                : "Current-tab mode is paused until the connection and target are ready.";
+        }
+        return "Auto-opening is off.";
     }
 </script>
 
@@ -170,14 +205,21 @@
                     type="submit"
                     disabled={busy || pairingCode.trim().length !== 43}
                     class="focus-visible:outline-accent-blue min-h-10 rounded-lg border border-blue-400/30 bg-blue-500/15 text-xs font-semibold text-blue-100 focus-visible:outline-2 disabled:opacity-45"
-                    >Pair extension</button
+                    >{busy ? "Pairing…" : "Pair extension"}</button
                 >
             </form>
         {:else if snapshot.bridge.connection !== "connected"}
+            {#if snapshot.bridge.connection === "version_mismatch"}
+                <p class="text-danger mt-3 text-xs leading-5">
+                    Update Ascend or Ascend ext so their versions match.
+                </p>
+            {/if}
             <button
                 type="button"
-                class="border-border focus-visible:outline-accent-blue mt-3 min-h-10 w-full rounded-lg border text-xs focus-visible:outline-2"
-                onclick={() => void retry()}>Retry connection</button
+                disabled={busy}
+                class="border-border focus-visible:outline-accent-blue mt-3 min-h-10 w-full rounded-lg border text-xs focus-visible:outline-2 disabled:opacity-45"
+                onclick={() => void retry()}
+                >{busy ? "Retrying…" : "Retry connection"}</button
             >
         {/if}
     </section>
@@ -193,19 +235,22 @@
         >
             {targetLabel()}
         </p>
+        <p class="text-muted text-xs leading-5" aria-live="polite">
+            {modeDescription()}
+        </p>
         <button
             type="button"
             class="from-accent-blue to-accent-purple focus-visible:outline-accent-blue mt-3 min-h-11 w-full rounded-lg bg-gradient-to-r px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45 motion-reduce:transition-none"
-            disabled={busy || (!targetRunning() && !canStart())}
+            disabled={busy || (!targetSelected() && !canStart())}
             onclick={toggleTarget}
         >
             {busy
                 ? "Updating…"
-                : targetRunning()
+                : targetSelected()
                   ? "Stop auto-opening"
                   : "Start auto-opening here"}
         </button>
-        {#if snapshot && !targetRunning() && snapshot.activePage.kind !== "axiom"}
+        {#if snapshot && !targetSelected() && snapshot.activePage.kind !== "axiom"}
             <p class="text-muted mt-2 text-xs leading-5">
                 Open <span class="text-foreground">https://axiom.trade</span> in this
                 tab to select it.
@@ -240,6 +285,10 @@
             <dt>Target</dt>
             <dd class="text-foreground text-right">
                 {snapshot?.target.kind ?? "unknown"}
+            </dd>
+            <dt>Reconnect</dt>
+            <dd class="text-foreground text-right">
+                {snapshot?.bridge.reconnectAttempt ?? 0}
             </dd>
         </dl>
     </details>

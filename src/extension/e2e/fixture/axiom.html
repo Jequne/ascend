@@ -23,9 +23,10 @@
                 loading.setAttribute("aria-label", "Loading token");
                 document.body.append(loading);
 
-                const delay = token === "slow-pair" ? 350 : 0;
+                const delay = token === "slow-pair" ? 1500 : 0;
                 setTimeout(() => {
                     loading.remove();
+                    if (!location.pathname.endsWith(`/meme/${token}`)) return;
                     document.querySelector("#rendered-token").textContent =
                         token;
                     document.title = `${token} | Axiom SOL`;

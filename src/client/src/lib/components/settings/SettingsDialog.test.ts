@@ -19,6 +19,7 @@ import {
 } from "vitest";
 import { DEFAULT_FILTERS } from "$lib/config/constants";
 import { createSettingsExportPayload } from "$lib/config/settings";
+import { extensionBridgeService } from "$lib/services/extensionBridge";
 import { filtersStore } from "$lib/stores/filters.svelte";
 import TopPanel from "$lib/components/TopPanel.svelte";
 
@@ -82,10 +83,18 @@ describe("SettingsDialog", () => {
         const autoOpenNewTab = within(autoOpenGroup).getByRole("radio", {
             name: /New tab/,
         });
+        const autoOpenCurrentTab = within(autoOpenGroup).getByRole("radio", {
+            name: /Current Tab/,
+        });
         const migratedHighlight = within(dialog).getByRole("switch", {
             name: "Highlight migrated previous tokens",
         });
+        const scrollRegion = within(dialog).getByRole("region", {
+            name: "Settings content",
+        });
 
+        expect(scrollRegion).toHaveClass("overflow-y-auto");
+        expect(scrollRegion).toContainElement(autoOpenGroup);
         expect(autoOpenOff).toHaveFocus();
         expect(autoOpenOff).toHaveAttribute("aria-checked", "true");
         expect(migratedHighlight).toHaveAttribute("aria-checked", "true");
@@ -107,6 +116,15 @@ describe("SettingsDialog", () => {
         await user.keyboard("{ArrowLeft}");
         expect(axiom).toHaveAttribute("aria-checked", "true");
         await user.click(gmgn);
+        await user.click(autoOpenCurrentTab);
+        await tick();
+        expect(autoOpenCurrentTab).toHaveAttribute("aria-checked", "true");
+        expect(axiom).toHaveAttribute("aria-checked", "true");
+        expect(gmgn).toBeDisabled();
+        expect(gmgn).toHaveTextContent("Not yet supported in Current Tab");
+        expect(
+            within(dialog).queryByText("Not installed / not paired"),
+        ).toBeNull();
 
         const filtersTab = within(dialog).getByRole("tab", {
             name: /Filters/,
@@ -118,6 +136,10 @@ describe("SettingsDialog", () => {
             name: /Import \/ Export/,
         });
 
+        expect(scrollRegion).toContainElement(filtersTab);
+        expect(scrollRegion).toContainElement(
+            within(dialog).getByRole("tabpanel", { name: /Filters/ }),
+        );
         expect(filtersTab).toHaveAttribute("aria-selected", "true");
         await user.click(filtersTab);
         await user.keyboard("{ArrowRight}");
@@ -197,25 +219,105 @@ describe("SettingsDialog", () => {
     });
 
     it("opens extension setup separately and restores trigger focus", async () => {
+        vi.spyOn(
+            extensionBridgeService,
+            "prepareInstallation",
+        ).mockResolvedValue({
+            path: "C:\\Ascend\\ascend-ext-0.1.0",
+            version: "0.1.0",
+        });
         const { user, dialog } = await openSettings();
         const setupTrigger = within(dialog).getByRole("button", {
-            name: "Install / connect extension",
+            name: /Ascend ext/,
         });
 
         await user.click(setupTrigger);
         const setup = within(dialog).getByRole("dialog", {
-            name: "Connect Ascend ext",
+            name: "Set up Ascend ext",
         });
         expect(setup).toBeVisible();
         expect(
-            within(setup).getByRole("combobox", {
-                name: /Choose a browser/,
+            await within(setup).findByText("C:\\Ascend\\ascend-ext-0.1.0"),
+        ).toBeVisible();
+        expect(
+            within(setup).getByText(/One setup for Chrome, Edge, and Brave/),
+        ).toBeVisible();
+        expect(within(setup).queryByRole("combobox")).toBeNull();
+        expect(
+            within(setup).queryByRole("button", {
+                name: /troubleshooting/i,
+            }),
+        ).toBeNull();
+        expect(
+            within(setup).getByRole("button", {
+                name: "Open extension folder",
             }),
         ).toHaveFocus();
 
         await user.click(within(setup).getByRole("button", { name: "Close" }));
         expect(setup).not.toHaveAttribute("open");
         expect(setupTrigger).toHaveFocus();
+    });
+
+    it("prepares the extension folder and confirms pairing-code rotation", async () => {
+        const pairingCode = "a".repeat(43);
+        const nextPairingCode = "b".repeat(43);
+        const installation = {
+            path: "C:\\Ascend\\ascend-ext-0.1.0",
+            version: "0.1.0",
+        };
+        vi.spyOn(
+            extensionBridgeService,
+            "prepareInstallation",
+        ).mockResolvedValue(installation);
+        vi.spyOn(
+            extensionBridgeService,
+            "openInstallationFolder",
+        ).mockResolvedValue(installation);
+        vi.spyOn(extensionBridgeService, "getPairingCode").mockResolvedValue(
+            pairingCode,
+        );
+        const rotate = vi
+            .spyOn(extensionBridgeService, "rotatePairingCode")
+            .mockResolvedValue(nextPairingCode);
+        const { user, dialog } = await openSettings();
+
+        await user.click(
+            within(dialog).getByRole("button", {
+                name: /Ascend ext/,
+            }),
+        );
+        const setup = within(dialog).getByRole("dialog", {
+            name: "Set up Ascend ext",
+        });
+        await within(setup).findByText(installation.path);
+        await user.click(
+            within(setup).getByRole("button", { name: "Show pairing code" }),
+        );
+        expect(await within(setup).findByText(pairingCode)).toBeVisible();
+
+        await user.click(
+            within(setup).getByRole("button", {
+                name: "Reset pairing code",
+            }),
+        );
+        expect(rotate).not.toHaveBeenCalled();
+        await user.click(
+            within(setup).getByRole("button", {
+                name: "Confirm reset pairing code",
+            }),
+        );
+        expect(rotate).toHaveBeenCalledOnce();
+        expect(await within(setup).findByText(nextPairingCode)).toBeVisible();
+
+        await user.click(
+            within(setup).getByRole("button", {
+                name: "Open extension folder",
+            }),
+        );
+        expect(
+            extensionBridgeService.openInstallationFolder,
+        ).toHaveBeenCalledOnce();
     });
 
     it("updates the developer-holds track as the selected range changes", async () => {

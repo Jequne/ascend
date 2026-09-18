@@ -75,6 +75,15 @@ test("assigns one Axiom target and navigates without reload, a new tab, or focus
     expect(context.pages()).toHaveLength(pageCountBefore);
     expect(await getActiveTabId(extensionPage)).toBe(activeTabBefore);
 
+    mockBridge.disconnect();
+    await expect
+        .poll(async () => getBridgeConnection(extensionPage))
+        .toBe("reconnecting");
+    await expect
+        .poll(async () => getBridgeConnection(extensionPage))
+        .toBe("connected");
+    await expect.poll(() => mockBridge.getModeRequestCount()).toBe(2);
+
     await targetPage.close();
     await expect
         .poll(async () => {
@@ -97,10 +106,11 @@ test("assigns one Axiom target and navigates without reload, a new tab, or focus
     });
 });
 
-test("deduplicates commands and keeps only the latest pending token", async ({
+test("deduplicates commands and opens the latest token without waiting for an older render", async ({
     context,
     extensionId,
     installAxiomFixture,
+    mockBridge,
     pairExtension,
 }) => {
     await installAxiomFixture();
@@ -125,48 +135,65 @@ test("deduplicates commands and keeps only the latest pending token", async ({
     const activeTabBefore = await getActiveTabId(extensionPage);
     const pageCountBefore = context.pages().length;
 
-    const first = sendExtensionMessage(extensionPage, {
-        type: "navigate_target",
-        commandId: "123e4567-e89b-42d3-a456-426614174010",
-        url: "https://axiom.trade/meme/slow-pair?chain=sol",
-        issuedAt: "2026-09-17T12:01:00.000Z",
-    });
+    const burstStartedAt = performance.now();
+    const first = mockBridge.navigate(
+        "123e4567-e89b-42d3-a456-426614174010",
+        "https://axiom.trade/meme/slow-pair?chain=sol",
+        "2026-09-17T12:01:00.000Z",
+    );
     await delay(40);
-    const superseded = sendExtensionMessage(extensionPage, {
-        type: "navigate_target",
-        commandId: "123e4567-e89b-42d3-a456-426614174011",
-        url: "https://axiom.trade/meme/pair-two?chain=sol",
-        issuedAt: "2026-09-17T12:01:01.000Z",
-    });
+    const second = mockBridge.navigate(
+        "123e4567-e89b-42d3-a456-426614174011",
+        "https://axiom.trade/meme/pair-two?chain=sol",
+        "2026-09-17T12:01:01.000Z",
+    );
     await delay(20);
-    const latest = sendExtensionMessage(extensionPage, {
-        type: "navigate_target",
-        commandId: "123e4567-e89b-42d3-a456-426614174012",
-        url: "https://axiom.trade/meme/pair-three?chain=sol",
-        issuedAt: "2026-09-17T12:01:02.000Z",
-    });
+    const latest = mockBridge.navigate(
+        "123e4567-e89b-42d3-a456-426614174012",
+        "https://axiom.trade/meme/pair-three?chain=sol",
+        "2026-09-17T12:01:02.000Z",
+    );
 
     await expect(first).resolves.toMatchObject({
-        result: { status: "completed", method: "history" },
+        status: "superseded",
     });
-    await expect(superseded).resolves.toMatchObject({
-        result: { status: "superseded" },
-    });
+    const secondResult = await second;
+    expect(["completed", "superseded"]).toContain(secondResult.status);
+    await expect(targetPage).toHaveURL(
+        "https://axiom.trade/meme/pair-three?chain=sol",
+        { timeout: 1_000 },
+    );
+    await expect(targetPage.locator("#rendered-token")).toHaveText(
+        "pair-three",
+        { timeout: 1_000 },
+    );
+    await expect
+        .poll(async () => {
+            const response = await sendExtensionMessage(extensionPage, {
+                type: "get_popup_state",
+            });
+            return isPopupState(response)
+                ? response.state.target.kind
+                : "invalid";
+        })
+        .toBe("running");
     await expect(latest).resolves.toMatchObject({
-        result: { status: "completed", method: "history" },
+        status: "completed",
+        method: "history",
     });
+    expect(performance.now() - burstStartedAt).toBeLessThan(1_000);
     await expect(targetPage).toHaveURL(
         "https://axiom.trade/meme/pair-three?chain=sol",
     );
 
-    const duplicate = await sendExtensionMessage(extensionPage, {
-        type: "navigate_target",
-        commandId: "123e4567-e89b-42d3-a456-426614174012",
-        url: "https://axiom.trade/meme/must-not-open?chain=sol",
-        issuedAt: "2026-09-17T12:01:03.000Z",
-    });
+    const duplicate = await mockBridge.navigate(
+        "123e4567-e89b-42d3-a456-426614174012",
+        "https://axiom.trade/meme/must-not-open?chain=sol",
+        "2026-09-17T12:01:03.000Z",
+    );
     expect(duplicate).toMatchObject({
-        result: { status: "completed", method: "history" },
+        status: "completed",
+        method: "history",
     });
     await expect(targetPage).toHaveURL(
         "https://axiom.trade/meme/pair-three?chain=sol",
@@ -175,17 +202,55 @@ test("deduplicates commands and keeps only the latest pending token", async ({
         "pair-three",
     );
 
-    const alreadyOpen = await sendExtensionMessage(extensionPage, {
-        type: "navigate_target",
-        commandId: "123e4567-e89b-42d3-a456-426614174013",
-        url: "https://axiom.trade/meme/pair-three?chain=sol",
-        issuedAt: "2026-09-17T12:01:04.000Z",
-    });
+    const alreadyOpen = await mockBridge.navigate(
+        "123e4567-e89b-42d3-a456-426614174013",
+        "https://axiom.trade/meme/pair-three?chain=sol",
+        "2026-09-17T12:01:04.000Z",
+    );
     expect(alreadyOpen).toMatchObject({
-        result: { status: "ignored", errorCode: "already_open" },
+        status: "ignored",
+        errorCode: "already_open",
     });
     expect(context.pages()).toHaveLength(pageCountBefore);
     expect(await getActiveTabId(extensionPage)).toBe(activeTabBefore);
+
+    await targetPage.goto("about:blank");
+    await expect
+        .poll(async () => {
+            const response = await sendExtensionMessage(extensionPage, {
+                type: "get_popup_state",
+            });
+            return isPopupState(response)
+                ? response.state.target.kind
+                : "invalid";
+        })
+        .toBe("paused");
+});
+
+test("rejects a wrong pairing code and reports an incompatible version", async ({
+    context,
+    extensionId,
+    mockBridge,
+    pairExtension,
+}) => {
+    const extensionPage = await context.newPage();
+    await extensionPage.goto(`chrome-extension://${extensionId}/popup.html`);
+
+    const rejected = await sendExtensionMessage(extensionPage, {
+        type: "pair_bridge",
+        pairingCode: "x".repeat(43),
+    });
+    expect(rejected).toMatchObject({
+        type: "action_result",
+        ok: false,
+        errorCode: "pairing_failed",
+    });
+
+    await pairExtension(extensionPage);
+    mockBridge.disconnect(4003, "extension_version_mismatch");
+    await expect
+        .poll(async () => getBridgeConnection(extensionPage))
+        .toBe("version_mismatch");
 });
 
 async function sendExtensionMessage(
@@ -225,7 +290,11 @@ async function getActiveTabId(page: Page): Promise<number | undefined> {
 
 function isPopupState(value: unknown): value is {
     type: "popup_state";
-    state: { activePage: { kind: string }; target: { kind: string } };
+    state: {
+        activePage: { kind: string };
+        target: { kind: string };
+        bridge: { connection: string };
+    };
 } {
     return (
         typeof value === "object" &&
@@ -244,8 +313,22 @@ function isPopupState(value: unknown): value is {
         typeof value.state.target === "object" &&
         value.state.target !== null &&
         "kind" in value.state.target &&
-        typeof value.state.target.kind === "string"
+        typeof value.state.target.kind === "string" &&
+        "bridge" in value.state &&
+        typeof value.state.bridge === "object" &&
+        value.state.bridge !== null &&
+        "connection" in value.state.bridge &&
+        typeof value.state.bridge.connection === "string"
     );
+}
+
+async function getBridgeConnection(page: Page): Promise<string> {
+    const response = await sendExtensionMessage(page, {
+        type: "get_popup_state",
+    });
+    return isPopupState(response)
+        ? response.state.bridge.connection
+        : "invalid";
 }
 
 function isSuccessfulAction(value: unknown): boolean {

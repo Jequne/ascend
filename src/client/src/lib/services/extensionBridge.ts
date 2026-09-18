@@ -3,7 +3,13 @@ import type { AutoOpenMode } from "$lib/types";
 
 export type BridgeListenerStatus =
     "starting" | "ready" | "port_in_use" | "unavailable";
-export type BridgeConnectionStatus = "disconnected" | "connected";
+export type BridgeConnectionStatus =
+    "disconnected" | "connected" | "pairing_rejected" | "version_mismatch";
+
+export type ExtensionInstallationInfo = {
+    path: string;
+    version: string;
+};
 
 export type ExtensionBridgeState = {
     listenerStatus: BridgeListenerStatus;
@@ -16,6 +22,8 @@ export interface ExtensionBridgeService {
     getState(): Promise<ExtensionBridgeState>;
     getPairingCode(): Promise<string>;
     rotatePairingCode(): Promise<string>;
+    prepareInstallation(): Promise<ExtensionInstallationInfo>;
+    openInstallationFolder(): Promise<ExtensionInstallationInfo>;
     setMode(mode: AutoOpenMode): Promise<void>;
     navigate(command: {
         commandId: string;
@@ -38,6 +46,24 @@ class TauriExtensionBridgeService implements ExtensionBridgeService {
 
     rotatePairingCode(): Promise<string> {
         return invoke<string>("rotate_extension_pairing_code");
+    }
+
+    async prepareInstallation(): Promise<ExtensionInstallationInfo> {
+        const value: unknown = await invoke("prepare_extension_installation");
+        if (!isExtensionInstallationInfo(value)) {
+            throw new Error("invalid_extension_installation_info");
+        }
+        return value;
+    }
+
+    async openInstallationFolder(): Promise<ExtensionInstallationInfo> {
+        const value: unknown = await invoke(
+            "open_extension_installation_folder",
+        );
+        if (!isExtensionInstallationInfo(value)) {
+            throw new Error("invalid_extension_installation_info");
+        }
+        return value;
     }
 
     setMode(mode: AutoOpenMode): Promise<void> {
@@ -66,12 +92,29 @@ export function isExtensionBridgeState(
             state.listenerStatus === "port_in_use" ||
             state.listenerStatus === "unavailable") &&
         (state.connectionStatus === "disconnected" ||
-            state.connectionStatus === "connected") &&
+            state.connectionStatus === "connected" ||
+            state.connectionStatus === "pairing_rejected" ||
+            state.connectionStatus === "version_mismatch") &&
         (state.targetStatus === "selected" ||
             state.targetStatus === "missing") &&
         (state.mode === "off" ||
             state.mode === "new_tab" ||
             state.mode === "current_axiom_tab")
+    );
+}
+
+export function isExtensionInstallationInfo(
+    value: unknown,
+): value is ExtensionInstallationInfo {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+        return false;
+    }
+    const info = value as Record<string, unknown>;
+    return (
+        typeof info.path === "string" &&
+        info.path.length > 0 &&
+        typeof info.version === "string" &&
+        /^\d+\.\d+\.\d+$/.test(info.version)
     );
 }
 

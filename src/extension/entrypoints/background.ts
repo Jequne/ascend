@@ -64,15 +64,25 @@ export default defineBackground({
             },
             getExtensionVersion: () => browser.runtime.getManifest().version,
             onSnapshot: (snapshot) => {
+                const reconnected =
+                    snapshot.connection === "connected" &&
+                    bridgeSnapshot.connection !== "connected";
                 bridgeSnapshot = snapshot;
                 if (snapshot.connection !== "connected") {
-                    navigationQueue.clearPending("bridge_disconnected");
+                    navigationQueue.cancelActive("bridge_disconnected");
+                }
+                if (reconnected && snapshot.mode === "current_axiom_tab") {
+                    void initialized.then(async () => {
+                        if (targetTabs.getState().kind === "running") {
+                            await bridge.requestMode("current_axiom_tab");
+                        }
+                    });
                 }
                 if (
                     snapshot.connection === "connected" &&
                     snapshot.mode !== "current_axiom_tab"
                 ) {
-                    navigationQueue.clearPending("mode_off");
+                    navigationQueue.cancelActive("mode_off");
                     void initialized.then(() => targetTabs.stop());
                 }
             },
@@ -105,10 +115,18 @@ export default defineBackground({
                         }
                         if (request.type === "pair_bridge") {
                             const pairingCode = request.pairingCode.trim();
+                            if (!isPairingSecret(pairingCode)) {
+                                return {
+                                    type: "action_result",
+                                    ok: false,
+                                    errorCode: "invalid_pairing_code",
+                                    state: {
+                                        ...(await targetTabs.getPopupSnapshot()),
+                                        bridge: bridge.getSnapshot(),
+                                    },
+                                } satisfies InternalResponse;
+                            }
                             try {
-                                if (!isPairingSecret(pairingCode)) {
-                                    throw new Error("invalid_pairing_code");
-                                }
                                 await bridge.pair(pairingCode);
                                 await browser.storage.local.set({
                                     [PAIRING_SECRET_STORAGE_KEY]: pairingCode,
@@ -125,7 +143,7 @@ export default defineBackground({
                                 return {
                                     type: "action_result",
                                     ok: false,
-                                    errorCode: "invalid_pairing_code",
+                                    errorCode: "pairing_failed",
                                     state: {
                                         ...(await targetTabs.getPopupSnapshot()),
                                         bridge: bridge.getSnapshot(),
@@ -174,7 +192,7 @@ export default defineBackground({
                             } satisfies InternalResponse;
                         }
                         if (request.type === "stop_target") {
-                            navigationQueue.clearPending("mode_off");
+                            navigationQueue.cancelActive("mode_off");
                             const accepted = await bridge.requestMode("off");
                             const state = {
                                 ...(await targetTabs.stop()),
@@ -210,7 +228,7 @@ export default defineBackground({
         browser.tabs.onRemoved.addListener((tabId) => {
             void initialized.then(async () => {
                 if (await targetTabs.handleTabRemoved(tabId)) {
-                    navigationQueue.clearPending("target_missing");
+                    navigationQueue.cancelActive("target_missing");
                 }
             });
         });
@@ -231,7 +249,7 @@ export default defineBackground({
                 ) {
                     const state = targetTabs.getState();
                     if (state.kind !== "running") {
-                        navigationQueue.clearPending("target_missing");
+                        navigationQueue.cancelActive("target_missing");
                     }
                 }
             });
