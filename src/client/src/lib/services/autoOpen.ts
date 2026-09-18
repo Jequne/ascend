@@ -11,13 +11,6 @@ export interface AutoOpenDispatcher {
 }
 
 export class DefaultAutoOpenDispatcher implements AutoOpenDispatcher {
-    private readonly currentTabQueue: Array<{
-        commandId: string;
-        url: string;
-        issuedAt: string;
-    }> = [];
-    private currentTabDispatching = false;
-
     constructor(
         private readonly opener: UrlOpener = openerService,
         private readonly bridge: ExtensionBridgeService = extensionBridgeService,
@@ -35,37 +28,17 @@ export class DefaultAutoOpenDispatcher implements AutoOpenDispatcher {
 
         const url = buildAxiomTokenUrl(feed);
         if (!url) return;
-        this.currentTabQueue.push({
-            commandId: crypto.randomUUID(),
-            url,
-            issuedAt: new Date().toISOString(),
-        });
-        this.dispatchNextCurrentTab();
-    }
-
-    private dispatchNextCurrentTab(): void {
-        if (this.currentTabDispatching) return;
-        const command = this.currentTabQueue.shift();
-        if (!command) return;
-
-        this.currentTabDispatching = true;
-        let operation: Promise<void>;
         try {
-            operation = this.bridge.navigate(command);
+            this.run(
+                this.bridge.navigate({
+                    commandId: crypto.randomUUID(),
+                    url,
+                    issuedAt: new Date().toISOString(),
+                }),
+            );
         } catch (error: unknown) {
             console.error("Auto-open operation failed:", error);
-            this.currentTabDispatching = false;
-            this.dispatchNextCurrentTab();
-            return;
         }
-        operation
-            .catch((error: unknown) => {
-                console.error("Auto-open operation failed:", error);
-            })
-            .finally(() => {
-                this.currentTabDispatching = false;
-                this.dispatchNextCurrentTab();
-            });
     }
 
     private run(operation: Promise<void>): void {

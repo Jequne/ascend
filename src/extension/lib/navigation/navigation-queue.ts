@@ -11,8 +11,7 @@ type ResultRecord = {
 };
 
 export class NavigationQueue {
-    private active: QueueItem | null = null;
-    private readonly pending: QueueItem[] = [];
+    private readonly active = new Set<QueueItem>();
     private readonly results = new Map<string, ResultRecord>();
     private readonly resultOrder: string[] = [];
 
@@ -45,21 +44,14 @@ export class NavigationQueue {
         };
         this.remember(command.commandId, record);
 
-        if (!this.active) {
-            this.active = item;
-            void this.runActive();
-        } else {
-            this.pending.push(item);
-        }
+        this.active.add(item);
+        void this.run(item);
         return resultPromise;
     }
 
     cancelActive(errorCode: string): void {
-        const items = [
-            ...(this.active ? [this.active] : []),
-            ...this.pending.splice(0),
-        ];
-        this.active = null;
+        const items = [...this.active];
+        this.active.clear();
         for (const item of items) {
             item.resolve({
                 commandId: item.command.commandId,
@@ -69,10 +61,7 @@ export class NavigationQueue {
         }
     }
 
-    private async runActive(): Promise<void> {
-        const item = this.active;
-        if (!item) return;
-
+    private async run(item: QueueItem): Promise<void> {
         let result: NavigationResult;
         try {
             result = await this.execute(item.command);
@@ -83,11 +72,9 @@ export class NavigationQueue {
                 errorCode: "navigation_failed",
             };
         }
-        if (this.active !== item) return;
+        if (!this.active.delete(item)) return;
 
         item.resolve(result);
-        this.active = this.pending.shift() ?? null;
-        if (this.active) void this.runActive();
     }
 
     private remember(commandId: string, result: ResultRecord): void {

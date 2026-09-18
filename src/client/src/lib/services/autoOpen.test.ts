@@ -81,7 +81,7 @@ describe("DefaultAutoOpenDispatcher", () => {
         );
     });
 
-    it("dispatches every current-tab token in FIFO order", async () => {
+    it("dispatches every current-tab token without waiting for an earlier call", async () => {
         const first = createDeferred<void>();
         const second = createDeferred<void>();
         const { dispatcher, navigate } = createHarness();
@@ -98,20 +98,16 @@ describe("DefaultAutoOpenDispatcher", () => {
             createSnapshot("current_axiom_tab"),
         );
 
-        expect(navigate).toHaveBeenCalledOnce();
-        expect(navigate.mock.calls[0]?.[0].url).toContain("pair-one");
-
-        first.resolve();
-        await first.promise;
-        await Promise.resolve();
         expect(navigate).toHaveBeenCalledTimes(2);
+        expect(navigate.mock.calls[0]?.[0].url).toContain("pair-one");
         expect(navigate.mock.calls[1]?.[0].url).toContain("pair-two");
 
+        first.resolve();
         second.resolve();
-        await second.promise;
+        await Promise.all([first.promise, second.promise]);
     });
 
-    it("continues the queue without falling back when one bridge call rejects", async () => {
+    it("does not fall back or block later calls when one bridge call rejects", async () => {
         const { dispatcher, open, navigate } = createHarness();
         const consoleError = vi
             .spyOn(console, "error")
