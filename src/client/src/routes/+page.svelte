@@ -33,6 +33,8 @@
 <style>
     .container {
         width: 100%;
+        min-width: 0;
+        max-width: 100vw;
         min-height: 100vh;
         display: flex;
         justify-content: center;
@@ -51,9 +53,12 @@
 
     .dashboard {
         width: 100%;
+        min-width: 0;
+        max-width: 100vw;
         height: 100vh;
         display: flex;
         flex-direction: column;
         justify-content: flex-start;
+        overflow: hidden;
     }
 </style>

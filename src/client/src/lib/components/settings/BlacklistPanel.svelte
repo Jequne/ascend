@@ -296,14 +296,16 @@
                 </p>
             </div>
         </div>
-        <div class="mt-4 flex justify-end gap-2">
+        <div
+            class="mt-4 flex justify-end gap-2 max-[359px]:flex-col max-[359px]:items-stretch"
+        >
             <button
                 class={[
                     "inline-flex h-9 items-center justify-center rounded-lg border",
                     "border-white/10 bg-white/[0.04] px-3 text-xs font-semibold",
                     "text-slate-300 transition-colors hover:bg-white/[0.07]",
                     "focus-visible:ring-2 focus-visible:ring-slate-400",
-                    "focus-visible:outline-none",
+                    "focus-visible:outline-none max-[359px]:w-full",
                 ]}
                 type="button"
                 bind:this={keepValuesButton}
@@ -317,7 +319,7 @@
                     "border-red-400/30 bg-red-500/15 px-3 text-xs font-semibold",
                     "text-red-200 transition-colors hover:border-red-400/45",
                     "hover:bg-red-500/22 focus-visible:ring-2",
-                    "focus-visible:ring-red-400 focus-visible:outline-none",
+                    "focus-visible:ring-red-400 focus-visible:outline-none max-[359px]:w-full",
                 ]}
                 type="button"
                 onclick={clearEntries}

@@ -1,4 +1,4 @@
-import type { FilterSettings } from "$lib/types";
+import type { FilterSettings, NotificationSettings } from "$lib/types";
 
 export const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
@@ -20,3 +20,11 @@ export const DEFAULT_FILTERS = {
     autoOpenMode: "off",
     highlightMigratedTokens: true,
 } satisfies FilterSettings;
+
+export const DEFAULT_NOTIFICATIONS = {
+    enabled: true,
+    volume: 70,
+    source: "default",
+    customAudioId: null,
+    customAudioName: null,
+} satisfies NotificationSettings;

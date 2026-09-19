@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTokenFeed } from "$lib/components/tokenFeed.fixture";
 import { DEFAULT_FILTERS } from "$lib/config/constants";
 import type { AutoOpenDispatcher } from "$lib/services/autoOpen";
+import type { AudioNotificationPlayer } from "$lib/services/audioNotifications";
 import { filtersStore } from "$lib/stores/filters.svelte";
 import {
     WebSocketStore,
@@ -52,7 +53,12 @@ function tokenMessage(overrides: Partial<TokenFeedPayload> = {}): string {
     });
 }
 
-function createHarness(dispatcher: AutoOpenDispatcher): {
+function createHarness(
+    dispatcher: AutoOpenDispatcher,
+    notificationPlayer: AudioNotificationPlayer = {
+        play: vi.fn().mockResolvedValue(undefined),
+    },
+): {
     store: WebSocketStore;
     sockets: FakeWebSocket[];
 } {
@@ -63,7 +69,7 @@ function createHarness(dispatcher: AutoOpenDispatcher): {
         return socket as unknown as WebSocket;
     };
     return {
-        store: new WebSocketStore(dispatcher, factory),
+        store: new WebSocketStore(dispatcher, factory, notificationPlayer),
         sockets,
     };
 }
@@ -81,6 +87,38 @@ afterEach(() => {
 });
 
 describe("WebSocketStore realtime pipeline", () => {
+    it("notifies once only after a token passes filters", () => {
+        const dispatch = vi.fn<AutoOpenDispatcher["dispatch"]>();
+        const play = vi
+            .fn<AudioNotificationPlayer["play"]>()
+            .mockResolvedValue(undefined);
+        const { store, sockets } = createHarness({ dispatch }, { play });
+
+        store.connect();
+        sockets[0]?.open();
+        sockets[0]?.receive(
+            JSON.stringify({
+                type: "ping",
+                payload: { timestamp: new Date().toISOString() },
+            }),
+        );
+        sockets[0]?.receive(
+            JSON.stringify({ type: "sol_price", payload: 150 }),
+        );
+        sockets[0]?.receive(tokenMessage({ dev_holds_percent: null }));
+        expect(play).not.toHaveBeenCalled();
+
+        sockets[0]?.receive(tokenMessage());
+        expect(play).toHaveBeenCalledOnce();
+        expect(play).toHaveBeenCalledWith(
+            expect.objectContaining({ enabled: true, volume: 70 }),
+        );
+
+        store.clearTokens();
+        store.disconnect();
+        expect(play).toHaveBeenCalledOnce();
+    });
+
     it("parses once and invokes opener synchronously before updating accepted state", () => {
         let acceptedCountAtOpen = -1;
         let totalCountAtOpen = -1;

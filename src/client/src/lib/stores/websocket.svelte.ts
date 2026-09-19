@@ -4,7 +4,12 @@ import {
     autoOpenDispatcher,
     type AutoOpenDispatcher,
 } from "$lib/services/autoOpen";
+import {
+    audioNotificationService,
+    type AudioNotificationPlayer,
+} from "$lib/services/audioNotifications";
 import { filtersStore } from "$lib/stores/filters.svelte";
+import { notificationsStore } from "$lib/stores/notifications.svelte";
 import type { FilterSnapshot, TokenFeed } from "$lib/types";
 import { evaluateTokenFeed, prependRollingFeed } from "$lib/utils/feed";
 import { parseWebSocketMessage } from "$lib/utils/websocketMessage";
@@ -29,6 +34,7 @@ export class WebSocketStore {
         private readonly dispatcher: AutoOpenDispatcher = autoOpenDispatcher,
         private readonly createSocket: WebSocketFactory = (url) =>
             new WebSocket(url),
+        private readonly notificationPlayer: AudioNotificationPlayer = audioNotificationService,
     ) {}
 
     private openAcceptedFeed(feed: TokenFeed, snapshot: FilterSnapshot): void {
@@ -36,6 +42,18 @@ export class WebSocketStore {
             this.dispatcher.dispatch(feed, snapshot);
         } catch (error: unknown) {
             console.error("Failed to dispatch token URL:", error);
+        }
+    }
+
+    private notifyAcceptedFeed(): void {
+        try {
+            void this.notificationPlayer
+                .play(notificationsStore.settings)
+                .catch((error: unknown) => {
+                    console.warn("Failed to play token notification:", error);
+                });
+        } catch (error: unknown) {
+            console.warn("Failed to play token notification:", error);
         }
     }
 
@@ -69,6 +87,7 @@ export class WebSocketStore {
         this.tokenFeedTotalCount += 1;
         this.tokenFeedCount += 1;
         this.tokenFeeds = prependRollingFeed(this.tokenFeeds, decision.feed);
+        this.notifyAcceptedFeed();
     }
 
     connect = (): void => {

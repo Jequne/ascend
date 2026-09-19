@@ -46,5 +46,15 @@
         color: #64748b;
         font-size: 1rem;
         flex-grow: 1;
+        min-width: 0;
+        padding: 12px;
+        text-align: center;
+        overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 359px) {
+        .feed-container {
+            padding: 6px 4px;
+        }
     }
 </style>

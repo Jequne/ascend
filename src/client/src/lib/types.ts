@@ -2,6 +2,7 @@ export type Terminal = "axiom" | "gmgn";
 export type AutoOpenMode = "off" | "new_tab" | "current_axiom_tab";
 export type FeesMode = "avg" | "total" | "fixed";
 export type SettingsTab = "filters" | "labels" | "blacklist" | "transfer";
+export type NotificationSoundSource = "default" | "custom";
 
 export type DeveloperLabels = Record<string, string>;
 
@@ -79,9 +80,18 @@ export interface FilterSettings {
     highlightMigratedTokens: boolean;
 }
 
+export interface NotificationSettings {
+    enabled: boolean;
+    volume: number;
+    source: NotificationSoundSource;
+    customAudioId: string | null;
+    customAudioName: string | null;
+}
+
 export interface SettingsSections {
     filters: FilterSettings;
     developerLabels: DeveloperLabels;
+    notifications: NotificationSettings;
 }
 
 export interface SettingsEnvelopeV1 {
@@ -119,6 +129,13 @@ export interface SettingsEnvelopeV3 {
 export interface SettingsEnvelopeV4 {
     schema: "ascend_trenches.settings";
     schemaVersion: 4;
+    exportedAt: string;
+    settings: Omit<SettingsSections, "notifications">;
+}
+
+export interface SettingsEnvelopeV5 {
+    schema: "ascend_trenches.settings";
+    schemaVersion: 5;
     exportedAt: string;
     settings: SettingsSections;
 }

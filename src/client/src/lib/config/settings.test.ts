@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_FILTERS } from "$lib/config/constants";
+import { DEFAULT_FILTERS, DEFAULT_NOTIFICATIONS } from "$lib/config/constants";
 import {
     SETTINGS_EXPORT_SCHEMA,
     SETTINGS_EXPORT_SCHEMA_VERSION,
     createSettingsExportPayload,
     normalizeDeveloperLabels,
     normalizeFilters,
+    normalizeNotifications,
     parseSettingsImport,
 } from "$lib/config/settings";
 
@@ -20,6 +21,47 @@ const legacyFilters = {
 };
 
 describe("settings import compatibility", () => {
+    it("normalizes notification defaults and clamps volume", () => {
+        expect(normalizeNotifications()).toEqual(DEFAULT_NOTIFICATIONS);
+        expect(
+            normalizeNotifications({
+                enabled: false,
+                volume: 140.4,
+                source: "remote",
+            }),
+        ).toEqual({
+            enabled: false,
+            volume: 100,
+            source: "default",
+            customAudioId: null,
+            customAudioName: null,
+        });
+        expect(normalizeNotifications({ enabled: "yes", volume: -10 })).toEqual(
+            {
+                enabled: true,
+                volume: 0,
+                source: "default",
+                customAudioId: null,
+                customAudioName: null,
+            },
+        );
+        expect(
+            normalizeNotifications({
+                enabled: true,
+                volume: 55,
+                source: "custom",
+                customAudioId: "notification-custom-sound",
+                customAudioName: "C:\\unsafe\\\u0000tone.mp3",
+            }),
+        ).toEqual({
+            enabled: true,
+            volume: 55,
+            source: "custom",
+            customAudioId: "notification-custom-sound",
+            customAudioName: "tone.mp3",
+        });
+    });
+
     it("normalizes numeric bounds, modes, terminal, blacklist, and booleans", () => {
         expect(
             normalizeFilters({
@@ -61,7 +103,7 @@ describe("settings import compatibility", () => {
         ).toEqual({ WalletCase: "Reliable dev" });
     });
 
-    it("exports schema v4 with developer labels and without legacy fields", () => {
+    it("exports schema v5 metadata without binary or legacy fields", () => {
         const exported = createSettingsExportPayload({
             filters: {
                 ...DEFAULT_FILTERS,
@@ -71,13 +113,25 @@ describe("settings import compatibility", () => {
             developerLabels: {
                 "dev-wallet": "Reliable dev",
             },
+            notifications: {
+                ...DEFAULT_NOTIFICATIONS,
+                source: "custom",
+                customAudioId: "notification-custom-sound",
+                customAudioName: "tone.ogg",
+            },
         });
 
         expect(exported.schemaVersion).toBe(SETTINGS_EXPORT_SCHEMA_VERSION);
-        expect(exported.schemaVersion).toBe(4);
+        expect(exported.schemaVersion).toBe(5);
         expect(exported.settings.developerLabels).toEqual({
             "dev-wallet": "Reliable dev",
         });
+        expect(exported.settings.notifications).toMatchObject({
+            source: "custom",
+            customAudioId: "notification-custom-sound",
+            customAudioName: "tone.ogg",
+        });
+        expect(JSON.stringify(exported)).not.toContain("blob");
         expect(exported.settings.filters.autoOpenMode).toBe(
             "current_axiom_tab",
         );
@@ -100,6 +154,42 @@ describe("settings import compatibility", () => {
             },
         },
         {
+            name: "v3 envelope",
+            input: {
+                schema: SETTINGS_EXPORT_SCHEMA,
+                schemaVersion: 3,
+                exportedAt: "2026-08-11T00:00:00.000Z",
+                settings: {
+                    filters: {
+                        ...DEFAULT_FILTERS,
+                        minMigrationPercent: 42,
+                        autoOpenMode: "new_tab",
+                    },
+                },
+            },
+        },
+        {
+            name: "v4 envelope",
+            input: {
+                schema: SETTINGS_EXPORT_SCHEMA,
+                schemaVersion: 4,
+                exportedAt: "2026-08-11T00:00:00.000Z",
+                settings: {
+                    filters: {
+                        ...DEFAULT_FILTERS,
+                        minMigrationPercent: 42,
+                        autoOpenMode: "new_tab",
+                    },
+                    developerLabels: {},
+                    notifications: {
+                        source: "custom",
+                        customAudioId: "legacy-audio",
+                        customAudioName: "legacy.mp3",
+                    },
+                },
+            },
+        },
+        {
             name: "v1 envelope",
             input: {
                 schema: SETTINGS_EXPORT_SCHEMA,
@@ -114,6 +204,7 @@ describe("settings import compatibility", () => {
 
         expect(imported.filters.minMigrationPercent).toBe(42);
         expect(imported.filters.autoOpenMode).toBe("new_tab");
+        expect(imported.notifications).toEqual(DEFAULT_NOTIFICATIONS);
         expect(imported.filters).not.toHaveProperty("autoOpenInNewTab");
         expect(imported.filters).not.toHaveProperty("aggressiveAutoOpen");
     });
@@ -157,7 +248,7 @@ describe("settings import compatibility", () => {
         expect(() =>
             parseSettingsImport({
                 schema: SETTINGS_EXPORT_SCHEMA,
-                schemaVersion: 5,
+                schemaVersion: 6,
                 settings: { filters: DEFAULT_FILTERS },
             }),
         ).toThrow("Unsupported settings schema version.");

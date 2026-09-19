@@ -3,19 +3,30 @@
     import BlacklistPanel from "$lib/components/settings/BlacklistPanel.svelte";
     import DeveloperLabelsPanel from "$lib/components/settings/DeveloperLabelsPanel.svelte";
     import FiltersPanel from "$lib/components/settings/FiltersPanel.svelte";
+    import NotificationsPanel from "$lib/components/settings/NotificationsPanel.svelte";
     import SettingsTabs from "$lib/components/settings/SettingsTabs.svelte";
     import TransferPanel from "$lib/components/settings/TransferPanel.svelte";
-    import { DEFAULT_FILTERS } from "$lib/config/constants";
+    import {
+        DEFAULT_FILTERS,
+        DEFAULT_NOTIFICATIONS,
+    } from "$lib/config/constants";
     import {
         normalizeDeveloperLabels,
         normalizeFilters,
+        normalizeNotifications,
     } from "$lib/config/settings";
+    import {
+        audioNotificationService,
+        type PreparedNotificationAudio,
+    } from "$lib/services/audioNotifications";
     import { developerLabelsStore } from "$lib/stores/developerLabels.svelte";
     import { filtersStore } from "$lib/stores/filters.svelte";
+    import { notificationsStore } from "$lib/stores/notifications.svelte";
     import { extensionBridgeStore } from "$lib/stores/extensionBridge.svelte";
     import type {
         DeveloperLabels,
         FilterSettings,
+        NotificationSettings,
         SettingsTab,
     } from "$lib/types";
     import {
@@ -23,7 +34,7 @@
         normalizeBlacklistEntries,
     } from "$lib/utils/blacklist";
     import { X } from "@lucide/svelte";
-    import { tick } from "svelte";
+    import { afterUpdate, tick } from "svelte";
 
     export let open: boolean;
     export let trigger: HTMLButtonElement | null = null;
@@ -33,6 +44,15 @@
     let activeTab: SettingsTab = "filters";
     let draft: FilterSettings = normalizeFilters(DEFAULT_FILTERS);
     let developerLabelsDraft: DeveloperLabels = {};
+    let notificationsDraft: NotificationSettings = normalizeNotifications(
+        DEFAULT_NOTIFICATIONS,
+    );
+    let customAudioDraft: PreparedNotificationAudio | null = null;
+    let customAudioAvailable: boolean | null = null;
+    let notificationStorageError = "";
+    let isSaving = false;
+    let availabilityGeneration = 0;
+    let lastAvailabilityKey = "";
     let blacklistText = "";
 
     $: if (dialog && open && !wasOpen) {
@@ -40,6 +60,11 @@
         developerLabelsDraft = normalizeDeveloperLabels(
             developerLabelsStore.labels,
         );
+        notificationsDraft = normalizeNotifications(
+            notificationsStore.settings,
+        );
+        customAudioDraft = null;
+        notificationStorageError = "";
         blacklistText = blacklistEntriesToText(draft.blacklist);
         activeTab = "filters";
         wasOpen = true;
@@ -48,6 +73,14 @@
             dialog.querySelector<HTMLButtonElement>('[role="radio"]')?.focus();
         });
     }
+
+    afterUpdate(() => {
+        if (!open || !wasOpen) return;
+        const key = `${notificationsDraft.source}:${notificationsDraft.customAudioId ?? ""}`;
+        if (key === lastAvailabilityKey) return;
+        lastAvailabilityKey = key;
+        void refreshCustomAvailability();
+    });
 
     $: if (dialog && !open && wasOpen) {
         closeDialog();
@@ -58,6 +91,9 @@
     }
 
     function closeDialog(): void {
+        availabilityGeneration += 1;
+        lastAvailabilityKey = "";
+        audioNotificationService.stop();
         if (dialog.open) dialog.close();
         open = false;
         wasOpen = false;
@@ -68,14 +104,41 @@
         closeDialog();
     }
 
-    function save(): void {
-        filtersStore.updateFilters({
-            ...draft,
-            blacklist: normalizeBlacklistEntries(blacklistText),
-        });
-        developerLabelsStore.replace(developerLabelsDraft);
-        void extensionBridgeStore.setMode(draft.autoOpenMode);
-        closeDialog();
+    async function save(): Promise<void> {
+        if (isSaving) return;
+        isSaving = true;
+        notificationStorageError = "";
+        const normalizedNotifications =
+            normalizeNotifications(notificationsDraft);
+
+        try {
+            if (customAudioDraft) {
+                await audioNotificationService.saveCustom(customAudioDraft);
+            } else if (
+                normalizedNotifications.source === "default" &&
+                notificationsStore.settings.source === "custom"
+            ) {
+                await audioNotificationService.removeCustom(
+                    notificationsStore.settings.customAudioId,
+                );
+            }
+
+            filtersStore.updateFilters({
+                ...draft,
+                blacklist: normalizeBlacklistEntries(blacklistText),
+            });
+            developerLabelsStore.replace(developerLabelsDraft);
+            notificationsStore.replace(normalizedNotifications);
+            void extensionBridgeStore.setMode(draft.autoOpenMode);
+            closeDialog();
+        } catch (error: unknown) {
+            notificationStorageError =
+                error instanceof Error
+                    ? error.message
+                    : "Unable to save the custom audio file.";
+        } finally {
+            isSaving = false;
+        }
     }
 
     function handleCancel(event: Event): void {
@@ -88,9 +151,47 @@
     }
 
     function handleNativeClose(): void {
+        audioNotificationService.stop();
         open = false;
         wasOpen = false;
         restoreFocus();
+    }
+
+    function previewNotification(): void {
+        void audioNotificationService.preview(
+            normalizeNotifications(notificationsDraft),
+            customAudioDraft,
+        );
+    }
+
+    async function refreshCustomAvailability(): Promise<void> {
+        const generation = ++availabilityGeneration;
+        notificationStorageError = "";
+        if (notificationsDraft.source !== "custom") {
+            customAudioAvailable = null;
+            return;
+        }
+        if (customAudioDraft) {
+            customAudioAvailable = true;
+            return;
+        }
+
+        try {
+            const available = await audioNotificationService.hasCustom(
+                notificationsDraft.customAudioId,
+            );
+            if (generation === availabilityGeneration) {
+                customAudioAvailable = available;
+            }
+        } catch (error: unknown) {
+            if (generation === availabilityGeneration) {
+                customAudioAvailable = false;
+                notificationStorageError =
+                    error instanceof Error
+                        ? error.message
+                        : "Unable to read local audio storage.";
+            }
+        }
     }
 </script>
 
@@ -157,6 +258,14 @@
                 bind:highlightMigratedTokens={draft.highlightMigratedTokens}
             />
 
+            <NotificationsPanel
+                bind:settings={notificationsDraft}
+                bind:customDraft={customAudioDraft}
+                bind:customAvailable={customAudioAvailable}
+                storageError={notificationStorageError}
+                onPreview={previewNotification}
+            />
+
             <SettingsTabs {activeTab} onSelect={(tab) => (activeTab = tab)} />
 
             <div
@@ -204,6 +313,8 @@
                     bind:settings={draft}
                     bind:blacklistText
                     bind:developerLabels={developerLabelsDraft}
+                    bind:notifications={notificationsDraft}
+                    onImport={refreshCustomAvailability}
                 />
             </div>
         </div>
@@ -223,6 +334,7 @@
                     "focus-visible:ring-2 focus-visible:outline-none",
                 ]}
                 type="button"
+                disabled={isSaving}
                 onclick={cancel}
             >
                 Cancel
@@ -237,9 +349,10 @@
                     "focus-visible:ring-offset-1 focus-visible:outline-none",
                 ]}
                 type="button"
+                disabled={isSaving}
                 onclick={save}
             >
-                Save
+                {isSaving ? "Saving…" : "Save"}
             </button>
         </footer>
     </div>

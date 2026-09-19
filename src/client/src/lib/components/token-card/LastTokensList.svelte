@@ -92,10 +92,12 @@
                             class="flex w-full items-center gap-1.5 text-[0.85rem] leading-[1.2] font-medium"
                         >
                             <span
-                                class="text-muted shrink-0 rounded bg-white/[0.08] px-1 py-0.5 text-xs font-normal"
+                                class="text-muted max-w-[42%] shrink truncate rounded bg-white/[0.08] px-1 py-0.5 text-xs font-normal"
                                 >${token.token_ticker}</span
                             >
-                            <span class="truncate">{token.token_name}</span>
+                            <span class="min-w-0 truncate"
+                                >{token.token_name}</span
+                            >
                             {#if token.is_migrated}
                                 <span
                                     class="text-success border-success/30 bg-success/10 inline-flex size-6 shrink-0 items-center justify-center rounded-md border text-[0.7rem] leading-none font-black shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]"

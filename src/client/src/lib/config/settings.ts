@@ -1,10 +1,11 @@
-import { DEFAULT_FILTERS } from "$lib/config/constants";
+import { DEFAULT_FILTERS, DEFAULT_NOTIFICATIONS } from "$lib/config/constants";
 import type {
     AutoOpenMode,
     DeveloperLabels,
     FeesMode,
     FilterSettings,
-    SettingsEnvelopeV4,
+    NotificationSettings,
+    SettingsEnvelopeV5,
     SettingsSections,
     Terminal,
 } from "$lib/types";
@@ -12,7 +13,7 @@ import { normalizeBlacklistEntries } from "$lib/utils/blacklist";
 
 export const SETTINGS_STORAGE_KEY = "ascend_trenches.user_settings";
 export const SETTINGS_EXPORT_SCHEMA = "ascend_trenches.settings";
-export const SETTINGS_EXPORT_SCHEMA_VERSION = 4;
+export const SETTINGS_EXPORT_SCHEMA_VERSION = 5;
 export const SETTINGS_EXPORT_FILENAME = "ascend-trenches-settings.json";
 export const SETTINGS_IMPORT_MAX_BYTES = 1_000_000;
 
@@ -138,10 +139,56 @@ export function normalizeDeveloperLabels(value: unknown): DeveloperLabels {
     return labels;
 }
 
+export function normalizeNotifications(
+    value: unknown = {},
+): NotificationSettings {
+    const source = isPlainObject(value) ? value : {};
+
+    const customAudioId = normalizeCustomAudioId(source.customAudioId);
+    const customAudioName = normalizeCustomAudioName(source.customAudioName);
+    const usesCustomAudio = Boolean(
+        source.source === "custom" && customAudioId && customAudioName,
+    );
+
+    return {
+        enabled:
+            typeof source.enabled === "boolean"
+                ? source.enabled
+                : DEFAULT_NOTIFICATIONS.enabled,
+        volume: Math.round(
+            clampNumber(source.volume, 0, 100, DEFAULT_NOTIFICATIONS.volume),
+        ),
+        source: usesCustomAudio ? "custom" : "default",
+        customAudioId: usesCustomAudio ? customAudioId : null,
+        customAudioName: usesCustomAudio ? customAudioName : null,
+    };
+}
+
+function normalizeCustomAudioId(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+    const id = value.trim();
+    return /^[a-zA-Z0-9._-]{1,100}$/.test(id) ? id : null;
+}
+
+export function normalizeCustomAudioName(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+    const basename = value.split(/[\\/]/).at(-1) ?? "";
+    const safeName = [...basename]
+        .filter((character) => {
+            const code = character.charCodeAt(0);
+            return code > 31 && code !== 127;
+        })
+        .join("")
+        .trim()
+        .slice(0, 120);
+    return safeName || null;
+}
+
 export function cloneDefaultSettings(): SettingsSections {
     return {
         filters: normalizeFilters(DEFAULT_FILTERS),
         developerLabels: {},
+        notifications: normalizeNotifications(DEFAULT_NOTIFICATIONS),
     };
 }
 
@@ -184,12 +231,13 @@ export function normalizeSettingsSections(
     return {
         filters: normalizeFilters(sections.filters),
         developerLabels: normalizeDeveloperLabels(sections.developerLabels),
+        notifications: normalizeNotifications(sections.notifications),
     };
 }
 
 export function createSettingsExportPayload(
     sections: unknown,
-): SettingsEnvelopeV4 {
+): SettingsEnvelopeV5 {
     return {
         schema: SETTINGS_EXPORT_SCHEMA,
         schemaVersion: SETTINGS_EXPORT_SCHEMA_VERSION,
@@ -215,10 +263,9 @@ export function parseSettingsImport(rawInput: unknown): SettingsSections {
 
     if (
         parsed.schemaVersion !== undefined &&
-        parsed.schemaVersion !== 1 &&
-        parsed.schemaVersion !== 2 &&
-        parsed.schemaVersion !== 3 &&
-        parsed.schemaVersion !== SETTINGS_EXPORT_SCHEMA_VERSION
+        ![1, 2, 3, 4, SETTINGS_EXPORT_SCHEMA_VERSION].includes(
+            parsed.schemaVersion as number,
+        )
     ) {
         throw new Error("Unsupported settings schema version.");
     }
@@ -235,7 +282,14 @@ export function parseSettingsImport(rawInput: unknown): SettingsSections {
         );
     }
 
-    return normalizeSettingsSections(parsed);
+    const sections = normalizeSettingsSections(parsed);
+    if (
+        typeof parsed.schemaVersion === "number" &&
+        parsed.schemaVersion < SETTINGS_EXPORT_SCHEMA_VERSION
+    ) {
+        sections.notifications = normalizeNotifications(DEFAULT_NOTIFICATIONS);
+    }
+    return sections;
 }
 
 export function readStoredSettings(): SettingsSections | null {

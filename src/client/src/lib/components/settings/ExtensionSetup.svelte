@@ -304,7 +304,7 @@
         <ol class="m-0 list-none space-y-2.5 p-0">
             <li class={stepClasses}>
                 <span class={stepNumberClasses} aria-hidden="true">1</span>
-                <div>
+                <div class="min-w-0">
                     <p class="m-0 text-xs font-semibold">
                         Open your browser's extensions page
                     </p>
@@ -444,7 +444,7 @@
 
             <li class={stepClasses}>
                 <span class={stepNumberClasses} aria-hidden="true">4</span>
-                <div>
+                <div class="min-w-0">
                     <p class="m-0 text-xs font-semibold">
                         Select your Axiom tab
                     </p>

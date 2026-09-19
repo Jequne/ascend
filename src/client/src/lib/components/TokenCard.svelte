@@ -14,8 +14,8 @@
 <article
     class={[
         "token-card focus-within:border-accent-purple/30 relative isolate",
-        "my-1 mr-2 ml-2 flex w-[calc(100%-16px)] max-w-full flex-col gap-1.5",
-        "rounded-xl border border-white/[0.075] px-2.5 py-1.5",
+        "my-1 mr-2 ml-2 flex w-[calc(100%-16px)] max-w-full min-w-0 flex-col gap-1.5",
+        "rounded-xl border border-white/[0.075] px-2.5 py-1.5 max-[359px]:mx-0 max-[359px]:w-full max-[359px]:px-1.5",
         "bg-[linear-gradient(145deg,rgba(35,38,50,0.97),rgba(23,24,33,0.98))]",
         "shadow-[0_8px_22px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.04)]",
         "transition-[border-color,box-shadow] duration-200 ease-out",

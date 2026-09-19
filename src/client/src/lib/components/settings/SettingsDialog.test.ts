@@ -17,11 +17,16 @@ import {
     it,
     vi,
 } from "vitest";
-import { DEFAULT_FILTERS } from "$lib/config/constants";
+import { DEFAULT_FILTERS, DEFAULT_NOTIFICATIONS } from "$lib/config/constants";
 import { createSettingsExportPayload } from "$lib/config/settings";
 import { extensionBridgeService } from "$lib/services/extensionBridge";
+import {
+    audioNotificationService,
+    type PreparedNotificationAudio,
+} from "$lib/services/audioNotifications";
 import { developerLabelsStore } from "$lib/stores/developerLabels.svelte";
 import { filtersStore } from "$lib/stores/filters.svelte";
+import { notificationsStore } from "$lib/stores/notifications.svelte";
 import TopPanel from "$lib/components/TopPanel.svelte";
 
 const originalShowModal = HTMLDialogElement.prototype.showModal;
@@ -45,6 +50,7 @@ afterAll(() => {
 beforeEach(() => {
     filtersStore.updateFilters(DEFAULT_FILTERS);
     developerLabelsStore.replace({});
+    notificationsStore.replace(DEFAULT_NOTIFICATIONS);
 });
 
 afterEach(() => {
@@ -74,6 +80,181 @@ async function openSettings(): Promise<{
 }
 
 describe("SettingsDialog", () => {
+    it("previews notification drafts and applies them only on Save", async () => {
+        const preview = vi
+            .spyOn(audioNotificationService, "preview")
+            .mockResolvedValue(undefined);
+        const first = await openSettings();
+        const firstVolume = within(first.dialog).getByLabelText(
+            "Notification volume",
+        ) as HTMLInputElement;
+
+        firstVolume.value = "35";
+        await fireEvent.input(firstVolume);
+        await first.user.click(
+            within(first.dialog).getByRole("button", { name: "Test sound" }),
+        );
+        expect(preview).toHaveBeenCalledWith(
+            {
+                enabled: true,
+                volume: 35,
+                source: "default",
+                customAudioId: null,
+                customAudioName: null,
+            },
+            null,
+        );
+        await first.user.click(
+            within(first.dialog).getByRole("button", { name: "Cancel" }),
+        );
+        expect(notificationsStore.volume).toBe(70);
+
+        await first.user.click(first.trigger);
+        await tick();
+        const secondDialog = screen.getByRole("dialog", { name: "Settings" });
+        const secondVolume = within(secondDialog).getByLabelText(
+            "Notification volume",
+        ) as HTMLInputElement;
+        secondVolume.value = "42";
+        await fireEvent.input(secondVolume);
+        await first.user.click(
+            within(secondDialog).getByRole("switch", {
+                name: "Enable sound notifications",
+            }),
+        );
+        await first.user.click(
+            within(secondDialog).getByRole("button", { name: "Save" }),
+        );
+
+        expect(notificationsStore.settings).toEqual({
+            enabled: false,
+            volume: 42,
+            source: "default",
+            customAudioId: null,
+            customAudioName: null,
+        });
+    });
+
+    it("keeps a selected custom file in draft until Save", async () => {
+        const prepared: PreparedNotificationAudio = {
+            id: "notification-custom-sound",
+            name: "tone.mp3",
+            type: "audio/mpeg",
+        };
+        const prepare = vi
+            .spyOn(audioNotificationService, "prepareFile")
+            .mockResolvedValue(prepared);
+        const saveCustom = vi
+            .spyOn(audioNotificationService, "saveCustom")
+            .mockResolvedValue(undefined);
+        const preview = vi
+            .spyOn(audioNotificationService, "preview")
+            .mockResolvedValue(undefined);
+        const { user, dialog, trigger } = await openSettings();
+        const file = new File(["audio"], "tone.mp3", {
+            type: "audio/mpeg",
+        });
+
+        await user.upload(
+            within(dialog).getByLabelText("Choose notification audio file"),
+            file,
+        );
+        expect(
+            await within(dialog).findByText(/Selected: tone.mp3/),
+        ).toBeVisible();
+        expect(prepare).toHaveBeenCalledWith(file);
+        await user.click(
+            within(dialog).getByRole("button", { name: "Test sound" }),
+        );
+        expect(preview).toHaveBeenCalledWith(
+            expect.objectContaining({ source: "custom" }),
+            prepared,
+        );
+        await user.click(
+            within(dialog).getByRole("button", { name: "Cancel" }),
+        );
+        expect(saveCustom).not.toHaveBeenCalled();
+        expect(notificationsStore.settings).toEqual(DEFAULT_NOTIFICATIONS);
+
+        await user.click(trigger);
+        const reopened = screen.getByRole("dialog", { name: "Settings" });
+        await user.upload(
+            within(reopened).getByLabelText("Choose notification audio file"),
+            file,
+        );
+        await user.click(
+            within(reopened).getByRole("button", { name: "Save" }),
+        );
+        expect(saveCustom).toHaveBeenCalledWith(prepared);
+        expect(notificationsStore.settings).toMatchObject({
+            source: "custom",
+            customAudioId: "notification-custom-sound",
+            customAudioName: "tone.mp3",
+        });
+    });
+
+    it("shows file and storage errors without replacing the active sound", async () => {
+        const prepare = vi
+            .spyOn(audioNotificationService, "prepareFile")
+            .mockRejectedValueOnce(new Error("The audio is not playable."))
+            .mockResolvedValue({
+                id: "notification-custom-sound",
+                name: "tone.ogg",
+                type: "audio/ogg",
+            });
+        vi.spyOn(audioNotificationService, "saveCustom").mockRejectedValue(
+            new Error("IndexedDB write failed."),
+        );
+        const { user, dialog } = await openSettings();
+        const input = within(dialog).getByLabelText(
+            "Choose notification audio file",
+        );
+
+        await user.upload(
+            input,
+            new File(["bad"], "bad.wav", { type: "audio/wav" }),
+        );
+        expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+            "not playable",
+        );
+        expect(notificationsStore.settings).toEqual(DEFAULT_NOTIFICATIONS);
+
+        await user.upload(
+            input,
+            new File(["audio"], "tone.ogg", { type: "audio/ogg" }),
+        );
+        await user.click(within(dialog).getByRole("button", { name: "Save" }));
+        expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+            "IndexedDB write failed",
+        );
+        expect(dialog).toHaveAttribute("open");
+        expect(notificationsStore.settings).toEqual(DEFAULT_NOTIFICATIONS);
+        expect(prepare).toHaveBeenCalledTimes(2);
+    });
+
+    it("removes the stored custom file only after saving Use default", async () => {
+        notificationsStore.replace({
+            ...DEFAULT_NOTIFICATIONS,
+            source: "custom",
+            customAudioId: "notification-custom-sound",
+            customAudioName: "old.wav",
+        });
+        vi.spyOn(audioNotificationService, "hasCustom").mockResolvedValue(true);
+        const remove = vi
+            .spyOn(audioNotificationService, "removeCustom")
+            .mockResolvedValue(undefined);
+        const { user, dialog } = await openSettings();
+
+        await user.click(
+            within(dialog).getByRole("button", { name: "Use default" }),
+        );
+        expect(remove).not.toHaveBeenCalled();
+        await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+        expect(remove).toHaveBeenCalledWith("notification-custom-sound");
+        expect(notificationsStore.settings).toEqual(DEFAULT_NOTIFICATIONS);
+    });
+
     it("supports dialog focus, switch, tab keyboard navigation, and Cancel", async () => {
         const { user, trigger, dialog } = await openSettings();
         const autoOpenGroup = within(dialog).getByRole("radiogroup", {
@@ -480,7 +661,7 @@ describe("SettingsDialog", () => {
             within(dialog).getByRole("button", { name: "Copy JSON" }),
         );
         expect(writeText).toHaveBeenCalledOnce();
-        expect(writeText.mock.calls[0]?.[0]).toContain('"schemaVersion": 4');
+        expect(writeText.mock.calls[0]?.[0]).toContain('"schemaVersion": 5');
 
         await user.click(
             within(dialog).getByRole("button", { name: "Download JSON" }),
@@ -523,7 +704,16 @@ describe("SettingsDialog", () => {
                 developerLabels: {
                     "uploaded-dev": "Imported label",
                 },
+                notifications: {
+                    ...DEFAULT_NOTIFICATIONS,
+                    source: "custom",
+                    customAudioId: "notification-custom-sound",
+                    customAudioName: "missing-device-sound.ogg",
+                },
             }),
+        );
+        vi.spyOn(audioNotificationService, "hasCustom").mockResolvedValue(
+            false,
         );
         const file = new File([uploadedPayload], "settings.json", {
             type: "application/json",
@@ -538,6 +728,9 @@ describe("SettingsDialog", () => {
         await screen.findByText(
             "Settings loaded into the draft. Press Save to apply them.",
         );
+        expect(
+            await within(dialog).findByText(/unavailable on this device/),
+        ).toBeVisible();
 
         await user.click(within(dialog).getByRole("button", { name: "Save" }));
         expect(filtersStore.minMigrationPercent).toBe(81);
@@ -545,5 +738,9 @@ describe("SettingsDialog", () => {
         expect(developerLabelsStore.getLabel("uploaded-dev")).toBe(
             "Imported label",
         );
+        expect(notificationsStore.settings).toMatchObject({
+            source: "custom",
+            customAudioName: "missing-device-sound.ogg",
+        });
     });
 });

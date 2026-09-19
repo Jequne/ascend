@@ -93,10 +93,10 @@
                         }}
                     >
                         <span
-                            class="text-muted shrink-0 rounded bg-white/[0.08] px-1 py-0.5 text-xs font-normal"
+                            class="text-muted max-w-[42%] shrink truncate rounded bg-white/[0.08] px-1 py-0.5 text-xs font-normal"
                             >${feed.token_ticker}</span
                         >
-                        <span class="truncate">{feed.token_name}</span>
+                        <span class="min-w-0 truncate">{feed.token_name}</span>
                     </button>
 
                     <DevBlacklistButton {feed} />
