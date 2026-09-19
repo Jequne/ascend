@@ -59,6 +59,7 @@ npm run tauri dev
 - [Аутентификация](docs/authentication.md)
 - [База данных](docs/database.md)
 - [Развертывание](docs/deployment.md)
+- [Технические задания](docs/tasks/README.md)
 - [Архитектурные решения](docs/adr/README.md)
 
 Документация написана на стандартном Markdown, использует относительные ссылки
