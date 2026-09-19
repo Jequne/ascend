@@ -54,6 +54,7 @@ npm run format:check
 npm run lint
 npm run check
 npm run test
+npm run version:check
 npm run build
 ```
 
@@ -81,9 +82,13 @@ npm run format:check
 npm run lint
 npm run check
 npm run test
+npm run version:check
 npm run build
 npm run test:e2e
 ```
+
+Правила повышения версий, component-specific Git-теги и порядок выпуска
+описаны в [документе версионирования](versioning.md).
 
 E2E-сценарии используют production bundle расширения и изолированный Chromium
 profile. Ручные проверки в установленном браузере описаны в

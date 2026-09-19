@@ -12,7 +12,7 @@ const COMPLETE_MARKER: &str = ".ascend-install-complete";
 #[serde(rename_all = "camelCase")]
 pub struct ExtensionInstallationInfo {
     path: String,
-    version: &'static str,
+    version: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -52,7 +52,7 @@ pub(crate) fn prepare_installation(
         .resource_dir()
         .map_err(|_| ExtensionInstallationError::new("resource_directory_unavailable"))?
         .join(RESOURCE_DIRECTORY);
-    validate_extension_bundle(&source)
+    let extension_version = validate_extension_bundle(&source)
         .map_err(|_| ExtensionInstallationError::new("extension_bundle_invalid"))?;
 
     let install_root = app
@@ -60,10 +60,10 @@ pub(crate) fn prepare_installation(
         .app_data_dir()
         .map_err(|_| ExtensionInstallationError::new("app_data_unavailable"))?
         .join(INSTALL_ROOT);
-    let destination = install_root.join(format!("ascend-ext-{}", env!("CARGO_PKG_VERSION")));
+    let destination = install_root.join(format!("ascend-ext-{extension_version}"));
     let marker = destination.join(COMPLETE_MARKER);
 
-    if !installation_is_current(&source, &destination, &marker) {
+    if !installation_is_current(&source, &destination, &marker, &extension_version) {
         if destination.exists() {
             fs::remove_dir_all(&destination)
                 .map_err(|_| ExtensionInstallationError::new("extension_copy_failed"))?;
@@ -72,19 +72,24 @@ pub(crate) fn prepare_installation(
             .map_err(|_| ExtensionInstallationError::new("extension_copy_failed"))?;
         copy_directory(&source, &destination)
             .map_err(|_| ExtensionInstallationError::new("extension_copy_failed"))?;
-        fs::write(&marker, env!("CARGO_PKG_VERSION"))
+        fs::write(&marker, &extension_version)
             .map_err(|_| ExtensionInstallationError::new("extension_copy_failed"))?;
     }
 
     Ok(ExtensionInstallationInfo {
         path: destination.to_string_lossy().into_owned(),
-        version: env!("CARGO_PKG_VERSION"),
+        version: extension_version,
     })
 }
 
-fn installation_is_current(source: &Path, destination: &Path, marker: &Path) -> bool {
+fn installation_is_current(
+    source: &Path,
+    destination: &Path,
+    marker: &Path,
+    extension_version: &str,
+) -> bool {
     marker.is_file()
-        && fs::read_to_string(marker).is_ok_and(|version| version == env!("CARGO_PKG_VERSION"))
+        && fs::read_to_string(marker).is_ok_and(|version| version == extension_version)
         && directories_match(source, destination, true).unwrap_or(false)
 }
 
@@ -131,24 +136,37 @@ fn directories_match(source: &Path, destination: &Path, is_root: bool) -> Result
     Ok(true)
 }
 
-fn validate_extension_bundle(path: &Path) -> Result<(), io::Error> {
+fn validate_extension_bundle(path: &Path) -> Result<String, io::Error> {
     let manifest_path = path.join("manifest.json");
     let manifest: serde_json::Value = serde_json::from_slice(&fs::read(manifest_path)?)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    let version = manifest
+        .get("version")
+        .and_then(serde_json::Value::as_str)
+        .filter(|version| is_semantic_version(version));
     if manifest
         .get("manifest_version")
         .and_then(serde_json::Value::as_u64)
         != Some(3)
         || manifest.get("name").and_then(serde_json::Value::as_str) != Some("Ascend ext")
-        || manifest.get("version").and_then(serde_json::Value::as_str)
-            != Some(env!("CARGO_PKG_VERSION"))
+        || version.is_none()
     {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
             "unexpected extension manifest",
         ));
     }
-    Ok(())
+    Ok(version.expect("version was validated").to_owned())
+}
+
+fn is_semantic_version(version: &str) -> bool {
+    let parts = version.split('.').collect::<Vec<_>>();
+    parts.len() == 3
+        && parts.iter().all(|part| {
+            !part.is_empty()
+                && part.chars().all(|character| character.is_ascii_digit())
+                && (part == &"0" || !part.starts_with('0'))
+        })
 }
 
 fn copy_directory(source: &Path, destination: &Path) -> Result<(), io::Error> {
@@ -198,15 +216,15 @@ mod tests {
         fs::create_dir_all(source.join("assets")).expect("create source");
         fs::write(
             source.join("manifest.json"),
-            format!(
-                r#"{{"manifest_version":3,"name":"Ascend ext","version":"{}"}}"#,
-                env!("CARGO_PKG_VERSION")
-            ),
+            r#"{"manifest_version":3,"name":"Ascend ext","version":"2.4.1"}"#,
         )
         .expect("write manifest");
         fs::write(source.join("assets/popup.js"), "content").expect("write asset");
 
-        validate_extension_bundle(&source).expect("valid manifest");
+        assert_eq!(
+            validate_extension_bundle(&source).expect("valid manifest"),
+            "2.4.1"
+        );
         copy_directory(&source, &destination).expect("copy bundle");
         assert_eq!(
             fs::read_to_string(destination.join("assets/popup.js")).expect("read asset"),
@@ -244,16 +262,31 @@ mod tests {
         fs::write(destination.join("assets/background.js"), "protocol 2")
             .expect("write destination");
         let marker = destination.join(COMPLETE_MARKER);
-        fs::write(&marker, env!("CARGO_PKG_VERSION")).expect("write marker");
+        fs::write(&marker, "2.4.1").expect("write marker");
 
-        assert!(!installation_is_current(&source, &destination, &marker));
+        assert!(!installation_is_current(
+            &source,
+            &destination,
+            &marker,
+            "2.4.1"
+        ));
 
         fs::write(destination.join("assets/background.js"), "protocol 1")
             .expect("refresh destination");
-        assert!(installation_is_current(&source, &destination, &marker));
+        assert!(installation_is_current(
+            &source,
+            &destination,
+            &marker,
+            "2.4.1"
+        ));
 
         fs::write(destination.join("stale.js"), "stale file").expect("write stale file");
-        assert!(!installation_is_current(&source, &destination, &marker));
+        assert!(!installation_is_current(
+            &source,
+            &destination,
+            &marker,
+            "2.4.1"
+        ));
         fs::remove_dir_all(root).expect("remove fixture");
     }
 }

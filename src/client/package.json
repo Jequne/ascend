@@ -16,6 +16,7 @@
         "format:check": "prettier --check .",
         "lint": "eslint .",
         "test": "vitest run",
+        "version:check": "node scripts/version.mjs",
         "tauri": "tauri"
     },
     "license": "MIT",

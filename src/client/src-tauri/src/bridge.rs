@@ -352,7 +352,7 @@ impl BridgeState {
             close_socket(&mut socket, 4002, "protocol_mismatch").await;
             return;
         }
-        if !is_compatible_extension_version(&extension_version) {
+        if !is_semantic_version(&extension_version) {
             self.set_connection_error(ConnectionError::VersionMismatch, &app);
             close_socket(&mut socket, 4003, "extension_version_mismatch").await;
             return;
@@ -773,12 +773,13 @@ async fn close_socket<S>(
     let _ = socket.close(None).await;
 }
 
-fn is_compatible_extension_version(version: &str) -> bool {
+fn is_semantic_version(version: &str) -> bool {
     let parts = version.split('.').collect::<Vec<_>>();
     parts.len() == 3
-        && parts[0] == env!("CARGO_PKG_VERSION_MAJOR")
         && parts.iter().all(|part| {
-            !part.is_empty() && part.chars().all(|character| character.is_ascii_digit())
+            !part.is_empty()
+                && part.chars().all(|character| character.is_ascii_digit())
+                && (part == &"0" || !part.starts_with('0'))
         })
 }
 
@@ -1061,12 +1062,13 @@ mod tests {
     }
 
     #[test]
-    fn extension_version_must_have_the_compatible_major() {
-        assert!(is_compatible_extension_version("0.1.0"));
-        assert!(!is_compatible_extension_version("1.0.0"));
-        assert!(!is_compatible_extension_version("invalid"));
-        assert!(!is_compatible_extension_version("0.1.0."));
-        assert!(!is_compatible_extension_version("0.1"));
+    fn extension_version_must_be_semantic() {
+        assert!(is_semantic_version("0.1.0"));
+        assert!(is_semantic_version("1.0.0"));
+        assert!(!is_semantic_version("invalid"));
+        assert!(!is_semantic_version("0.1.0."));
+        assert!(!is_semantic_version("0.1"));
+        assert!(!is_semantic_version("0.01.0"));
     }
 
     #[tokio::test]

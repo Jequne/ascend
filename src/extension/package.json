@@ -12,6 +12,7 @@
         "lint": "eslint .",
         "test": "vitest run",
         "test:e2e": "npm run build && playwright test",
+        "version:check": "node scripts/version.mjs",
         "postinstall": "wxt prepare"
     },
     "license": "MIT",
