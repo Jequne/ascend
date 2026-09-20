@@ -8,7 +8,7 @@ export const WS_BASE_URL =
 export const LAST_TOKEN_FEES_AGE_EXCLUSION_DAYS = 310;
 
 export const DEFAULT_FILTERS = {
-    minDevHoldsPercent: 0.1,
+    minDevHoldsPercent: 0,
     maxDevHoldsPercent: 100,
     minMigrationPercent: 10,
     feesMode: "avg",

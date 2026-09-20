@@ -128,4 +128,43 @@ describe("evaluateTokenFeed", () => {
             expect(decision.feed.indicators).toContain("last tokens");
         }
     });
+
+    it("accepts a zero-hold developer at the inclusive default boundary", () => {
+        const decision = evaluateTokenFeed(
+            createPayload({
+                dev_holds_percent: 0,
+                migrated_tokens_count: 29,
+                all_tokens_count: 113,
+                last_deployed_tokens: [
+                    createLastDeployedToken({
+                        token_ticker: "HARAMBE",
+                        total_pair_fees_paid: 11.843404087025,
+                    }),
+                    createLastDeployedToken({
+                        token_ticker: "4D",
+                        total_pair_fees_paid: 13.9822560376,
+                    }),
+                    createLastDeployedToken({
+                        token_ticker: "KHAT",
+                        total_pair_fees_paid: 8.292103633575,
+                    }),
+                ],
+            }),
+            createSnapshot({
+                minMigrationPercent: 25,
+                minLastTokenFees: 10,
+                feesMode: "avg",
+            }),
+            "screenshot-pair:0",
+        );
+
+        expect(decision).toMatchObject({
+            accepted: true,
+            reason: null,
+            feed: {
+                clientKey: "screenshot-pair:0",
+                dev_holds_percent: 0,
+            },
+        });
+    });
 });

@@ -511,9 +511,15 @@ describe("SettingsDialog", () => {
 
     it("updates the developer-holds track as the selected range changes", async () => {
         const { dialog } = await openSettings();
+        const minimum = within(dialog).getByLabelText(
+            "Minimum developer holds percent",
+        ) as HTMLInputElement;
         const maximum = within(dialog).getByLabelText(
             "Maximum developer holds percent",
         ) as HTMLInputElement;
+
+        expect(minimum).toHaveAttribute("min", "0");
+        expect(minimum).toHaveValue("0");
 
         maximum.value = "84.6";
         await fireEvent.input(maximum);
