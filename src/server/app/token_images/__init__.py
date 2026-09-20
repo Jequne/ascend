@@ -1,0 +1,1 @@
+"""Token image proxy boundary."""

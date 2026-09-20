@@ -197,6 +197,13 @@ describe("TokenCard", () => {
             "src",
             `https://axiomtrading.sfo3.cdn.digitaloceanspaces.com/${tokenAddress}.webp`,
         );
+
+        await fireEvent.error(image);
+
+        expect(image).toHaveAttribute(
+            "src",
+            `http://localhost:8000/api/v1/token-images/${tokenAddress}`,
+        );
     });
 
     it("uses the same Axiom CDN fallback for previous tokens", () => {

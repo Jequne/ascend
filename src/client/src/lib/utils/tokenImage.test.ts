@@ -28,6 +28,7 @@ describe("token image URL", () => {
         ).toEqual([
             "https://origin.example/token.webp",
             `https://axiomtrading.sfo3.cdn.digitaloceanspaces.com/${tokenAddress}.webp`,
+            `http://localhost:8000/api/v1/token-images/${tokenAddress}`,
         ]);
     });
 
@@ -63,6 +64,9 @@ describe("token image URL", () => {
                     token_image: imageUrl,
                 }),
             ),
-        ).toEqual([imageUrl]);
+        ).toEqual([
+            imageUrl,
+            `http://localhost:8000/api/v1/token-images/${tokenAddress}`,
+        ]);
     });
 });

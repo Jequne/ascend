@@ -18,6 +18,7 @@ from .services.ws_streaming.ping_broadcaster import ping_broadcaster
 from .services.ws_streaming.price_broadcaster import sol_price_broadcaster
 from .core.expired_access_keys_cleaner import clean_expired_access_keys
 from .core.axiom_client_provider import client_instance
+from .token_images.router import router as token_images_router
 
 
 
@@ -68,6 +69,7 @@ app.add_middleware(
 )
 
 app.include_router(api_v1_router, prefix="/api/v1")
+app.include_router(token_images_router, prefix="/api/v1")
 app.include_router(ws_router)
 
 
