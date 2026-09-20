@@ -13,7 +13,7 @@
     let sourceIndex = 0;
     let imageSource = activeSources[0] ?? "";
     let retryCount = 0;
-    let loaded = false;
+    let imageVisible = true;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
     function retrySource(source: string, attempt: number): string {
@@ -38,22 +38,23 @@
         sourceIndex = 0;
         imageSource = activeSources[0] ?? "";
         retryCount = 0;
-        loaded = false;
+        imageVisible = true;
     }
 
     function handleLoad(): void {
         clearRetry();
-        loaded = true;
+        imageVisible = true;
     }
 
     function handleError(): void {
-        loaded = false;
+        imageVisible = false;
         clearRetry();
 
         const nextSource = activeSources[sourceIndex + 1];
         if (nextSource !== undefined) {
             sourceIndex += 1;
             retryCount = 0;
+            imageVisible = true;
             imageSource = nextSource;
             return;
         }
@@ -65,6 +66,7 @@
 
         retryTimer = setTimeout(() => {
             retryCount += 1;
+            imageVisible = true;
             imageSource = retrySource(
                 activeSources[sourceIndex] ?? "",
                 retryCount,
@@ -83,7 +85,7 @@
 
 <img
     class={className}
-    class:opacity-0={!loaded}
+    class:opacity-0={!imageVisible}
     src={imageSource}
     {alt}
     onload={handleLoad}

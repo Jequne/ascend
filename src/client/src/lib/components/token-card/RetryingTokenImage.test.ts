@@ -20,7 +20,7 @@ describe("RetryingTokenImage", () => {
             "src",
             "https://cdn.example/token.png?size=64#image",
         );
-        expect(image).toHaveClass("opacity-0");
+        expect(image).not.toHaveClass("opacity-0");
 
         await fireEvent.error(image);
         await vi.advanceTimersByTimeAsync(1_000);
@@ -29,6 +29,7 @@ describe("RetryingTokenImage", () => {
             "src",
             "https://cdn.example/token.png?size=64&_ascend_retry=1#image",
         );
+        expect(image).not.toHaveClass("opacity-0");
 
         await fireEvent.error(image);
         await vi.advanceTimersByTimeAsync(2_000);
@@ -52,6 +53,21 @@ describe("RetryingTokenImage", () => {
             "src",
             "https://cdn.example/token.png?size=64&_ascend_retry=3#image",
         );
+    });
+
+    it("keeps a valid image visible without waiting for a load event", () => {
+        render(RetryingTokenImage, {
+            sources: ["https://cdn.example/cached-token.png"],
+            alt: "CACHED token",
+        });
+
+        const image = screen.getByRole("img", { name: "CACHED token" });
+
+        expect(image).toHaveAttribute(
+            "src",
+            "https://cdn.example/cached-token.png",
+        );
+        expect(image).not.toHaveClass("opacity-0");
     });
 
     it("reveals a successfully loaded image without scheduling retries", async () => {
@@ -103,6 +119,7 @@ describe("RetryingTokenImage", () => {
         await fireEvent.error(image);
 
         expect(image).toHaveAttribute("src", "https://cdn.example/token.webp");
+        expect(image).toHaveClass("opacity-0");
         expect(vi.getTimerCount()).toBe(0);
     });
 });
