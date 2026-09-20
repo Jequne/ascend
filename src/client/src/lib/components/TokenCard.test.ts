@@ -181,6 +181,43 @@ describe("TokenCard", () => {
         );
     });
 
+    it("falls back to the Axiom CDN when the supplied current-token image fails", async () => {
+        const tokenAddress = "9LoWfvBgTzwqAMzNeMRwVY8YFBY8hEZjyvo3Mvb8pump";
+        render(TokenCard, {
+            feed: createTokenFeed({
+                token_address: tokenAddress,
+                token_image: "https://origin.example/broken.webp",
+            }),
+        });
+
+        const image = screen.getByRole("img", { name: "EXM token" });
+        await fireEvent.error(image);
+
+        expect(image).toHaveAttribute(
+            "src",
+            `https://axiomtrading.sfo3.cdn.digitaloceanspaces.com/${tokenAddress}.webp`,
+        );
+    });
+
+    it("uses the same Axiom CDN fallback for previous tokens", () => {
+        const tokenAddress = "9LoWfvBgTzwqAMzNeMRwVY8YFBY8hEZjyvo3Mvb8pump";
+        render(TokenCard, {
+            feed: createTokenFeed({
+                last_deployed_tokens: [
+                    createLastDeployedToken({
+                        token_address: tokenAddress,
+                        token_image: null,
+                    }),
+                ],
+            }),
+        });
+
+        expect(screen.getByRole("img", { name: "LAST token" })).toHaveAttribute(
+            "src",
+            `https://axiomtrading.sfo3.cdn.digitaloceanspaces.com/${tokenAddress}.webp`,
+        );
+    });
+
     it("toggles the developer wallet blacklist", async () => {
         render(TokenCard, { feed: createTokenFeed() });
 

@@ -11,7 +11,7 @@ describe("RetryingTokenImage", () => {
     it("retries a fresh image with bounded cache-busting requests", async () => {
         vi.useFakeTimers();
         render(RetryingTokenImage, {
-            src: "https://cdn.example/token.png?size=64#image",
+            sources: ["https://cdn.example/token.png?size=64#image"],
             alt: "EXM token",
         });
 
@@ -57,7 +57,7 @@ describe("RetryingTokenImage", () => {
     it("reveals a successfully loaded image without scheduling retries", async () => {
         vi.useFakeTimers();
         render(RetryingTokenImage, {
-            src: "https://cdn.example/token.png",
+            sources: ["https://cdn.example/token.png"],
             alt: "EXM token",
         });
 
@@ -67,5 +67,42 @@ describe("RetryingTokenImage", () => {
 
         expect(image).not.toHaveClass("opacity-0");
         expect(image).toHaveAttribute("src", "https://cdn.example/token.png");
+    });
+
+    it("uses the next candidate immediately when the supplied image fails", async () => {
+        vi.useFakeTimers();
+        render(RetryingTokenImage, {
+            sources: [
+                "https://origin.example/token.png",
+                "https://cdn.example/token.webp",
+            ],
+            alt: "EXM token",
+        });
+
+        const image = screen.getByRole("img", { name: "EXM token" });
+        await fireEvent.error(image);
+        await tick();
+
+        expect(image).toHaveAttribute("src", "https://cdn.example/token.webp");
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("can disable retries after exhausting image candidates", async () => {
+        vi.useFakeTimers();
+        render(RetryingTokenImage, {
+            sources: [
+                "https://origin.example/token.png",
+                "https://cdn.example/token.webp",
+            ],
+            alt: "OLD token",
+            retryFinalSource: false,
+        });
+
+        const image = screen.getByRole("img", { name: "OLD token" });
+        await fireEvent.error(image);
+        await fireEvent.error(image);
+
+        expect(image).toHaveAttribute("src", "https://cdn.example/token.webp");
+        expect(vi.getTimerCount()).toBe(0);
     });
 });

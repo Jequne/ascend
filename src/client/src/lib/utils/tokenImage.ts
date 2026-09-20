@@ -1,25 +1,25 @@
-import type { TokenFeed } from "$lib/types";
-
-type ImageToken = Pick<
-    TokenFeed,
-    "blockchain" | "token_address" | "token_image"
->;
+interface ImageToken {
+    blockchain: string;
+    token_address: string;
+    token_image: string | null;
+}
 
 const SOLANA_ADDRESS_PATTERN = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const AXIOM_IMAGE_BASE_URL =
     "https://axiomtrading.sfo3.cdn.digitaloceanspaces.com";
 
-export function resolveTokenImageUrl(token: ImageToken): string | null {
+export function resolveTokenImageUrls(token: ImageToken): string[] {
+    const candidates: string[] = [];
     const suppliedImage = token.token_image?.trim();
-    if (suppliedImage) return suppliedImage;
+    if (suppliedImage) candidates.push(suppliedImage);
 
     const tokenAddress = token.token_address.trim();
     if (
-        token.blockchain !== "sol" ||
-        !SOLANA_ADDRESS_PATTERN.test(tokenAddress)
+        token.blockchain === "sol" &&
+        SOLANA_ADDRESS_PATTERN.test(tokenAddress)
     ) {
-        return null;
+        candidates.push(`${AXIOM_IMAGE_BASE_URL}/${tokenAddress}.webp`);
     }
 
-    return `${AXIOM_IMAGE_BASE_URL}/${tokenAddress}.webp`;
+    return [...new Set(candidates)];
 }

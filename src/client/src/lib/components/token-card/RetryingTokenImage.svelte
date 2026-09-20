@@ -1,14 +1,17 @@
 <script lang="ts">
     import { onDestroy } from "svelte";
 
-    export let src: string;
+    export let sources: readonly string[];
     export let alt: string;
     export let className = "";
+    export let retryFinalSource = true;
 
     const retryDelays = [1_000, 2_000, 4_000] as const;
 
-    let activeSource = src;
-    let imageSource = src;
+    let activeSources = [...sources];
+    let activeSignature = sources.join("\0");
+    let sourceIndex = 0;
+    let imageSource = activeSources[0] ?? "";
     let retryCount = 0;
     let loaded = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -28,10 +31,12 @@
         retryTimer = undefined;
     }
 
-    function reset(source: string): void {
+    function reset(nextSources: readonly string[], signature: string): void {
         clearRetry();
-        activeSource = source;
-        imageSource = source;
+        activeSources = [...nextSources];
+        activeSignature = signature;
+        sourceIndex = 0;
+        imageSource = activeSources[0] ?? "";
         retryCount = 0;
         loaded = false;
     }
@@ -45,17 +50,33 @@
         loaded = false;
         clearRetry();
 
+        const nextSource = activeSources[sourceIndex + 1];
+        if (nextSource !== undefined) {
+            sourceIndex += 1;
+            retryCount = 0;
+            imageSource = nextSource;
+            return;
+        }
+
+        if (!retryFinalSource) return;
+
         const delay = retryDelays[retryCount];
         if (delay === undefined) return;
 
         retryTimer = setTimeout(() => {
             retryCount += 1;
-            imageSource = retrySource(activeSource, retryCount);
+            imageSource = retrySource(
+                activeSources[sourceIndex] ?? "",
+                retryCount,
+            );
             retryTimer = undefined;
         }, delay);
     }
 
-    $: if (src !== activeSource) reset(src);
+    $: sourceSignature = sources.join("\0");
+    $: if (sourceSignature !== activeSignature) {
+        reset(sources, sourceSignature);
+    }
 
     onDestroy(clearRetry);
 </script>

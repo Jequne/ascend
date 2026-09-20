@@ -6,12 +6,12 @@
     import type { TokenFeed } from "$lib/types";
     import { openExternalUrl } from "$lib/services/opener";
     import { tokenNavigationService } from "$lib/services/tokenNavigation";
-    import { resolveTokenImageUrl } from "$lib/utils/tokenImage";
+    import { resolveTokenImageUrls } from "$lib/utils/tokenImage";
     import { buildXProfileUrl } from "$lib/utils/tokenLinks";
 
     export let feed: TokenFeed;
 
-    $: tokenImageUrl = resolveTokenImageUrl(feed);
+    $: tokenImageUrls = resolveTokenImageUrls(feed);
 
     function openTerminal(): void {
         tokenNavigationService.open(
@@ -70,10 +70,10 @@
             >
                 {feed.token_ticker?.substring(0, 2) || "?"}
             </div>
-            {#if tokenImageUrl}
+            {#if tokenImageUrls.length > 0}
                 <RetryingTokenImage
                     className="absolute inset-0 size-full object-cover"
-                    src={tokenImageUrl}
+                    sources={tokenImageUrls}
                     alt={`${feed.token_ticker} token`}
                 />
             {/if}

@@ -1,5 +1,6 @@
 <script lang="ts">
     import SocialLinks from "$lib/components/token-card/SocialLinks.svelte";
+    import RetryingTokenImage from "$lib/components/token-card/RetryingTokenImage.svelte";
     import { tokenNavigationService } from "$lib/services/tokenNavigation";
     import {
         filtersStore,
@@ -7,6 +8,7 @@
     } from "$lib/stores/filters.svelte";
     import type { LastDeployedToken } from "$lib/types";
     import { formatCompactNumber, timeAgo } from "$lib/utils/tokenDisplay";
+    import { resolveTokenImageUrls } from "$lib/utils/tokenImage";
     import { ChartNoAxesCombined, Clock3, Zap } from "@lucide/svelte";
 
     export let tokens: LastDeployedToken[];
@@ -38,12 +40,6 @@
         event.preventDefault();
         openTerminal(token);
     }
-
-    function hideBrokenImage(event: Event): void {
-        if (event.currentTarget instanceof HTMLImageElement) {
-            event.currentTarget.style.display = "none";
-        }
-    }
 </script>
 
 <section class="flex w-full flex-col" aria-labelledby="last-tokens-heading">
@@ -55,6 +51,7 @@
     </h4>
     <div class="flex flex-col gap-2">
         {#each tokens as token, index (`${token.token_address}:${index}`)}
+            {@const tokenImageUrls = resolveTokenImageUrls(token)}
             <div
                 class="hover:border-accent-purple/20 focus-visible:border-accent-purple/30 focus-visible:ring-accent-purple/60 flex cursor-pointer flex-wrap items-center justify-between gap-2 overflow-hidden rounded-lg border px-2 py-1.5 transition-[transform,border-color,box-shadow,background-color] duration-150 hover:-translate-y-px hover:shadow-[0_8px_18px_rgba(0,0,0,0.16)] focus-visible:-translate-y-px focus-visible:ring-1 focus-visible:outline-none motion-reduce:transform-none motion-reduce:transition-none {token.is_migrated &&
                 $migratedHighlightStore
@@ -77,12 +74,12 @@
                         >
                             {token.token_ticker?.substring(0, 2) || "?"}
                         </div>
-                        {#if token.token_image}
-                            <img
-                                class="absolute inset-0 size-full object-cover"
-                                src={token.token_image}
+                        {#if tokenImageUrls.length > 0}
+                            <RetryingTokenImage
+                                className="absolute inset-0 size-full object-cover"
+                                sources={tokenImageUrls}
                                 alt={`${token.token_ticker} token`}
-                                onerror={hideBrokenImage}
+                                retryFinalSource={false}
                             />
                         {/if}
                     </div>
