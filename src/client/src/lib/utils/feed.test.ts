@@ -110,6 +110,23 @@ describe("evaluateTokenFeed", () => {
         },
     );
 
+    it("rejects a new token when its ticker contains a blacklist fragment", () => {
+        const decision = evaluateTokenFeed(
+            createPayload({
+                token_name: "no buy",
+                token_ticker: "antisniper",
+            }),
+            createSnapshot({ blacklist: ["snipe"] }),
+            "screenshot-pair:0",
+        );
+
+        expect(decision).toEqual({
+            accepted: false,
+            feed: null,
+            reason: "blacklist",
+        });
+    });
+
     it("allows the last-token override and marks the resulting feed", () => {
         const decision = evaluateTokenFeed(
             createPayload({

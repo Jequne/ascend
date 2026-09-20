@@ -14,6 +14,12 @@ describe("blacklist normalization and matching", () => {
         ).toEqual(["Wallet-1", "Token Name", "Ticker"]);
     });
 
+    it("deduplicates apostrophe variants that have identical matching behavior", () => {
+        expect(normalizeBlacklistEntries(["don't", "dont", "DON’T"])).toEqual([
+            "don't",
+        ]);
+    });
+
     it.each([
         { field: "dev_wallet", value: "PREFIX-wallet-1-suffix" },
         { field: "token_name", value: "Example TOKEN name" },
@@ -29,6 +35,34 @@ describe("blacklist normalization and matching", () => {
 
         expect(
             tokenMatchesBlacklist({ [field]: `  ${value}  ` }, matcher),
+        ).toBe(true);
+    });
+
+    it.each([
+        { field: "token_ticker", value: "antisniper", entry: "snipe" },
+        {
+            field: "token_name",
+            value: "supermegasnipecvc",
+            entry: "snipe",
+        },
+        { field: "token_name", value: "DON'T BUY", entry: "dont" },
+        { field: "token_name", value: "dont buy", entry: "don't" },
+        { field: "token_name", value: "Don’t buy", entry: "DON'T" },
+    ])(
+        "matches the $entry fragment anywhere in $field",
+        ({ field, value, entry }) => {
+            expect(
+                tokenMatchesBlacklist(
+                    { [field]: value },
+                    createBlacklistMatcher([entry]),
+                ),
+            ).toBe(true);
+        },
+    );
+
+    it("normalizes text passed directly to the prepared matcher", () => {
+        expect(
+            createBlacklistMatcher(["snipe"])?.matchesText("AntiSniper"),
         ).toBe(true);
     });
 

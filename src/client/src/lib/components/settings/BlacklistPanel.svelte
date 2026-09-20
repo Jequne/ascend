@@ -83,8 +83,8 @@
                         Hidden values
                     </h3>
                     <p class="text-muted mt-1 mb-0 text-[0.64rem] leading-snug">
-                        Match developer wallets, token names, tickers, or admin
-                        nicknames.
+                        Match fragments anywhere in developer wallets, token
+                        names, tickers, or admin nicknames.
                     </p>
                 </div>
             </div>
@@ -123,8 +123,8 @@
 
             <div class="mt-2 flex items-center justify-between gap-3">
                 <p class="text-muted m-0 text-[0.6rem] leading-snug">
-                    Paste as many values as needed. Duplicates and empty lines
-                    are ignored.
+                    Matching ignores capitalization and apostrophes. Duplicates
+                    and empty lines are ignored.
                 </p>
                 <button
                     class={[

@@ -6,6 +6,16 @@ interface TrieNode {
     output: boolean;
 }
 
+const APOSTROPHE_PATTERN = /['‘’ʼ]/gu;
+
+function normalizeBlacklistSearchText(value: unknown): string {
+    return String(value ?? "")
+        .normalize("NFKC")
+        .trim()
+        .toLowerCase()
+        .replace(APOSTROPHE_PATTERN, "");
+}
+
 export function normalizeBlacklistEntries(value: unknown): string[] {
     const rawEntries = Array.isArray(value)
         ? value
@@ -19,7 +29,8 @@ export function normalizeBlacklistEntries(value: unknown): string[] {
         const normalizedEntry = String(entry ?? "").trim();
         if (!normalizedEntry) continue;
 
-        const dedupeKey = normalizedEntry.toLowerCase();
+        const dedupeKey = normalizeBlacklistSearchText(normalizedEntry);
+        if (!dedupeKey) continue;
         if (seen.has(dedupeKey)) continue;
 
         seen.add(dedupeKey);
@@ -45,7 +56,7 @@ export function createBlacklistMatcher(
     blacklistEntries: unknown = [],
 ): BlacklistMatcher | null {
     const normalizedEntries = normalizeBlacklistEntries(blacklistEntries).map(
-        (entry) => entry.toLowerCase(),
+        normalizeBlacklistSearchText,
     );
 
     if (!normalizedEntries.length) return null;
@@ -92,11 +103,12 @@ export function createBlacklistMatcher(
     }
 
     const matchesText = (text: string): boolean => {
-        if (!text) return false;
+        const normalizedText = normalizeBlacklistSearchText(text);
+        if (!normalizedText) return false;
 
         let node = root;
 
-        for (const character of text) {
+        for (const character of normalizedText) {
             while (node !== root && !node.children.has(character)) {
                 node = node.failure ?? root;
             }
@@ -116,12 +128,7 @@ export function createBlacklistMatcher(
             token.twitter_admin_nickname,
         ];
 
-        return fields.some((field) => {
-            const normalizedField = String(field ?? "")
-                .trim()
-                .toLowerCase();
-            return normalizedField ? matchesText(normalizedField) : false;
-        });
+        return fields.some((field) => matchesText(String(field ?? "")));
     };
 
     return {
