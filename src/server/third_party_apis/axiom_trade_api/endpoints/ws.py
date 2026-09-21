@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from typing import Any, Sequence
+from typing import Any, AsyncIterator, Sequence
 
 from curl_cffi import AsyncSession
 from curl_cffi.curl import CurlError
@@ -153,6 +153,16 @@ class AxiomTradeWebsocket:
         logger.info(
             "Disconnected from Axiom WebSocket"
         )
+
+    async def raw_messages(self) -> AsyncIterator[bytes]:
+        """Yield WebSocket payloads before JSON parsing and room validation."""
+        if not self._wsocket:
+            raise AxiomWebSocketNotConnectedError(
+                "Cannot receive messages without an active WebSocket connection"
+            )
+
+        async for message in self._wsocket:
+            yield message
 
     async def _messages_handler(self) -> None:
         if not self._wsocket:

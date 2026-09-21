@@ -35,6 +35,22 @@ python -m pytest -q
 добавлении этих инструментов их версии, конфигурация и команды должны быть
 зафиксированы в репозитории и в этом разделе.
 
+### Ручная проверка сырого Axiom WebSocket
+
+Из `src/server`, после настройки зависимостей и локального
+`axiom_users_fingerprints.json`, запустите:
+
+```powershell
+python -m third_party_apis.axiom_trade_api.tests.manual_wss_probe --rooms new_pairs sol_price
+```
+
+Доступные комнаты: `new_pairs`, `sol_price`, `migrations`. Если `--rooms` не указан,
+используется `new_pairs`. Скрипт подключается с первым настроенным агентом,
+подписывается на комнаты и печатает каждый полученный payload без изменения,
+до JSON-разбора и проверки моделей. Остановите его сочетанием Ctrl+C. Проверка
+требует действующих учетных данных Axiom и доступа к сети; обычный `pytest` ее
+не запускает.
+
 ## Desktop client
 
 ```powershell
