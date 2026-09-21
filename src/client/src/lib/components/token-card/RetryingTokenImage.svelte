@@ -4,9 +4,9 @@
     export let sources: readonly string[];
     export let alt: string;
     export let className = "";
-    export let retryFinalSource = true;
-
-    const retryDelays = [1_000, 2_000, 4_000] as const;
+    const retryDelays = [
+        1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 60_000, 300_000,
+    ] as const;
 
     let activeSources = [...sources];
     let activeSignature = sources.join("\0");
@@ -53,24 +53,21 @@
         const nextSource = activeSources[sourceIndex + 1];
         if (nextSource !== undefined) {
             sourceIndex += 1;
-            retryCount = 0;
             imageVisible = true;
-            imageSource = nextSource;
+            imageSource =
+                retryCount === 0
+                    ? nextSource
+                    : retrySource(nextSource, retryCount);
             return;
         }
 
-        if (!retryFinalSource) return;
-
-        const delay = retryDelays[retryCount];
-        if (delay === undefined) return;
+        const delay = retryDelays[Math.min(retryCount, retryDelays.length - 1)];
 
         retryTimer = setTimeout(() => {
             retryCount += 1;
+            sourceIndex = 0;
             imageVisible = true;
-            imageSource = retrySource(
-                activeSources[sourceIndex] ?? "",
-                retryCount,
-            );
+            imageSource = retrySource(activeSources[0] ?? "", retryCount);
             retryTimer = undefined;
         }, delay);
     }

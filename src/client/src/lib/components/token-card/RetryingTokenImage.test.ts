@@ -8,7 +8,7 @@ describe("RetryingTokenImage", () => {
         vi.useRealTimers();
     });
 
-    it("retries a fresh image with bounded cache-busting requests", async () => {
+    it("keeps retrying the final source after the initial failures", async () => {
         vi.useFakeTimers();
         render(RetryingTokenImage, {
             sources: ["https://cdn.example/token.png?size=64#image"],
@@ -48,11 +48,15 @@ describe("RetryingTokenImage", () => {
         );
 
         await fireEvent.error(image);
-        await vi.runAllTimersAsync();
+        await vi.advanceTimersByTimeAsync(8_000);
+        await tick();
         expect(image).toHaveAttribute(
             "src",
-            "https://cdn.example/token.png?size=64&_ascend_retry=3#image",
+            "https://cdn.example/token.png?size=64&_ascend_retry=4#image",
         );
+
+        await fireEvent.load(image);
+        expect(vi.getTimerCount()).toBe(0);
     });
 
     it("keeps a valid image visible without waiting for a load event", () => {
@@ -103,7 +107,7 @@ describe("RetryingTokenImage", () => {
         expect(vi.getTimerCount()).toBe(0);
     });
 
-    it("can disable retries after exhausting image candidates", async () => {
+    it("rechecks earlier sources when the final fallback fails", async () => {
         vi.useFakeTimers();
         render(RetryingTokenImage, {
             sources: [
@@ -111,7 +115,6 @@ describe("RetryingTokenImage", () => {
                 "https://cdn.example/token.webp",
             ],
             alt: "OLD token",
-            retryFinalSource: false,
         });
 
         const image = screen.getByRole("img", { name: "OLD token" });
@@ -120,6 +123,64 @@ describe("RetryingTokenImage", () => {
 
         expect(image).toHaveAttribute("src", "https://cdn.example/token.webp");
         expect(image).toHaveClass("opacity-0");
+        await vi.advanceTimersByTimeAsync(1_000);
+        await tick();
+        expect(image).toHaveAttribute(
+            "src",
+            "https://origin.example/token.png?_ascend_retry=1",
+        );
+
+        await fireEvent.error(image);
+        expect(image).toHaveAttribute(
+            "src",
+            "https://cdn.example/token.webp?_ascend_retry=1",
+        );
+        await fireEvent.load(image);
+        expect(image).not.toHaveClass("opacity-0");
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("caps the delay between repeated failures", async () => {
+        vi.useFakeTimers();
+        render(RetryingTokenImage, {
+            sources: ["https://cdn.example/token.webp"],
+            alt: "OLD token",
+        });
+
+        const image = screen.getByRole("img", { name: "OLD token" });
+        const delays = [
+            1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 60_000, 300_000,
+            300_000,
+        ];
+        for (const [index, delay] of delays.entries()) {
+            await fireEvent.error(image);
+            await vi.advanceTimersByTimeAsync(delay - 1);
+            expect(image).toHaveAttribute(
+                "src",
+                index === 0
+                    ? "https://cdn.example/token.webp"
+                    : `https://cdn.example/token.webp?_ascend_retry=${index}`,
+            );
+            await vi.advanceTimersByTimeAsync(1);
+            await tick();
+            expect(image).toHaveAttribute(
+                "src",
+                `https://cdn.example/token.webp?_ascend_retry=${index + 1}`,
+            );
+        }
+    });
+
+    it("stops retrying when the token card is removed", async () => {
+        vi.useFakeTimers();
+        const { unmount } = render(RetryingTokenImage, {
+            sources: ["https://cdn.example/token.webp"],
+            alt: "OLD token",
+        });
+
+        await fireEvent.error(screen.getByRole("img", { name: "OLD token" }));
+        expect(vi.getTimerCount()).toBe(1);
+
+        unmount();
         expect(vi.getTimerCount()).toBe(0);
     });
 });

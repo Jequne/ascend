@@ -79,7 +79,6 @@
                                 className="absolute inset-0 size-full object-cover"
                                 sources={tokenImageUrls}
                                 alt={`${token.token_ticker} token`}
-                                retryFinalSource={false}
                             />
                         {/if}
                     </div>
