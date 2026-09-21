@@ -22,7 +22,9 @@
                         "font-semibold whitespace-nowrap uppercase",
                         indicator.trim().toLowerCase() === "last tokens"
                             ? "border-[#d6b94a]/35 bg-[#d6b94a]/15 text-[#e2ca67]"
-                            : "text-success border-emerald-500/30 bg-emerald-500/15",
+                            : indicator.trim().toLowerCase() === "dev funding"
+                              ? "border-orange-400/40 bg-orange-400/15 text-orange-300"
+                              : "text-success border-emerald-500/30 bg-emerald-500/15",
                     ]}>{indicator}</span
                 >
             {/each}

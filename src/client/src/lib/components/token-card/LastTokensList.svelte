@@ -12,6 +12,8 @@
     import { ChartNoAxesCombined, Clock3, Zap } from "@lucide/svelte";
 
     export let tokens: LastDeployedToken[];
+    export let heading = "Last Tokens";
+    export let headingId = "last-tokens-heading";
 
     function openTerminal(token: LastDeployedToken): void {
         tokenNavigationService.open(
@@ -42,12 +44,12 @@
     }
 </script>
 
-<section class="flex w-full flex-col" aria-labelledby="last-tokens-heading">
+<section class="flex w-full flex-col" aria-labelledby={headingId}>
     <h4
-        id="last-tokens-heading"
+        id={headingId}
         class="mt-0 mb-1 text-xs font-semibold tracking-[0.05em] text-slate-500 uppercase"
     >
-        Last Tokens
+        {heading}
     </h4>
     <div class="flex flex-col gap-2">
         {#each tokens as token, index (`${token.token_address}:${index}`)}

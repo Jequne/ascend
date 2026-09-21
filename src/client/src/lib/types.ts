@@ -50,15 +50,19 @@ export interface TokenFeedPayload {
     last_deployed_tokens: LastDeployedToken[] | null;
     migrated_tokens_count: number;
     all_tokens_count: number;
+    funding_wallet?: string | null;
+    funding_deployed_tokens?: LastDeployedToken[] | null;
 }
 
 export interface TokenFeed extends Omit<
     TokenFeedPayload,
-    "last_deployed_tokens"
+    "last_deployed_tokens" | "funding_deployed_tokens" | "funding_wallet"
 > {
     clientKey: string;
     indicators: string[];
     last_deployed_tokens: LastDeployedToken[];
+    funding_wallet: string | null;
+    funding_deployed_tokens: LastDeployedToken[];
 }
 
 export type WebSocketMessage =

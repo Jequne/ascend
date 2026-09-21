@@ -49,3 +49,5 @@ class TokenFeedBase(BaseModel):
     last_deployed_tokens: list[DeployedToken] | None
     migrated_tokens_count: int
     all_tokens_count: int
+    funding_wallet: str | None = None
+    funding_deployed_tokens: list[DeployedToken] | None = None

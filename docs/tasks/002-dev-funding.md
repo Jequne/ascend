@@ -1,6 +1,6 @@
 # Стратегия Dev Funding для Solana
 
-Status: `Ready`
+Status: `In progress`
 
 Created: `2026-09-21`
 

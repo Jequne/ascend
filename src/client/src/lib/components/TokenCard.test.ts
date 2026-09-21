@@ -88,6 +88,28 @@ describe("TokenCard", () => {
         expect(screen.getByText("Last Tokens")).toHaveClass("text-[#e2ca67]");
     });
 
+    it("shows an orange funding card with a separate funding history", () => {
+        render(TokenCard, {
+            feed: createTokenFeed({
+                indicators: ["Dev Funding"],
+                funding_wallet: "funding-wallet",
+                funding_deployed_tokens: [
+                    createLastDeployedToken({
+                        token_name: "Funding Token",
+                        token_ticker: "FUND",
+                    }),
+                ],
+            }),
+        });
+        const card = screen.getByTestId("token-card");
+        expect(card).toHaveAttribute("data-dev-funding", "true");
+        expect(card).toHaveAttribute("data-dev-migrations", "false");
+        expect(card).toHaveTextContent("Dev Funding");
+        expect(card).toHaveTextContent("Funding Wallet Tokens");
+        expect(card).toHaveTextContent("Funding Token");
+        expect(screen.queryByText("Last Tokens")).not.toBeInTheDocument();
+    });
+
     it("opens accessible social links through the opener service", async () => {
         render(TokenCard, { feed: createTokenFeed() });
 

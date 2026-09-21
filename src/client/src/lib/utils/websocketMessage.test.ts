@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createTokenFeed } from "$lib/components/tokenFeed.fixture";
+import {
+    createLastDeployedToken,
+    createTokenFeed,
+} from "$lib/components/tokenFeed.fixture";
 import type { TokenFeedPayload } from "$lib/types";
 import { parseWebSocketMessage } from "$lib/utils/websocketMessage";
 
@@ -47,5 +50,34 @@ describe("parseWebSocketMessage", () => {
             ),
         ).toBeNull();
         expect(parseWebSocketMessage(new Blob())).toBeNull();
+    });
+
+    it("accepts separate funding history and rejects unverified funding fees", () => {
+        const payload = {
+            ...createPayload(),
+            funding_wallet: "funding-wallet",
+            funding_deployed_tokens: [createLastDeployedToken()],
+        };
+        expect(
+            parseWebSocketMessage(
+                JSON.stringify({ type: "token_feed", payload }),
+            ),
+        ).toMatchObject({ type: "token_feed", payload });
+        expect(
+            parseWebSocketMessage(
+                JSON.stringify({
+                    type: "token_feed",
+                    payload: {
+                        ...payload,
+                        funding_deployed_tokens: [
+                            {
+                                ...createLastDeployedToken(),
+                                total_pair_fees_paid: null,
+                            },
+                        ],
+                    },
+                }),
+            ),
+        ).toBeNull();
     });
 });

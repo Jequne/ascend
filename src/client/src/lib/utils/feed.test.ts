@@ -146,6 +146,39 @@ describe("evaluateTokenFeed", () => {
         }
     });
 
+    it("accepts funding history independently of migration and developer fees", () => {
+        const decision = evaluateTokenFeed(
+            createPayload({
+                migrated_tokens_count: 0,
+                funding_wallet: "funding-wallet",
+                funding_deployed_tokens: [createLastDeployedToken()],
+                last_deployed_tokens: [
+                    createLastDeployedToken({ total_pair_fees_paid: 0 }),
+                ],
+            }),
+            createSnapshot({ minLastTokenFees: 5 }),
+            "funding-pair:0",
+        );
+        expect(decision.accepted).toBe(true);
+        if (decision.accepted) {
+            expect(decision.feed.indicators).toEqual(["Dev Funding"]);
+            expect(decision.feed.funding_deployed_tokens).toHaveLength(1);
+        }
+    });
+
+    it("does not accept funding without a verified previous token", () => {
+        const decision = evaluateTokenFeed(
+            createPayload({
+                migrated_tokens_count: 0,
+                funding_wallet: "funding-wallet",
+                funding_deployed_tokens: [],
+            }),
+            createSnapshot(),
+            "funding-pair:0",
+        );
+        expect(decision.accepted).toBe(false);
+    });
+
     it("accepts a zero-hold developer at the inclusive default boundary", () => {
         const decision = evaluateTokenFeed(
             createPayload({

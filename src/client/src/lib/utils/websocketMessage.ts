@@ -89,6 +89,12 @@ export function isTokenFeedPayload(value: unknown): value is TokenFeedPayload {
         isBoolean(value.is_migrated) &&
         isNumber(value.migrated_tokens_count) &&
         isNumber(value.all_tokens_count) &&
+        (value.funding_wallet === undefined ||
+            isNullableString(value.funding_wallet)) &&
+        (value.funding_deployed_tokens === undefined ||
+            value.funding_deployed_tokens === null ||
+            (Array.isArray(value.funding_deployed_tokens) &&
+                value.funding_deployed_tokens.every(isLastDeployedToken))) &&
         (value.last_deployed_tokens === null ||
             (Array.isArray(value.last_deployed_tokens) &&
                 value.last_deployed_tokens.every(isLastDeployedToken)))

@@ -5,6 +5,7 @@ import type {
     TokenFeedPayload,
 } from "$lib/types";
 import { tokenMatchesBlacklist } from "$lib/utils/blacklist";
+import { passesFundingFeesFilter } from "$lib/utils/fundingFees";
 import { passesLastTokenFeesFilter } from "$lib/utils/lastTokenFees";
 import { passesLastTokensFilter } from "$lib/utils/lastTokens";
 
@@ -44,22 +45,35 @@ export function evaluateTokenFeed(
         return { accepted: false, feed: null, reason: "dev-holds" };
     }
 
-    if (
-        !passesLastTokenFeesFilter(payload.last_deployed_tokens, {
+    const devFeesPass = passesLastTokenFeesFilter(
+        payload.last_deployed_tokens,
+        {
             mode: filters.feesMode,
             minFeeThreshold: filters.minLastTokenFees,
-        })
-    ) {
-        return { accepted: false, feed: null, reason: "fees" };
-    }
+        },
+    );
 
     const allTokens = payload.all_tokens_count || 0;
     const migratedTokens = payload.migrated_tokens_count || 0;
     const migrationPercent =
         allTokens > 0 ? (migratedTokens / allTokens) * 100 : 0;
 
-    if (migrationPercent < filters.minMigrationPercent && !lastTokensPass) {
-        return { accepted: false, feed: null, reason: "migration" };
+    const devMigrationsPass =
+        devFeesPass && migrationPercent >= filters.minMigrationPercent;
+    const devFundingPass =
+        payload.blockchain === "sol" &&
+        Boolean(payload.funding_wallet) &&
+        passesFundingFeesFilter(payload.funding_deployed_tokens);
+    if (
+        !devMigrationsPass &&
+        !devFundingPass &&
+        !(devFeesPass && lastTokensPass)
+    ) {
+        return {
+            accepted: false,
+            feed: null,
+            reason: devFeesPass ? "migration" : "fees",
+        };
     }
 
     return {
@@ -69,10 +83,13 @@ export function evaluateTokenFeed(
             ...payload,
             clientKey,
             indicators: [
-                ...(payload.indicator ? [payload.indicator] : []),
-                ...(lastTokensPass ? ["last tokens"] : []),
+                ...(devMigrationsPass ? ["Dev Migrations"] : []),
+                ...(devFundingPass ? ["Dev Funding"] : []),
+                ...(devFeesPass && lastTokensPass ? ["last tokens"] : []),
             ],
             last_deployed_tokens: payload.last_deployed_tokens ?? [],
+            funding_wallet: payload.funding_wallet ?? null,
+            funding_deployed_tokens: payload.funding_deployed_tokens ?? [],
         },
     };
 }

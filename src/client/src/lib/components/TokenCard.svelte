@@ -8,6 +8,7 @@
     export let feed: TokenFeed;
 
     $: hasDevMigrations = hasIndicator(feed, "dev migrations");
+    $: hasDevFunding = hasIndicator(feed, "dev funding");
     $: hasLastTokens = hasIndicator(feed, "last tokens");
 </script>
 
@@ -25,6 +26,7 @@
     data-testid="token-card"
     data-token-key={feed.clientKey}
     data-dev-migrations={hasDevMigrations}
+    data-dev-funding={hasDevFunding}
     data-last-tokens={hasLastTokens}
 >
     <section
@@ -36,6 +38,13 @@
 
     {#if feed.last_deployed_tokens.length > 0}
         <LastTokensList tokens={feed.last_deployed_tokens} />
+    {/if}
+    {#if feed.funding_deployed_tokens.length > 0}
+        <LastTokensList
+            tokens={feed.funding_deployed_tokens}
+            heading="Funding Wallet Tokens"
+            headingId={`funding-tokens-${feed.clientKey}`}
+        />
     {/if}
 </article>
 
@@ -56,6 +65,14 @@
             0 0 9px rgb(214 185 74 / 0.12),
             0 8px 22px rgb(0 0 0 / 0.24),
             inset 0 1px 0 rgb(255 255 255 / 0.04);
+    }
+
+    .token-card[data-dev-funding="true"] {
+        border-color: rgb(251 146 60 / 0.65);
+        box-shadow:
+            0 0 0 1px rgb(251 146 60 / 0.12),
+            0 0 10px rgb(251 146 60 / 0.18),
+            0 8px 22px rgb(0 0 0 / 0.24);
     }
 
     .token-card[data-dev-migrations="true"][data-last-tokens="true"] {

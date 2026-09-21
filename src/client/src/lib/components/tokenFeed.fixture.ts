@@ -52,6 +52,8 @@ export function createTokenFeed(overrides: Partial<TokenFeed> = {}): TokenFeed {
         last_deployed_tokens: [],
         migrated_tokens_count: 4,
         all_tokens_count: 10,
+        funding_wallet: null,
+        funding_deployed_tokens: [],
         ...overrides,
     };
 }
