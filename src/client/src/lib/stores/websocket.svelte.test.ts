@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTokenFeed } from "$lib/components/tokenFeed.fixture";
+import {
+    createLastDeployedToken,
+    createTokenFeed,
+} from "$lib/components/tokenFeed.fixture";
 import { DEFAULT_FILTERS } from "$lib/config/constants";
 import type { AutoOpenDispatcher } from "$lib/services/autoOpen";
 import type { AudioNotificationPlayer } from "$lib/services/audioNotifications";
@@ -150,17 +153,110 @@ describe("WebSocketStore realtime pipeline", () => {
         socket?.receive(tokenMessage({ dev_holds_percent: null }));
         expect(dispatch).toHaveBeenCalledOnce();
         expect(store.tokenFeedCount).toBe(1);
-        expect(store.tokenFeedTotalCount).toBe(2);
+        expect(store.tokenFeedTotalCount).toBe(1);
 
         socket?.receive(tokenMessage());
-        expect(dispatch).toHaveBeenCalledTimes(2);
-        expect(store.tokenFeeds).toHaveLength(2);
+        expect(dispatch).toHaveBeenCalledOnce();
+        expect(store.tokenFeeds).toHaveLength(1);
 
         store.clearTokens();
         expect(store.tokenFeeds).toEqual([]);
-        expect(store.tokenFeedCount).toBe(2);
-        expect(store.tokenFeedTotalCount).toBe(3);
+        expect(store.tokenFeedCount).toBe(1);
+        expect(store.tokenFeedTotalCount).toBe(1);
         expect(store.isConnected).toBe(true);
+    });
+
+    it("updates one card after late funding and triggers one notification and opener", () => {
+        const dispatch = vi.fn<AutoOpenDispatcher["dispatch"]>();
+        const play = vi
+            .fn<AudioNotificationPlayer["play"]>()
+            .mockResolvedValue(undefined);
+        const { store, sockets } = createHarness({ dispatch }, { play });
+        store.connect();
+        sockets[0]?.open();
+
+        sockets[0]?.receive(tokenMessage({ migrated_tokens_count: 0 }));
+        expect(store.tokenFeeds).toHaveLength(0);
+        expect(store.tokenFeedTotalCount).toBe(1);
+
+        const fundingUpdate = tokenMessage({
+            migrated_tokens_count: 0,
+            funding_wallet: "funding-wallet",
+            funding_migrated_tokens_count: 1,
+            funding_all_tokens_count: 2,
+            funding_deployed_tokens: [createLastDeployedToken()],
+        });
+        sockets[0]?.receive(fundingUpdate);
+        sockets[0]?.receive(fundingUpdate);
+        expect(store.tokenFeeds).toHaveLength(1);
+        expect(store.tokenFeeds[0]?.indicators).toEqual(["Dev Funding"]);
+        expect(store.tokenFeedCount).toBe(1);
+        expect(store.tokenFeedTotalCount).toBe(1);
+        expect(dispatch).toHaveBeenCalledOnce();
+        expect(play).toHaveBeenCalledOnce();
+    });
+
+    it("adds a late funding indicator to an existing card without repeating effects", () => {
+        const dispatch = vi.fn<AutoOpenDispatcher["dispatch"]>();
+        const play = vi
+            .fn<AudioNotificationPlayer["play"]>()
+            .mockResolvedValue(undefined);
+        const { store, sockets } = createHarness({ dispatch }, { play });
+        store.connect();
+        sockets[0]?.open();
+        sockets[0]?.receive(tokenMessage());
+        const firstKey = store.tokenFeeds[0]?.clientKey;
+
+        sockets[0]?.receive(
+            tokenMessage({
+                funding_wallet: "funding-wallet",
+                funding_migrated_tokens_count: 1,
+                funding_all_tokens_count: 2,
+                funding_deployed_tokens: [createLastDeployedToken()],
+            }),
+        );
+        expect(store.tokenFeeds).toHaveLength(1);
+        expect(store.tokenFeeds[0]?.clientKey).toBe(firstKey);
+        expect(store.tokenFeeds[0]?.indicators).toEqual([
+            "Dev Migrations",
+            "Dev Funding",
+        ]);
+        expect(store.tokenFeedCount).toBe(1);
+        expect(store.tokenFeedTotalCount).toBe(1);
+        expect(dispatch).toHaveBeenCalledOnce();
+        expect(play).toHaveBeenCalledOnce();
+    });
+
+    it("keeps verified funding when an older base message arrives later", () => {
+        const dispatch = vi.fn<AutoOpenDispatcher["dispatch"]>();
+        const play = vi
+            .fn<AudioNotificationPlayer["play"]>()
+            .mockResolvedValue(undefined);
+        const { store, sockets } = createHarness({ dispatch }, { play });
+        store.connect();
+        sockets[0]?.open();
+
+        const base = tokenMessage({ migrated_tokens_count: 0 });
+        sockets[0]?.receive(base);
+        sockets[0]?.receive(
+            tokenMessage({
+                migrated_tokens_count: 0,
+                funding_wallet: "funding-wallet",
+                funding_migrated_tokens_count: 1,
+                funding_all_tokens_count: 2,
+                funding_deployed_tokens: [createLastDeployedToken()],
+            }),
+        );
+        sockets[0]?.receive(base);
+
+        expect(store.tokenFeeds).toHaveLength(1);
+        expect(store.tokenFeeds[0]?.indicators).toEqual(["Dev Funding"]);
+        expect(store.tokenFeeds[0]?.funding_deployed_tokens).toHaveLength(1);
+        expect(store.tokenFeeds[0]?.funding_migrated_tokens_count).toBe(1);
+        expect(store.tokenFeedCount).toBe(1);
+        expect(store.tokenFeedTotalCount).toBe(1);
+        expect(dispatch).toHaveBeenCalledOnce();
+        expect(play).toHaveBeenCalledOnce();
     });
 
     it("keeps rendering after invalid URLs, malformed JSON, and opener rejection", async () => {

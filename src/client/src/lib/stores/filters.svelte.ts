@@ -67,6 +67,38 @@ class FiltersStore {
         this.updateFilters({ minLastTokenFees: value });
     }
 
+    get fundingEnabled(): boolean {
+        return this.filters.fundingEnabled;
+    }
+
+    set fundingEnabled(value: boolean) {
+        this.updateFilters({ fundingEnabled: value });
+    }
+
+    get fundingFeesMode(): FeesMode {
+        return this.filters.fundingFeesMode;
+    }
+
+    set fundingFeesMode(value: FeesMode) {
+        this.updateFilters({ fundingFeesMode: value });
+    }
+
+    get minFundingTokenFees(): number {
+        return this.filters.minFundingTokenFees;
+    }
+
+    set minFundingTokenFees(value: number) {
+        this.updateFilters({ minFundingTokenFees: value });
+    }
+
+    get minFundingMigrationPercent(): number {
+        return this.filters.minFundingMigrationPercent;
+    }
+
+    set minFundingMigrationPercent(value: number) {
+        this.updateFilters({ minFundingMigrationPercent: value });
+    }
+
     get minLastTokenAthMcap(): number {
         return this.filters.minLastTokenAthMcap;
     }

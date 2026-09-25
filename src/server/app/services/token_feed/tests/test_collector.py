@@ -44,10 +44,21 @@ class _ControlledSource:
         return _feed(message)
 
 
+class _LateFundingSource(_ControlledSource):
+    def __init__(self) -> None:
+        super().__init__()
+        self.funding_release = asyncio.Event()
+
+    async def prepare_funding_update(
+        self, message: str, base_feed: TokenFeedBase
+    ) -> TokenFeedBase:
+        await self.funding_release.wait()
+        return base_feed.model_copy(update={"funding_wallet": "funding-wallet"})
+
+
 class TokenFeedCollectorTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
-        while not TokenFeedCollector.tokens_feed.empty():
-            TokenFeedCollector.tokens_feed.get_nowait()
+        TokenFeedCollector.tokens_feed = asyncio.Queue()
 
     async def test_new_messages_start_without_waiting_for_previous_enrichment(
         self,
@@ -78,6 +89,24 @@ class TokenFeedCollectorTests(unittest.IsolatedAsyncioTestCase):
             [first.pair_address, second.pair_address],
             ["first", "second"],
         )
+        await collector.stop()
+
+    async def test_emits_base_before_funding_update_for_same_token(self) -> None:
+        source = _LateFundingSource()
+        collector = TokenFeedCollector([source])
+        await collector.start()
+        source.callback("pair")
+        await asyncio.sleep(0)
+        source.releases["pair"].set()
+
+        base = await asyncio.wait_for(TokenFeedCollector.tokens_feed.get(), 0.1)
+        self.assertEqual(base.pair_address, "pair")
+        self.assertIsNone(base.funding_wallet)
+
+        source.funding_release.set()
+        update = await asyncio.wait_for(TokenFeedCollector.tokens_feed.get(), 0.1)
+        self.assertEqual(update.pair_address, "pair")
+        self.assertEqual(update.funding_wallet, "funding-wallet")
         await collector.stop()
 
 

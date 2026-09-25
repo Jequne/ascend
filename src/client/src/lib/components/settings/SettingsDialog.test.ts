@@ -395,6 +395,43 @@ describe("SettingsDialog", () => {
         expect(filtersStore.lastTokensRequiredCount).toBe(2);
     });
 
+    it("saves Dev Funding settings independently of migration filters", async () => {
+        const { user, dialog } = await openSettings();
+        const fundingSwitch = within(dialog).getByRole("switch", {
+            name: "Enable Dev Funding",
+        });
+        expect(fundingSwitch).toHaveAttribute("aria-checked", "true");
+        const threshold = within(dialog).getByLabelText(
+            /Minimum funding-token fees/,
+        );
+        const migrationThreshold = within(dialog).getByLabelText(
+            /Minimum funding wallet migration rate/,
+        );
+        await user.click(
+            within(dialog).getByRole("combobox", {
+                name: "Funding fee mode",
+            }),
+        );
+        await user.click(
+            within(dialog).getByRole("option", {
+                name: /Total fees/,
+            }),
+        );
+        await user.clear(threshold);
+        await user.type(threshold, "5.5");
+        await user.clear(migrationThreshold);
+        await user.type(migrationThreshold, "35");
+        await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+        expect(filtersStore.minFundingTokenFees).toBe(5.5);
+        expect(filtersStore.minFundingMigrationPercent).toBe(35);
+        expect(filtersStore.fundingFeesMode).toBe("total");
+        expect(filtersStore.fundingEnabled).toBe(true);
+        expect(filtersStore.minMigrationPercent).toBe(
+            DEFAULT_FILTERS.minMigrationPercent,
+        );
+    });
+
     it("saves the migrated-token highlight preference", async () => {
         const { user, dialog } = await openSettings();
         const migratedHighlight = within(dialog).getByRole("switch", {

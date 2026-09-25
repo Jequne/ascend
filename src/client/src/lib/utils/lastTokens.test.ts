@@ -3,6 +3,14 @@ import { createLastDeployedToken } from "$lib/components/tokenFeed.fixture";
 import { passesLastTokensFilter } from "$lib/utils/lastTokens";
 
 describe("last token override", () => {
+    it("does not count an unknown ATH as zero at the default threshold", () => {
+        expect(
+            passesLastTokensFilter(
+                [createLastDeployedToken({ ath_mcap_in_usd: null })],
+                { requiredCount: 1, minAthMcapThreshold: 0 },
+            ),
+        ).toBe(false);
+    });
     const qualifyingToken = createLastDeployedToken({
         ath_mcap_in_usd: 100_000,
     });

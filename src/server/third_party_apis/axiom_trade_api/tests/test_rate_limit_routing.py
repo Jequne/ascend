@@ -1,7 +1,9 @@
+import asyncio
 import unittest
 
 from third_party_apis.axiom_trade_api.agent_selector import AgentSelector
 from third_party_apis.axiom_trade_api.client import AxiomTradeClient
+from third_party_apis.axiom_trade_api.request_pacer import AxiomRequestPacer
 from third_party_apis.axiom_trade_api.endpoints.exceptions import (
     AxiomHTTPStatusError,
     AxiomRequestError,
@@ -92,6 +94,53 @@ class AgentSelectorTests(unittest.IsolatedAsyncioTestCase):
 
 
 class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_shared_http_concurrency_limit_under_burst(self) -> None:
+        client = AxiomTradeClient([_agent(1, "socks5://proxy-1")])
+        client._request_pacer = AxiomRequestPacer(interval_seconds=0)
+        in_flight = 0
+        peak = 0
+
+        async def endpoint(session_and_agent, **kwargs):
+            nonlocal in_flight, peak
+            in_flight += 1
+            peak = max(peak, in_flight)
+            await asyncio.sleep(0.01)
+            in_flight -= 1
+            return "ok"
+
+        try:
+            results = await asyncio.gather(*[
+                client._call_with_random_agent(endpoint) for _ in range(20)
+            ])
+        finally:
+            await client.close()
+
+        self.assertEqual(results, ["ok"] * 20)
+        self.assertEqual(peak, 10)
+
+    async def test_single_route_waits_for_retry_after_before_retry(self) -> None:
+        client = AxiomTradeClient([_agent(1, "socks5://proxy-1")])
+        starts: list[float] = []
+
+        async def endpoint(session_and_agent, **kwargs):
+            starts.append(asyncio.get_running_loop().time())
+            if len(starts) == 1:
+                raise AxiomHTTPStatusError(
+                    "rate limited", status_code=429, retry_after=0.05
+                )
+            return "ok"
+
+        try:
+            result = await client._call_with_random_agent(endpoint)
+        finally:
+            await client.close()
+
+        self.assertEqual(result, "ok")
+        self.assertEqual(len(starts), 2)
+        self.assertGreaterEqual(starts[1] - starts[0], 0.05)
+        self.assertEqual(client._http_attempts["endpoint"], 2)
+        self.assertEqual(client._http_rate_limits["endpoint"], 1)
+
     async def test_network_error_is_retried_through_another_proxy(self) -> None:
         client = AxiomTradeClient([
             _agent(1, "socks5://proxy-1"),

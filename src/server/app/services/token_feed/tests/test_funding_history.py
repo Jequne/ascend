@@ -1,4 +1,5 @@
 import unittest
+import asyncio
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -61,7 +62,7 @@ class FakeClient:
         tokens = self.history if dev_address == FUNDING_WALLET else []
         return SimpleNamespace(
             tokens=tokens,
-            counts=SimpleNamespace(total_count=len(tokens), migrated_count=0),
+            counts=SimpleNamespace(total_count=len(tokens), migrated_count=1 if tokens else 0),
         )
 
     async def pair_info(self, pair_address: str):
@@ -120,31 +121,140 @@ class FundingSelectionTests(unittest.TestCase):
 
 class FundingEnrichmentTests(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self) -> None:
+        await AxiomDevTokenData.stop()
         AxiomDevTokenData._client = None
 
     async def test_resolves_funder_and_enriches_previous_token(self) -> None:
         fake = FakeClient()
         AxiomDevTokenData._client = fake
-        feed = await AxiomDevTokenData.prepare_token_feed(_message())
+        initial = await AxiomDevTokenData.prepare_token_feed(_message())
+        self.assertIsNone(initial.funding_wallet)
+        feed = await AxiomDevTokenData.prepare_funding_update(_message(), initial)
         self.assertEqual(fake.requested_wallets, ["developer", FUNDING_WALLET])
         self.assertEqual(feed.funding_wallet, FUNDING_WALLET)
         self.assertEqual(len(feed.funding_deployed_tokens), 1)
         self.assertEqual(feed.funding_deployed_tokens[0].pair_address, "previous-pair")
         self.assertEqual(feed.funding_deployed_tokens[0].total_pair_fees_paid, 2.0)
+        self.assertEqual(feed.funding_migrated_tokens_count, 1)
+        self.assertEqual(feed.funding_all_tokens_count, 2)
+        self.assertEqual(feed.migrated_tokens_count, 0)
 
     async def test_invalid_funder_does_not_cancel_developer_feed(self) -> None:
         fake = FakeClient(funding_address="invalid")
         AxiomDevTokenData._client = fake
-        feed = await AxiomDevTokenData.prepare_token_feed(_message())
+        initial = await AxiomDevTokenData.prepare_token_feed(_message())
+        feed = await AxiomDevTokenData.prepare_funding_update(_message(), initial)
         self.assertEqual(fake.requested_wallets, ["developer"])
-        self.assertIsNone(feed.funding_wallet)
-        self.assertIsNone(feed.funding_deployed_tokens)
+        self.assertIsNone(feed)
 
     async def test_invalid_fees_are_not_treated_as_zero(self) -> None:
         fake = FakeClient(fees=float("nan"))
         AxiomDevTokenData._client = fake
-        feed = await AxiomDevTokenData.prepare_token_feed(_message())
+        initial = await AxiomDevTokenData.prepare_token_feed(_message())
+        feed = await AxiomDevTokenData.prepare_funding_update(_message(), initial)
         self.assertEqual(feed.funding_deployed_tokens, [])
+
+    async def test_developer_history_keeps_ath_when_fees_are_unavailable(self) -> None:
+        fake = FakeClient(fees=float("nan"))
+        AxiomDevTokenData._client = fake
+
+        async def developer_history(dev_address: str):
+            return SimpleNamespace(
+                tokens=fake.history,
+                counts=SimpleNamespace(total_count=2, migrated_count=0),
+            )
+
+        fake.dev_tokens_v3 = developer_history
+        feed = await AxiomDevTokenData.prepare_token_feed(_message())
+        self.assertEqual(len(feed.last_deployed_tokens), 1)
+        self.assertIsNone(feed.last_deployed_tokens[0].total_pair_fees_paid)
+        self.assertEqual(feed.last_deployed_tokens[0].ath_mcap_in_usd, 100_000)
+
+    async def test_concurrent_funding_tokens_share_one_request(self) -> None:
+        class SlowClient(FakeClient):
+            def __init__(self):
+                super().__init__()
+                self.started = asyncio.Event()
+                self.release = asyncio.Event()
+
+            async def dev_tokens_v3(self, dev_address: str):
+                if dev_address == FUNDING_WALLET:
+                    self.started.set()
+                    await self.release.wait()
+                return await super().dev_tokens_v3(dev_address)
+
+        fake = SlowClient()
+        AxiomDevTokenData._client = fake
+        first = asyncio.create_task(AxiomDevTokenData._get_cached_funding_tokens(
+            FUNDING_WALLET
+        ))
+        await fake.started.wait()
+        second = asyncio.create_task(AxiomDevTokenData._get_cached_funding_tokens(
+            FUNDING_WALLET
+        ))
+        await asyncio.sleep(0)
+        fake.release.set()
+        await asyncio.gather(first, second)
+        await AxiomDevTokenData._get_cached_funding_tokens(FUNDING_WALLET)
+        self.assertEqual(fake.requested_wallets, [FUNDING_WALLET])
+
+    async def test_concurrent_tokens_share_previous_pair_enrichment(self) -> None:
+        class CountingClient(FakeClient):
+            def __init__(self):
+                super().__init__()
+                self.previous_pair_info_calls = 0
+                self.previous_token_info_calls = 0
+
+            async def pair_info(self, pair_address: str):
+                if pair_address == "previous-pair":
+                    self.previous_pair_info_calls += 1
+                    await asyncio.sleep(0)
+                return await super().pair_info(pair_address)
+
+            async def token_info(self, pair_address: str):
+                if pair_address == "previous-pair":
+                    self.previous_token_info_calls += 1
+                    await asyncio.sleep(0)
+                return await super().token_info(pair_address)
+
+        fake = CountingClient()
+        AxiomDevTokenData._client = fake
+        initial = await AxiomDevTokenData.prepare_token_feed(_message())
+        first, second = await asyncio.gather(
+            AxiomDevTokenData.prepare_funding_update(_message(), initial),
+            AxiomDevTokenData.prepare_funding_update(_message(), initial),
+        )
+        self.assertEqual(len(first.funding_deployed_tokens), 1)
+        self.assertEqual(len(second.funding_deployed_tokens), 1)
+        self.assertEqual(fake.requested_wallets.count(FUNDING_WALLET), 1)
+        self.assertEqual(fake.previous_pair_info_calls, 1)
+        self.assertEqual(fake.previous_token_info_calls, 1)
+
+    async def test_failed_enrichment_is_retried_on_later_update(self) -> None:
+        class RecoveringClient(FakeClient):
+            def __init__(self):
+                super().__init__()
+                self.token_info_calls = 0
+
+            async def token_info(self, pair_address: str):
+                self.token_info_calls += 1
+                if self.token_info_calls == 1:
+                    raise RuntimeError("temporary Axiom failure")
+                return await super().token_info(pair_address)
+
+        fake = RecoveringClient()
+        AxiomDevTokenData._client = fake
+        initial = await AxiomDevTokenData.prepare_token_feed(_message())
+        unavailable = await AxiomDevTokenData.prepare_funding_update(
+            _message(), initial
+        )
+        recovered = await AxiomDevTokenData.prepare_funding_update(
+            _message(), initial
+        )
+
+        self.assertEqual(unavailable.funding_deployed_tokens, [])
+        self.assertEqual(len(recovered.funding_deployed_tokens), 1)
+        self.assertEqual(fake.token_info_calls, 2)
 
 
 if __name__ == "__main__":

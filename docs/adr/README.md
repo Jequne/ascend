@@ -26,3 +26,4 @@ ADR (Architecture Decision Record) хранит контекст и причин
 ## Решения
 
 - [0001. Независимое версионирование выпускаемых компонентов](0001-independent-component-versioning.md)
+- [0002. Поэтапное обогащение Dev Funding](0002-staged-dev-funding.md)

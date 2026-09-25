@@ -7,7 +7,12 @@
         LAST_TOKEN_FEES_AGE_EXCLUSION_DAYS,
     } from "$lib/config/constants";
     import type { FilterSettings } from "$lib/types";
-    import { Gauge, ShieldCheck, SlidersHorizontal } from "@lucide/svelte";
+    import {
+        Gauge,
+        ShieldCheck,
+        SlidersHorizontal,
+        Wallet,
+    } from "@lucide/svelte";
 
     export let settings: FilterSettings;
 
@@ -181,8 +186,8 @@
                     Filters
                 </h3>
                 <p class="text-muted mt-0.5 mb-0 text-[0.62rem] leading-snug">
-                    Core rules must pass together. The performance override is
-                    optional and evaluated separately.
+                    Migration, funding, and previous-token performance are
+                    evaluated separately after the shared filters.
                 </p>
             </div>
         </div>
@@ -281,8 +286,7 @@
                             class="text-muted mt-0.5 mb-0 text-[0.62rem] leading-snug"
                         >
                             Accept a token when enough previous deployments hit
-                            the target ATH, even if migration is below the core
-                            threshold.
+                            the target ATH, regardless of migration and fees.
                         </p>
                     </div>
                 </div>
@@ -342,6 +346,111 @@
                 </div>
             {/if}
         </div>
+    </section>
+
+    <section
+        class="rounded-xl border border-orange-400/15 bg-[linear-gradient(145deg,rgba(35,29,27,0.9),rgba(23,21,25,0.92))] p-3"
+        aria-labelledby="funding-filters-heading"
+    >
+        <div class="flex items-start justify-between gap-3">
+            <div class="flex min-w-0 items-start gap-2.5">
+                <span
+                    class="flex size-7 shrink-0 items-center justify-center rounded-lg border border-orange-400/20 bg-orange-400/10 text-orange-300"
+                >
+                    <Wallet size={15} aria-hidden="true" />
+                </span>
+                <div>
+                    <h3
+                        id="funding-filters-heading"
+                        class="text-foreground m-0 text-xs font-bold tracking-[0.025em] uppercase"
+                    >
+                        Dev Funding
+                    </h3>
+                    <p
+                        class="text-muted mt-0.5 mb-0 text-[0.62rem] leading-snug"
+                    >
+                        Match the funding wallet's migration rate and
+                        previous-token fees.
+                    </p>
+                </div>
+            </div>
+            <SwitchControl
+                checked={settings.fundingEnabled}
+                label="Enable Dev Funding"
+                onChange={(enabled) => update("fundingEnabled", enabled)}
+            />
+        </div>
+        {#if settings.fundingEnabled}
+            <div class="mt-3 grid gap-3 min-[560px]:grid-cols-2">
+                <label
+                    class="flex flex-col gap-1 text-xs font-semibold text-slate-200 min-[560px]:col-span-2"
+                >
+                    Minimum funding wallet migration rate
+                    <div class="relative">
+                        <input
+                            class="text-foreground h-9 w-full rounded-[10px] border border-white/10 bg-[#11141d] px-2.5 pr-8 transition-colors outline-none focus:border-orange-400/55 focus:ring-2 focus:ring-orange-400/15"
+                            id="minimum-funding-migration-rate"
+                            name="minimumFundingMigrationRate"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="1"
+                            value={settings.minFundingMigrationPercent}
+                            oninput={(event) =>
+                                update(
+                                    "minFundingMigrationPercent",
+                                    inputNumber(event),
+                                )}
+                        />
+                        <span
+                            class="text-muted pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[0.65rem]"
+                            >%</span
+                        >
+                    </div>
+                    <span
+                        class="text-muted text-[0.6rem] leading-snug font-normal"
+                    >
+                        Minimum share of this wallet's tokens that migrated.
+                    </span>
+                </label>
+                <div class="flex flex-col gap-1">
+                    <span class="text-xs font-semibold text-slate-200"
+                        >Funding fee mode</span
+                    >
+                    <SelectMenu
+                        id="funding-fees-mode"
+                        label="Funding fee mode"
+                        options={feeModeOptions}
+                        bind:value={settings.fundingFeesMode}
+                    />
+                </div>
+                <label
+                    class="flex flex-col gap-1 text-xs font-semibold text-slate-200"
+                >
+                    Minimum funding-token fees
+                    <div class="relative">
+                        <input
+                            class="text-foreground h-9 w-full rounded-[10px] border border-white/10 bg-[#11141d] px-2.5 pr-10 transition-colors outline-none focus:border-orange-400/55 focus:ring-2 focus:ring-orange-400/15"
+                            id="minimum-funding-token-fees"
+                            name="minimumFundingTokenFees"
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value={settings.minFundingTokenFees}
+                            oninput={(event) =>
+                                update(
+                                    "minFundingTokenFees",
+                                    inputNumber(event),
+                                )}
+                        />
+                        <span
+                            class="text-muted pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[0.62rem]"
+                            >SOL</span
+                        >
+                    </div>
+                </label>
+            </div>
+        {/if}
     </section>
 </div>
 

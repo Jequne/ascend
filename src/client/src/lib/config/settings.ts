@@ -42,11 +42,11 @@ function clampNumber(
     return Math.min(max, Math.max(min, numericValue));
 }
 
-function normalizeFeesMode(value: unknown): FeesMode {
+function normalizeFeesMode(value: unknown, fallback: FeesMode): FeesMode {
     return typeof value === "string" &&
         ALLOWED_FEES_MODES.has(value as FeesMode)
         ? (value as FeesMode)
-        : DEFAULT_FILTERS.feesMode;
+        : fallback;
 }
 
 function normalizeTerminal(value: unknown): Terminal {
@@ -92,12 +92,32 @@ export function normalizeFilters(filters: unknown = {}): FilterSettings {
             100,
             DEFAULT_FILTERS.minMigrationPercent,
         ),
-        feesMode: normalizeFeesMode(source.feesMode),
+        feesMode: normalizeFeesMode(source.feesMode, DEFAULT_FILTERS.feesMode),
         minLastTokenFees: clampNumber(
             source.minLastTokenFees,
             0,
             Number.POSITIVE_INFINITY,
             DEFAULT_FILTERS.minLastTokenFees,
+        ),
+        fundingEnabled:
+            typeof source.fundingEnabled === "boolean"
+                ? source.fundingEnabled
+                : DEFAULT_FILTERS.fundingEnabled,
+        fundingFeesMode: normalizeFeesMode(
+            source.fundingFeesMode,
+            DEFAULT_FILTERS.fundingFeesMode,
+        ),
+        minFundingTokenFees: clampNumber(
+            source.minFundingTokenFees,
+            0,
+            Number.POSITIVE_INFINITY,
+            DEFAULT_FILTERS.minFundingTokenFees,
+        ),
+        minFundingMigrationPercent: clampNumber(
+            source.minFundingMigrationPercent,
+            0,
+            100,
+            DEFAULT_FILTERS.minFundingMigrationPercent,
         ),
         minLastTokenAthMcap: clampNumber(
             source.minLastTokenAthMcap,
@@ -201,6 +221,10 @@ function looksLikeLegacyFilters(candidate: unknown): boolean {
         "minMigrationPercent",
         "feesMode",
         "minLastTokenFees",
+        "fundingEnabled",
+        "fundingFeesMode",
+        "minFundingTokenFees",
+        "minFundingMigrationPercent",
         "minLastTokenAthMcap",
         "lastTokensRequiredCount",
         "blacklist",

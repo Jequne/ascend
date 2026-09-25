@@ -14,6 +14,9 @@ const isNullableString = (value: unknown): value is string | null =>
     value === null || isString(value);
 const isNullableNumber = (value: unknown): value is number | null =>
     value === null || isNumber(value);
+const isNullableCount = (value: unknown): value is number | null =>
+    value === null ||
+    (isNumber(value) && Number.isInteger(value) && value >= 0);
 
 function hasStringFields(
     value: Record<string, unknown>,
@@ -54,7 +57,7 @@ export function isLastDeployedToken(
             "twitter_admin_nickname",
             "twitter_admin_id",
         ]) &&
-        isNumber(value.total_pair_fees_paid) &&
+        isNullableNumber(value.total_pair_fees_paid) &&
         isNullableNumber(value.ath_mcap_in_usd) &&
         isBoolean(value.dex_paid) &&
         isBoolean(value.is_migrated)
@@ -91,10 +94,18 @@ export function isTokenFeedPayload(value: unknown): value is TokenFeedPayload {
         isNumber(value.all_tokens_count) &&
         (value.funding_wallet === undefined ||
             isNullableString(value.funding_wallet)) &&
+        (value.funding_migrated_tokens_count === undefined ||
+            isNullableCount(value.funding_migrated_tokens_count)) &&
+        (value.funding_all_tokens_count === undefined ||
+            isNullableCount(value.funding_all_tokens_count)) &&
         (value.funding_deployed_tokens === undefined ||
             value.funding_deployed_tokens === null ||
             (Array.isArray(value.funding_deployed_tokens) &&
-                value.funding_deployed_tokens.every(isLastDeployedToken))) &&
+                value.funding_deployed_tokens.every(
+                    (token) =>
+                        isLastDeployedToken(token) &&
+                        typeof token.total_pair_fees_paid === "number",
+                ))) &&
         (value.last_deployed_tokens === null ||
             (Array.isArray(value.last_deployed_tokens) &&
                 value.last_deployed_tokens.every(isLastDeployedToken)))

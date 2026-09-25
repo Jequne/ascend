@@ -7,7 +7,7 @@ from typing import Literal, Optional
 
 class DeployedToken(BaseModel):
     blockchain: str
-    total_pair_fees_paid: float
+    total_pair_fees_paid: float | None
     ath_mcap_in_usd: float | None
     dex_paid: bool
     pair_address: str
@@ -51,3 +51,5 @@ class TokenFeedBase(BaseModel):
     all_tokens_count: int
     funding_wallet: str | None = None
     funding_deployed_tokens: list[DeployedToken] | None = None
+    funding_migrated_tokens_count: int | None = None
+    funding_all_tokens_count: int | None = None

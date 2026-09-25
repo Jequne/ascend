@@ -151,6 +151,8 @@ describe("evaluateTokenFeed", () => {
             createPayload({
                 migrated_tokens_count: 0,
                 funding_wallet: "funding-wallet",
+                funding_migrated_tokens_count: 1,
+                funding_all_tokens_count: 2,
                 funding_deployed_tokens: [createLastDeployedToken()],
                 last_deployed_tokens: [
                     createLastDeployedToken({ total_pair_fees_paid: 0 }),
@@ -171,12 +173,119 @@ describe("evaluateTokenFeed", () => {
             createPayload({
                 migrated_tokens_count: 0,
                 funding_wallet: "funding-wallet",
+                funding_migrated_tokens_count: 1,
+                funding_all_tokens_count: 2,
                 funding_deployed_tokens: [],
             }),
             createSnapshot(),
             "funding-pair:0",
         );
         expect(decision.accepted).toBe(false);
+    });
+
+    it("uses separate funding fees and ignores the funding history when disabled", () => {
+        const payload = createPayload({
+            migrated_tokens_count: 0,
+            funding_wallet: "funding-wallet",
+            funding_migrated_tokens_count: 1,
+            funding_all_tokens_count: 2,
+            funding_deployed_tokens: [
+                createLastDeployedToken({ total_pair_fees_paid: 1 }),
+                createLastDeployedToken({ total_pair_fees_paid: 3 }),
+            ],
+        });
+        const options = {
+            minLastTokenFees: 100,
+            fundingFeesMode: "total" as const,
+            minFundingTokenFees: 4,
+        };
+        const accepted = evaluateTokenFeed(
+            payload,
+            createSnapshot(options),
+            "pair:1",
+        );
+        expect(accepted.accepted).toBe(true);
+        if (accepted.accepted)
+            expect(accepted.feed.indicators).toEqual(["Dev Funding"]);
+
+        expect(
+            evaluateTokenFeed(
+                payload,
+                createSnapshot({ ...options, minFundingTokenFees: 5 }),
+                "pair:1",
+            ).accepted,
+        ).toBe(false);
+        expect(
+            evaluateTokenFeed(
+                payload,
+                createSnapshot({ ...options, fundingEnabled: false }),
+                "pair:1",
+            ).accepted,
+        ).toBe(false);
+    });
+
+    it("rejects funding when the wallet migration rate is below its own minimum", () => {
+        const decision = evaluateTokenFeed(
+            createPayload({
+                migrated_tokens_count: 0,
+                funding_wallet: "funding-wallet",
+                funding_deployed_tokens: [createLastDeployedToken()],
+                funding_migrated_tokens_count: 1,
+                funding_all_tokens_count: 20,
+            }),
+            createSnapshot({ minFundingMigrationPercent: 10 }),
+            "funding-low-rate",
+        );
+        expect(decision.accepted).toBe(false);
+    });
+
+    it("accepts Last Tokens when developer fees do not pass", () => {
+        const decision = evaluateTokenFeed(
+            createPayload({
+                migrated_tokens_count: 0,
+                last_deployed_tokens: [
+                    createLastDeployedToken({
+                        total_pair_fees_paid: null,
+                        ath_mcap_in_usd: 200_000,
+                    }),
+                ],
+            }),
+            createSnapshot({
+                minLastTokenFees: 50,
+                minLastTokenAthMcap: 100_000,
+                lastTokensRequiredCount: 1,
+            }),
+            "pair:1",
+        );
+        expect(decision.accepted).toBe(true);
+        if (decision.accepted)
+            expect(decision.feed.indicators).toEqual(["last tokens"]);
+    });
+
+    it("does not treat unknown developer fees as a zero fee for migrations", () => {
+        const decision = evaluateTokenFeed(
+            createPayload({
+                migrated_tokens_count: 1,
+                all_tokens_count: 1,
+                last_deployed_tokens: [
+                    createLastDeployedToken({ total_pair_fees_paid: null }),
+                ],
+            }),
+            createSnapshot(),
+            "pair:unknown-fees",
+        );
+        expect(decision.accepted).toBe(false);
+        expect(
+            evaluateTokenFeed(
+                createPayload({
+                    last_deployed_tokens: null,
+                    migrated_tokens_count: 0,
+                    all_tokens_count: 0,
+                }),
+                createSnapshot({ minMigrationPercent: 0 }),
+                "pair:unknown-history",
+            ).accepted,
+        ).toBe(false);
     });
 
     it("accepts a zero-hold developer at the inclusive default boundary", () => {

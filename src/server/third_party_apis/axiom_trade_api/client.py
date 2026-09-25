@@ -1,9 +1,12 @@
 from typing import Any, Awaitable, Callable, List, Literal, Optional, TypeVar
+from collections import Counter
 import logging
 import asyncio
+import time
 
 from .auth import AuthManager
 from .agent_selector import AgentSelector
+from .request_pacer import AxiomRequestPacer
 from .models import *
 from .endpoints import *
 from .endpoints.exceptions import (
@@ -24,6 +27,9 @@ class AxiomTradeClient:
             ):
         self._auth_manager = AuthManager()
         self._agent_selector = AgentSelector()
+        self._request_pacer = AxiomRequestPacer()
+        self._http_attempts: Counter[str] = Counter()
+        self._http_rate_limits: Counter[str] = Counter()
         self._endpoints = AxiomTradeEndpoints(
             self._auth_manager
         )
@@ -100,7 +106,10 @@ class AxiomTradeClient:
         **kwargs: Any,
     ) -> Optional[ResponseModelT]:
         max_attempts = min(max(self._agent_selector.route_count, 2), 3)
+        endpoint_name = endpoint_method.__name__
         excluded_routes: set[str] = set()
+        retry_deadline = time.monotonic() + 120.0
+        last_retry_error: AxiomHTTPStatusError | AxiomRequestError | None = None
 
         for attempt in range(max_attempts):
             session_and_agent = self._agent_selector.acquire_agent(
@@ -113,14 +122,37 @@ class AxiomTradeClient:
                 excluded_routes.clear()
                 while session_and_agent is None:
                     delay = self._agent_selector.next_available_delay()
-                    await asyncio.sleep(delay)
+                    remaining = retry_deadline - time.monotonic()
+                    if remaining <= 0:
+                        if last_retry_error is not None:
+                            raise last_retry_error
+                        raise TimeoutError("No Axiom route became available")
+                    await asyncio.sleep(min(max(delay, 0.01), remaining))
                     session_and_agent = self._agent_selector.acquire_agent()
 
             try:
-                return await endpoint_method(
-                    session_and_agent=session_and_agent,
-                    **kwargs,
-                )
+                await self._request_pacer.wait_turn()
+                try:
+                    self._http_attempts[endpoint_name] += 1
+                    request_count = sum(self._http_attempts.values())
+                    if request_count % 25 == 0:
+                        pending, oldest_age = self._request_pacer.queue_stats()
+                        rate_limited_count = sum(self._http_rate_limits.values())
+                        logger.info(
+                            "Axiom HTTP diagnostics: attempts=%s 429=%s "
+                            "rate_limited=%.1f%% "
+                            "pending=%s oldest_wait=%.3fs",
+                            dict(self._http_attempts),
+                            dict(self._http_rate_limits),
+                            rate_limited_count / request_count * 100,
+                            pending, oldest_age,
+                        )
+                    return await endpoint_method(
+                        session_and_agent=session_and_agent,
+                        **kwargs,
+                    )
+                finally:
+                    self._request_pacer.release_turn()
             except AxiomHTTPStatusError as exc:
                 if exc.status_code != 429:
                     raise
@@ -129,6 +161,8 @@ class AxiomTradeClient:
                     session_and_agent,
                     retry_after=exc.retry_after,
                 )
+                self._http_rate_limits[endpoint_name] += 1
+                last_retry_error = exc
                 if attempt == max_attempts - 1:
                     raise
 
@@ -139,8 +173,9 @@ class AxiomTradeClient:
                     "%s rate limited; retrying via another proxy route",
                     session_and_agent[1].agent_name,
                 )
-            except AxiomRequestError:
+            except AxiomRequestError as exc:
                 self._agent_selector.mark_unavailable(session_and_agent)
+                last_retry_error = exc
                 if attempt == max_attempts - 1:
                     raise
 
@@ -203,6 +238,7 @@ class AxiomTradeClient:
     
     async def close(self) -> None:
         """Close all connections"""
+        await self._request_pacer.close()
         if self._ws_task:
             if not self._ws_task.done():
                 self._ws_task.cancel()

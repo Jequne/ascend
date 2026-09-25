@@ -83,4 +83,28 @@
             0 8px 22px rgb(0 0 0 / 0.24),
             inset 0 1px 0 rgb(255 255 255 / 0.04);
     }
+
+    .token-card[data-dev-funding="true"][data-dev-migrations="true"] {
+        border-color: rgb(251 146 60 / 0.65);
+        box-shadow:
+            -3px 0 0 rgb(52 211 153 / 0.55),
+            3px 0 0 rgb(251 146 60 / 0.55),
+            0 8px 22px rgb(0 0 0 / 0.24);
+    }
+
+    .token-card[data-dev-funding="true"][data-last-tokens="true"] {
+        border-color: rgb(251 146 60 / 0.65);
+        box-shadow:
+            3px 0 0 rgb(251 146 60 / 0.55),
+            0 3px 0 rgb(214 185 74 / 0.55),
+            0 8px 22px rgb(0 0 0 / 0.24);
+    }
+
+    .token-card[data-dev-funding="true"][data-dev-migrations="true"][data-last-tokens="true"] {
+        box-shadow:
+            -3px 0 0 rgb(52 211 153 / 0.55),
+            3px 0 0 rgb(251 146 60 / 0.55),
+            0 3px 0 rgb(214 185 74 / 0.55),
+            0 8px 22px rgb(0 0 0 / 0.24);
+    }
 </style>

@@ -32,6 +32,7 @@ export function passesLastTokensFilter(
     const qualifyingCount = (lastDeployedTokens ?? [])
         .slice(0, normalizedMaxTokens)
         .filter((token) => {
+            if (token.ath_mcap_in_usd === null) return false;
             const athMcap = Number(token.ath_mcap_in_usd);
             return Number.isFinite(athMcap) && athMcap >= normalizedThreshold;
         }).length;

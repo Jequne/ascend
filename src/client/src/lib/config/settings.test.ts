@@ -70,6 +70,10 @@ describe("settings import compatibility", () => {
                 minMigrationPercent: 120,
                 feesMode: "unsupported",
                 minLastTokenFees: -1,
+                fundingEnabled: false,
+                fundingFeesMode: "unsupported",
+                minFundingTokenFees: -5,
+                minFundingMigrationPercent: 120,
                 minLastTokenAthMcap: "250000",
                 lastTokensRequiredCount: 2.6,
                 blacklist: [" Wallet ", "wallet", "Token"],
@@ -84,6 +88,10 @@ describe("settings import compatibility", () => {
             minMigrationPercent: 100,
             feesMode: DEFAULT_FILTERS.feesMode,
             minLastTokenFees: 0,
+            fundingEnabled: false,
+            fundingFeesMode: "avg",
+            minFundingTokenFees: 0,
+            minFundingMigrationPercent: 100,
             minLastTokenAthMcap: 250_000,
             lastTokensRequiredCount: 3,
             blacklist: ["Wallet", "Token"],
@@ -203,10 +211,67 @@ describe("settings import compatibility", () => {
         const imported = parseSettingsImport(JSON.stringify(input));
 
         expect(imported.filters.minMigrationPercent).toBe(42);
+        expect(imported.filters.fundingEnabled).toBe(true);
+        expect(imported.filters.fundingFeesMode).toBe("avg");
+        expect(imported.filters.minFundingTokenFees).toBe(0);
+        expect(imported.filters.minFundingMigrationPercent).toBe(10);
         expect(imported.filters.autoOpenMode).toBe("new_tab");
         expect(imported.notifications).toEqual(DEFAULT_NOTIFICATIONS);
         expect(imported.filters).not.toHaveProperty("autoOpenInNewTab");
         expect(imported.filters).not.toHaveProperty("aggressiveAutoOpen");
+    });
+
+    it("preserves funding settings and existing filters through export and import", () => {
+        const exported = createSettingsExportPayload({
+            filters: {
+                ...DEFAULT_FILTERS,
+                minMigrationPercent: 37,
+                feesMode: "fixed",
+                minLastTokenFees: 4,
+                fundingEnabled: false,
+                fundingFeesMode: "total",
+                minFundingTokenFees: 7.5,
+                minFundingMigrationPercent: 35,
+            },
+        });
+        expect(parseSettingsImport(exported).filters).toMatchObject({
+            minMigrationPercent: 37,
+            feesMode: "fixed",
+            minLastTokenFees: 4,
+            fundingEnabled: false,
+            fundingFeesMode: "total",
+            minFundingTokenFees: 7.5,
+            minFundingMigrationPercent: 35,
+        });
+    });
+
+    it("loads a pre-funding v5 export without resetting existing filters", () => {
+        const previousFilters = Object.fromEntries(
+            Object.entries(DEFAULT_FILTERS).filter(
+                ([key]) =>
+                    ![
+                        "fundingEnabled",
+                        "fundingFeesMode",
+                        "minFundingTokenFees",
+                        "minFundingMigrationPercent",
+                    ].includes(key),
+            ),
+        );
+        const imported = parseSettingsImport({
+            schema: SETTINGS_EXPORT_SCHEMA,
+            schemaVersion: 5,
+            settings: {
+                filters: { ...previousFilters, minMigrationPercent: 42 },
+                developerLabels: { wallet: "Example" },
+                notifications: DEFAULT_NOTIFICATIONS,
+            },
+        });
+        expect(imported.filters.minMigrationPercent).toBe(42);
+        expect(imported.filters.fundingEnabled).toBe(true);
+        expect(imported.filters.fundingFeesMode).toBe("avg");
+        expect(imported.filters.minFundingTokenFees).toBe(0);
+        expect(imported.filters.minFundingMigrationPercent).toBe(10);
+        expect(imported.developerLabels).toEqual({ wallet: "Example" });
     });
 
     it("preserves every v3 mode and normalizes an unknown mode to off", () => {

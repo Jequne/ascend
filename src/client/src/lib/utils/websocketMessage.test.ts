@@ -56,6 +56,8 @@ describe("parseWebSocketMessage", () => {
         const payload = {
             ...createPayload(),
             funding_wallet: "funding-wallet",
+            funding_migrated_tokens_count: 1,
+            funding_all_tokens_count: 2,
             funding_deployed_tokens: [createLastDeployedToken()],
         };
         expect(
@@ -76,6 +78,14 @@ describe("parseWebSocketMessage", () => {
                             },
                         ],
                     },
+                }),
+            ),
+        ).toBeNull();
+        expect(
+            parseWebSocketMessage(
+                JSON.stringify({
+                    type: "token_feed",
+                    payload: { ...payload, funding_all_tokens_count: -1 },
                 }),
             ),
         ).toBeNull();

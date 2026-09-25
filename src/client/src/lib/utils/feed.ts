@@ -5,7 +5,7 @@ import type {
     TokenFeedPayload,
 } from "$lib/types";
 import { tokenMatchesBlacklist } from "$lib/utils/blacklist";
-import { passesFundingFeesFilter } from "$lib/utils/fundingFees";
+import { passesDevFundingStrategy } from "$lib/utils/devFunding";
 import { passesLastTokenFeesFilter } from "$lib/utils/lastTokenFees";
 import { passesLastTokensFilter } from "$lib/utils/lastTokens";
 
@@ -59,16 +59,11 @@ export function evaluateTokenFeed(
         allTokens > 0 ? (migratedTokens / allTokens) * 100 : 0;
 
     const devMigrationsPass =
-        devFeesPass && migrationPercent >= filters.minMigrationPercent;
-    const devFundingPass =
-        payload.blockchain === "sol" &&
-        Boolean(payload.funding_wallet) &&
-        passesFundingFeesFilter(payload.funding_deployed_tokens);
-    if (
-        !devMigrationsPass &&
-        !devFundingPass &&
-        !(devFeesPass && lastTokensPass)
-    ) {
+        payload.last_deployed_tokens !== null &&
+        devFeesPass &&
+        migrationPercent >= filters.minMigrationPercent;
+    const devFundingPass = passesDevFundingStrategy(payload, filters);
+    if (!devMigrationsPass && !devFundingPass && !lastTokensPass) {
         return {
             accepted: false,
             feed: null,
@@ -85,7 +80,7 @@ export function evaluateTokenFeed(
             indicators: [
                 ...(devMigrationsPass ? ["Dev Migrations"] : []),
                 ...(devFundingPass ? ["Dev Funding"] : []),
-                ...(devFeesPass && lastTokensPass ? ["last tokens"] : []),
+                ...(lastTokensPass ? ["last tokens"] : []),
             ],
             last_deployed_tokens: payload.last_deployed_tokens ?? [],
             funding_wallet: payload.funding_wallet ?? null,

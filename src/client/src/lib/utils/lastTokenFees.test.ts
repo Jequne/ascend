@@ -69,4 +69,25 @@ describe("last token fees", () => {
             }),
         ).toBe(true);
     });
+
+    it("does not count unknown or invalid fees as verified", () => {
+        const verifiedToken = createLastDeployedToken({
+            total_pair_fees_paid: 1,
+        });
+        for (const invalid of [null, Number.NaN, -1]) {
+            const invalidToken = createLastDeployedToken({
+                total_pair_fees_paid: invalid,
+            });
+            expect(
+                getLastTokenFeesSummary([verifiedToken, invalidToken], { now }),
+            ).toMatchObject({ consideredCount: 1, totalFees: 1 });
+            expect(
+                passesLastTokenFeesFilter([verifiedToken, invalidToken], {
+                    mode: "avg",
+                    minFeeThreshold: 0,
+                    now,
+                }),
+            ).toBe(false);
+        }
+    });
 });

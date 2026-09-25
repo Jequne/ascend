@@ -1,5 +1,4 @@
 from typing import Protocol, Callable, Optional
-import asyncio
 
 from ...schemas.token_feed_models import TokenFeedBase, DeployedToken
 from third_party_apis.axiom_trade_api.models.websockets.subscription_message \
@@ -18,6 +17,3 @@ class TokenFeedPreparer(Protocol):
     @classmethod
     def set_callback(cls, callback: Callable):
         pass
-
-
-shared_axiom_api_semaphore = asyncio.Semaphore(10)

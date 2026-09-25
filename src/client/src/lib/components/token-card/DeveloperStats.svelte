@@ -10,6 +10,13 @@
               1,
           )
         : "0";
+    $: fundingMigratedRatio = feed.funding_all_tokens_count
+        ? (
+              ((feed.funding_migrated_tokens_count ?? 0) /
+                  feed.funding_all_tokens_count) *
+              100
+          ).toFixed(1)
+        : null;
 </script>
 
 <div class="mt-0.5 flex flex-col gap-1.5">
@@ -89,4 +96,13 @@
             </span>
         {/if}
     </div>
+    {#if feed.funding_wallet && fundingMigratedRatio !== null}
+        <div
+            class="text-[0.7rem] font-medium text-orange-300"
+            title="Funding wallet migration rate"
+        >
+            Funding wallet: {feed.funding_migrated_tokens_count} / {feed.funding_all_tokens_count}
+            migrated · {fundingMigratedRatio}% rate
+        </div>
+    {/if}
 </div>

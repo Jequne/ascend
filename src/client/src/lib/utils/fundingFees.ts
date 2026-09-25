@@ -7,7 +7,12 @@ export function passesFundingFeesFilter(
 ): boolean {
     const fees = (tokens ?? [])
         .map((token) => token.total_pair_fees_paid)
-        .filter((value) => Number.isFinite(value) && value >= 0);
+        .filter(
+            (value): value is number =>
+                typeof value === "number" &&
+                Number.isFinite(value) &&
+                value >= 0,
+        );
 
     if (fees.length === 0) return false;
     if (mode === "fixed")

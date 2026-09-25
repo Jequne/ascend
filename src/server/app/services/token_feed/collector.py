@@ -1,6 +1,7 @@
 import asyncio
 from typing import Any, List, Optional
 import logging
+import time
 
 from ...schemas.token_feed_models import TokenFeedBase
 from .token_feed_preparer import TokenFeedPreparer
@@ -52,6 +53,7 @@ class TokenFeedCollector():
             self, 
             websocket_message_data: Any
             ) -> None:
+        message_started = time.monotonic()
         logger.debug("collect_token_feed_data_called")
 
         logger.debug("message for callback:\n %s", websocket_message_data)
@@ -63,6 +65,33 @@ class TokenFeedCollector():
             if prepared_token_feed:
 
                 await self._add_to_tokens_feed(prepared_token_feed)
+                logger.info(
+                    "Token feed base emitted in %.3fs; active=%s output_queue=%s",
+                    time.monotonic() - message_started,
+                    len(self._preparation_tasks), self.tokens_feed.qsize(),
+                )
+
+                prepare_funding_update = getattr(
+                    token_feed_source, "prepare_funding_update", None
+                )
+                if prepare_funding_update is not None:
+                    funding_started = time.monotonic()
+                    try:
+                        funding_update = await prepare_funding_update(
+                            websocket_message_data, prepared_token_feed
+                        )
+                        if funding_update is not None:
+                            await self._add_to_tokens_feed(funding_update)
+                            logger.info(
+                                "Funding update emitted in %.3fs (%.3fs total) "
+                                "with %s tokens; output_queue=%s",
+                                time.monotonic() - funding_started,
+                                time.monotonic() - message_started,
+                                len(funding_update.funding_deployed_tokens or []),
+                                self.tokens_feed.qsize(),
+                            )
+                    except Exception:
+                        logger.exception("Funding update failed")
 
                 logger.debug("prepared token feed: %s", prepared_token_feed)
                 logger.info(
@@ -98,6 +127,10 @@ class TokenFeedCollector():
             task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+        for token_feed_source in self.token_feed_sources:
+            stop = getattr(token_feed_source, "stop", None)
+            if stop is not None:
+                await stop()
 
 
 async def main():

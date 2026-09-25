@@ -8,7 +8,7 @@ export type DeveloperLabels = Record<string, string>;
 
 export interface LastDeployedToken {
     blockchain: string;
-    total_pair_fees_paid: number;
+    total_pair_fees_paid: number | null;
     ath_mcap_in_usd: number | null;
     dex_paid: boolean;
     pair_address: string;
@@ -52,6 +52,8 @@ export interface TokenFeedPayload {
     all_tokens_count: number;
     funding_wallet?: string | null;
     funding_deployed_tokens?: LastDeployedToken[] | null;
+    funding_migrated_tokens_count?: number | null;
+    funding_all_tokens_count?: number | null;
 }
 
 export interface TokenFeed extends Omit<
@@ -76,6 +78,10 @@ export interface FilterSettings {
     minMigrationPercent: number;
     feesMode: FeesMode;
     minLastTokenFees: number;
+    fundingEnabled: boolean;
+    fundingFeesMode: FeesMode;
+    minFundingTokenFees: number;
+    minFundingMigrationPercent: number;
     minLastTokenAthMcap: number;
     lastTokensRequiredCount: number;
     blacklist: string[];
@@ -98,12 +104,20 @@ export interface SettingsSections {
     notifications: NotificationSettings;
 }
 
+type PreFundingFilterSettings = Omit<
+    FilterSettings,
+    | "fundingEnabled"
+    | "fundingFeesMode"
+    | "minFundingTokenFees"
+    | "minFundingMigrationPercent"
+>;
+
 export interface SettingsEnvelopeV1 {
     schema: "ascend_trenches.settings";
     schemaVersion: 1;
     exportedAt: string;
     settings: {
-        filters: Omit<FilterSettings, "autoOpenMode"> & {
+        filters: Omit<PreFundingFilterSettings, "autoOpenMode"> & {
             autoOpenInNewTab?: boolean;
             aggressiveAutoOpen?: boolean;
         };
@@ -115,7 +129,7 @@ export interface SettingsEnvelopeV2 {
     schemaVersion: 2;
     exportedAt: string;
     settings: {
-        filters: Omit<FilterSettings, "autoOpenMode"> & {
+        filters: Omit<PreFundingFilterSettings, "autoOpenMode"> & {
             autoOpenInNewTab?: boolean;
         };
     };
@@ -126,7 +140,7 @@ export interface SettingsEnvelopeV3 {
     schemaVersion: 3;
     exportedAt: string;
     settings: {
-        filters: FilterSettings;
+        filters: PreFundingFilterSettings;
     };
 }
 
@@ -134,7 +148,9 @@ export interface SettingsEnvelopeV4 {
     schema: "ascend_trenches.settings";
     schemaVersion: 4;
     exportedAt: string;
-    settings: Omit<SettingsSections, "notifications">;
+    settings: Omit<SettingsSections, "filters" | "notifications"> & {
+        filters: PreFundingFilterSettings;
+    };
 }
 
 export interface SettingsEnvelopeV5 {

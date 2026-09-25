@@ -93,6 +93,8 @@ describe("TokenCard", () => {
             feed: createTokenFeed({
                 indicators: ["Dev Funding"],
                 funding_wallet: "funding-wallet",
+                funding_migrated_tokens_count: 1,
+                funding_all_tokens_count: 2,
                 funding_deployed_tokens: [
                     createLastDeployedToken({
                         token_name: "Funding Token",
@@ -107,7 +109,42 @@ describe("TokenCard", () => {
         expect(card).toHaveTextContent("Dev Funding");
         expect(card).toHaveTextContent("Funding Wallet Tokens");
         expect(card).toHaveTextContent("Funding Token");
+        expect(card).toHaveTextContent(
+            "Funding wallet: 1 / 2 migrated · 50.0% rate",
+        );
         expect(screen.queryByText("Last Tokens")).not.toBeInTheDocument();
+    });
+
+    it("renders all indicators with one developer history and a clickable funding token", async () => {
+        render(TokenCard, {
+            feed: createTokenFeed({
+                indicators: ["Dev Migrations", "Dev Funding", "last tokens"],
+                last_deployed_tokens: [createLastDeployedToken()],
+                funding_wallet: "funding-wallet",
+                funding_deployed_tokens: [
+                    createLastDeployedToken({
+                        token_name: "Funding Token",
+                        token_ticker: "FUND",
+                        pair_address: "funding-pair",
+                        token_address: "funding-token",
+                    }),
+                ],
+            }),
+        });
+        const card = screen.getByTestId("token-card");
+        expect(card).toHaveAttribute("data-dev-migrations", "true");
+        expect(card).toHaveAttribute("data-dev-funding", "true");
+        expect(card).toHaveAttribute("data-last-tokens", "true");
+        expect(
+            screen.getAllByRole("heading", { name: "Last Tokens" }),
+        ).toHaveLength(1);
+        expect(
+            screen.getAllByRole("heading", { name: "Funding Wallet Tokens" }),
+        ).toHaveLength(1);
+        await fireEvent.click(
+            screen.getByRole("button", { name: /Open Funding Token/ }),
+        );
+        expect(openUrl).toHaveBeenCalledOnce();
     });
 
     it("opens accessible social links through the opener service", async () => {

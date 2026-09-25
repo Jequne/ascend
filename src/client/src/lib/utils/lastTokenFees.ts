@@ -23,6 +23,10 @@ export interface LastTokenFeesSummary {
     passesFixed: boolean;
 }
 
+function isVerifiedFee(value: number | null): value is number {
+    return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
 export function getLastTokenFeesSummary(
     lastDeployedTokens: readonly LastDeployedToken[] | null | undefined,
     {
@@ -35,17 +39,17 @@ export function getLastTokenFeesSummary(
     const ageExclusionMs = ageExclusionDays * DAY_IN_MS;
 
     for (const token of lastDeployedTokens ?? []) {
-        const tokenFees = Number(token.total_pair_fees_paid);
-        const normalizedFees = Number.isFinite(tokenFees) ? tokenFees : 0;
+        const tokenFees = token.total_pair_fees_paid;
+        if (!isVerifiedFee(tokenFees)) continue;
         const createdAt = token.created_at ? new Date(token.created_at) : null;
         const ageInMs = createdAt ? now - createdAt.getTime() : null;
         const shouldExcludeOlderLowFeeToken =
             ageInMs !== null &&
             Number.isFinite(ageInMs) &&
             ageInMs > ageExclusionMs &&
-            normalizedFees < minFeeThreshold;
+            tokenFees < minFeeThreshold;
 
-        if (!shouldExcludeOlderLowFeeToken) consideredFees.push(normalizedFees);
+        if (!shouldExcludeOlderLowFeeToken) consideredFees.push(tokenFees);
     }
 
     const totalFees = consideredFees.reduce((sum, fees) => sum + fees, 0);
@@ -70,6 +74,12 @@ export function passesLastTokenFeesFilter(
         ageExclusionDays = LAST_TOKEN_FEES_AGE_EXCLUSION_DAYS,
     }: LastTokenFeesFilterOptions = {},
 ): boolean {
+    if (
+        (lastDeployedTokens ?? []).some(
+            (token) => !isVerifiedFee(token.total_pair_fees_paid),
+        )
+    )
+        return false;
     const summary = getLastTokenFeesSummary(lastDeployedTokens, {
         minFeeThreshold,
         now,
