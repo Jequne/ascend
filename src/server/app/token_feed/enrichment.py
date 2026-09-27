@@ -3,7 +3,7 @@ import logging
 import math
 import re
 import time
-from collections.abc import Callable, Coroutine
+from collections.abc import AsyncGenerator, Callable, Coroutine
 from dataclasses import dataclass, replace
 from typing import ParamSpec, TypeVar, cast
 
@@ -16,6 +16,7 @@ from .domain import (
     HistoryToken,
     PairEvent,
     TokenFeedBase,
+    TokenFees,
 )
 from .funding_history import (
     HistoricalTokenCandidate,
@@ -124,11 +125,11 @@ class FeedEnrichment:
 
     async def _get_cached_funding_tokens(self, wallet: str) -> History | None:
         return await self._get_cached_request(
-            "funding_history",
+            "wallet_history",
             wallet,
             self._provider.dev_tokens_v3,
             dev_address=wallet,
-            background=True,
+            background=False,
         )
 
     async def _enrich_history_tokens(
@@ -155,29 +156,16 @@ class FeedEnrichment:
         blockchain: str,
         require_verified_fees: bool,
     ) -> DeployedToken | None:
-        pair_result, token_result = await asyncio.gather(
-            self._get_cached_request(
-                "pair_info",
-                token.pair_address,
-                self._provider.pair_info,
-                pair_address=token.pair_address,
-                background=True,
-            ),
-            self._get_cached_request(
+        try:
+            fees_info = await self._get_cached_request(
                 "token_info",
                 token.pair_address,
                 self._provider.token_info,
                 pair_address=token.pair_address,
-                background=True,
-            ),
-            return_exceptions=True,
-        )
-        pair_info = (
-            None if isinstance(pair_result, BaseException) else pair_result
-        )
-        fees_info = (
-            None if isinstance(token_result, BaseException) else token_result
-        )
+                background=False,
+            )
+        except Exception:
+            fees_info = None
         if fees_info is not None and (
             not math.isfinite(fees_info.total_pair_fees_paid)
             or fees_info.total_pair_fees_paid < 0
@@ -186,6 +174,15 @@ class FeedEnrichment:
         if fees_info is None and require_verified_fees:
             logger.warning("Previous token fees unavailable or invalid")
             return None
+        return self._history_token(token, dev_wallet, blockchain, fees_info)
+
+    @staticmethod
+    def _history_token(
+        token: HistoryToken,
+        dev_wallet: str,
+        blockchain: str,
+        fees_info: TokenFees | None = None,
+    ) -> DeployedToken:
         return DeployedToken(
             blockchain=blockchain,
             total_pair_fees_paid=fees_info.total_pair_fees_paid
@@ -195,13 +192,12 @@ class FeedEnrichment:
             dex_paid=fees_info.dex_paid if fees_info is not None else False,
             pair_address=token.pair_address,
             token_address=token.token_address,
-            token_image=(pair_info.token_image if pair_info else None)
-            or token.token_image_link,
+            token_image=token.token_image_link,
             is_migrated=token.is_migrated,
-            website=pair_info.website if pair_info else None,
-            telegram=pair_info.telegram if pair_info else None,
-            discord=pair_info.discord if pair_info else None,
-            twitter=pair_info.twitter if pair_info else None,
+            website=None,
+            telegram=None,
+            discord=None,
+            twitter=None,
             token_name=token.token_name,
             token_ticker=token.token_ticker,
             twitter_admin_nickname=None,
@@ -211,15 +207,45 @@ class FeedEnrichment:
             created_at=token.created_at,
         )
 
+    async def _add_history_details(
+        self, tokens: list[DeployedToken]
+    ) -> list[DeployedToken]:
+        async def add_details(token: DeployedToken) -> DeployedToken:
+            try:
+                details = await self._get_cached_request(
+                    "pair_info",
+                    token.pair_address,
+                    self._provider.pair_info,
+                    pair_address=token.pair_address,
+                    background=True,
+                )
+            except Exception:
+                return token
+            if details is None:
+                return token
+            return replace(
+                token,
+                token_image=details.token_image or token.token_image,
+                website=details.website,
+                telegram=details.telegram,
+                discord=details.discord,
+                twitter=details.twitter,
+            )
+
+        return list(await asyncio.gather(*(add_details(t) for t in tokens)))
+
     async def _get_funding_history(
         self,
         new_pairs_data: PairEvent,
     ) -> tuple[str | None, list[DeployedToken] | None, int | None, int | None]:
         """Resolve only the immediate funder and its Axiom token history."""
         try:
-            pair_info = await self._provider.pair_info(
+            pair_info = await self._get_cached_request(
+                "pair_info",
+                new_pairs_data.content.pair_address,
+                self._provider.pair_info,
                 pair_address=new_pairs_data.content.pair_address,
-                background=True,
+                background=False,
             )
             funding = pair_info.funding_wallet if pair_info else None
             if funding is None:
@@ -273,22 +299,45 @@ class FeedEnrichment:
     async def prepare_developer_update(
         self, new_pairs_data: PairEvent, base_feed: TokenFeedBase
     ) -> TokenFeedBase | None:
+        result = None
+        async for feed in self.developer_updates(new_pairs_data, base_feed):
+            result = feed
+        return result
+
+    async def developer_updates(
+        self, new_pairs_data: PairEvent, base_feed: TokenFeedBase
+    ) -> AsyncGenerator[TokenFeedBase, None]:
         dev_wallet = new_pairs_data.content.deployer_address
         try:
-            dev_tokens = await self._provider.dev_tokens_v3(
+            dev_tokens = await self._get_cached_request(
+                "wallet_history",
+                dev_wallet,
+                self._provider.dev_tokens_v3,
                 dev_address=dev_wallet,
             )
         except Exception:
             logger.warning(
                 "Developer token history lookup failed", exc_info=True
             )
-            return None
+            return
         if dev_tokens is None:
-            return None
+            return
+        recent_tokens = select_developer_tokens(
+            dev_tokens.tokens, base_feed.pair_address
+        )
+        preview = replace(
+            base_feed,
+            last_deployed_tokens=[
+                self._history_token(token, dev_wallet, base_feed.blockchain)
+                for token in recent_tokens
+            ],
+            migrated_tokens_count=dev_tokens.counts.migrated_count,
+            all_tokens_count=dev_tokens.counts.total_count,
+        )
+        yield preview
+        if not recent_tokens:
+            return
         try:
-            recent_tokens = select_developer_tokens(
-                dev_tokens.tokens, base_feed.pair_address
-            )
             last_deployed_tokens = await self._enrich_history_tokens(
                 recent_tokens,
                 dev_wallet,
@@ -299,21 +348,33 @@ class FeedEnrichment:
             logger.warning(
                 "Developer history enrichment failed", exc_info=True
             )
-            last_deployed_tokens = None
-        return replace(
-            base_feed,
+            return
+        verified = replace(
+            preview,
             last_deployed_tokens=last_deployed_tokens,
             migrated_tokens_count=dev_tokens.counts.migrated_count,
             all_tokens_count=dev_tokens.counts.total_count,
         )
+        yield verified
+        detailed = await self._add_history_details(last_deployed_tokens)
+        if detailed != last_deployed_tokens:
+            yield replace(verified, last_deployed_tokens=detailed)
 
     async def prepare_funding_update(
         self,
         new_pairs_data: PairEvent,
         base_feed: TokenFeedBase,
     ) -> TokenFeedBase | None:
+        result = None
+        async for feed in self.funding_updates(new_pairs_data, base_feed):
+            result = feed
+        return result
+
+    async def funding_updates(
+        self, new_pairs_data: PairEvent, base_feed: TokenFeedBase
+    ) -> AsyncGenerator[TokenFeedBase, None]:
         if base_feed.blockchain != "sol":
-            return None
+            return
         (
             funding_wallet,
             funding_deployed_tokens,
@@ -321,14 +382,19 @@ class FeedEnrichment:
             total_count,
         ) = await self._get_funding_history(new_pairs_data)
         if funding_wallet is None:
-            return None
-        return replace(
+            return
+        verified = replace(
             base_feed,
             funding_wallet=funding_wallet,
             funding_deployed_tokens=funding_deployed_tokens,
             funding_migrated_tokens_count=migrated_count,
             funding_all_tokens_count=total_count,
         )
+        yield verified
+        if funding_deployed_tokens:
+            detailed = await self._add_history_details(funding_deployed_tokens)
+            if detailed != funding_deployed_tokens:
+                yield replace(verified, funding_deployed_tokens=detailed)
 
     async def stop(self) -> None:
         tasks = tuple(self._pending_requests)

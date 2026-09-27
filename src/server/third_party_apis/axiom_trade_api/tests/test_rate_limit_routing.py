@@ -158,6 +158,82 @@ class AgentSelectorTests(unittest.IsolatedAsyncioTestCase):
 
 
 class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_queued_requests_reselect_route_after_429(self) -> None:
+        client = AxiomTradeClient(
+            [_agent(1, "socks5://first"), _agent(2, "socks5://second")]
+        )
+        client._request_pacer = AxiomRequestPacer(
+            interval_seconds=0, max_concurrency=1
+        )
+        started = asyncio.Event()
+        release = asyncio.Event()
+        routes: list[str] = []
+
+        async def endpoint(session_and_agent, **kwargs):
+            route = client._agent_selector.route_key(session_and_agent)
+            routes.append(route)
+            if len(routes) == 1:
+                started.set()
+                await release.wait()
+                raise AxiomHTTPStatusError(
+                    "rate limited", status_code=429, retry_after=5
+                )
+            return "ok"
+
+        tasks = []
+        try:
+            tasks.append(
+                asyncio.create_task(client._call_with_random_agent(endpoint))
+            )
+            await asyncio.wait_for(started.wait(), 1)
+            tasks.append(
+                asyncio.create_task(client._call_with_random_agent(endpoint))
+            )
+            await asyncio.sleep(0)
+            self.assertEqual(client._request_pacer.queue_stats()[0], 1)
+            release.set()
+            self.assertEqual(
+                await asyncio.wait_for(asyncio.gather(*tasks), 1),
+                ["ok", "ok"],
+            )
+            self.assertEqual(
+                routes,
+                ["socks5://first", "socks5://second", "socks5://second"],
+            )
+            self.assertEqual(client._request_pacer._active, 0)
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            await client.close()
+
+    async def test_repeated_429_slows_shared_route_and_success_recovers(
+        self,
+    ) -> None:
+        selector = AgentSelector()
+        selector.add_agents(
+            [_agent(1, "socks5://shared"), _agent(2, "socks5://shared")]
+        )
+        try:
+            selected = selector.acquire_agent()
+            assert selected is not None
+            selector.release_agent(selected)
+            with patch(
+                "third_party_apis.axiom_trade_api.agent_selector."
+                "time.monotonic",
+                return_value=100.0,
+            ):
+                selector.mark_rate_limited(selected, retry_after=0)
+                selector.mark_rate_limited(selected, retry_after=0)
+                selector.mark_dispatched(selected)
+                self.assertAlmostEqual(selector.next_available_delay(), 0.4)
+                self.assertIsNone(selector.acquire_agent())
+                selector.mark_success(selected)
+                selector.mark_dispatched(selected)
+                self.assertAlmostEqual(selector.next_available_delay(), 0.36)
+        finally:
+            await AgentSelectorTests._close_selector(selector)
+
     async def test_shared_http_concurrency_limit_under_burst(self) -> None:
         client = AxiomTradeClient([_agent(1, "socks5://proxy-1")])
         client._request_pacer = AxiomRequestPacer(

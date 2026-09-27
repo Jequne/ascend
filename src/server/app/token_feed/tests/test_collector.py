@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import Callable
+from collections.abc import AsyncGenerator, Callable
 from dataclasses import replace
 from unittest.mock import AsyncMock, patch
 
@@ -30,19 +30,19 @@ class ControlledUpdates(FeedEnrichment):
         self.funding_release = asyncio.Event()
         self.fail_developer = fail_developer
 
-    async def prepare_developer_update(
+    async def developer_updates(
         self, event: PairEvent, base: TokenFeedBase
-    ) -> TokenFeedBase | None:
+    ) -> AsyncGenerator[TokenFeedBase, None]:
         await self.developer_release.wait()
         if self.fail_developer:
             raise RuntimeError("upstream failure")
-        return replace(base, all_tokens_count=2)
+        yield replace(base, all_tokens_count=2)
 
-    async def prepare_funding_update(
+    async def funding_updates(
         self, event: PairEvent, base: TokenFeedBase
-    ) -> TokenFeedBase | None:
+    ) -> AsyncGenerator[TokenFeedBase, None]:
         await self.funding_release.wait()
-        return replace(base, funding_wallet="funding-wallet")
+        yield replace(base, funding_wallet="funding-wallet")
 
 
 @pytest.mark.asyncio

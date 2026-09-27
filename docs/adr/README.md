@@ -29,3 +29,4 @@ ADR (Architecture Decision Record) хранит контекст и причин
 - [0002. Поэтапное обогащение Dev Funding](0002-staged-dev-funding.md)
 - [0003. Функциональные модули backend и независимый Axiom SDK](0003-backend-modules.md)
 - [0004. Управление зависимостями backend через uv](0004-backend-uv.md)
+- [0005. Показатели token feed перед дополнительными данными](0005-feed-metrics-before-details.md)

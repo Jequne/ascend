@@ -4,7 +4,7 @@ import time
 from collections import Counter
 from typing import Any, Awaitable, Callable, List, Literal, Optional, TypeVar
 
-from .agent_selector import AgentSelector
+from .agent_selector import AgentSelector, SessionAndAgent
 from .auth import AuthManager
 from .endpoints import AxiomTradeEndpoints, AxiomTradeWebsocket
 from .endpoints.exceptions import (
@@ -127,50 +127,32 @@ class AxiomTradeClient:
         )
 
         for attempt in range(max_attempts):
-            session_and_agent = self._agent_selector.acquire_agent(
-                excluded_routes=excluded_routes
+            session_and_agent = await self._acquire_paced_agent(
+                excluded_routes, retry_deadline, last_retry_error
             )
-
-            if session_and_agent is None:
-                # Every unused route is cooling down. Once all routes have
-                # been tried, allow the quickest one to recover for a retry.
-                excluded_routes.clear()
-                while session_and_agent is None:
-                    delay = self._agent_selector.next_available_delay()
-                    remaining = retry_deadline - time.monotonic()
-                    if remaining <= 0:
-                        if last_retry_error is not None:
-                            raise last_retry_error
-                        raise TimeoutError("No Axiom route became available")
-                    await asyncio.sleep(min(max(delay, 0.01), remaining))
-                    session_and_agent = self._agent_selector.acquire_agent()
-
             try:
-                await self._request_pacer.wait_turn()
-                try:
-                    self._http_attempts[endpoint_name] += 1
-                    request_count = sum(self._http_attempts.values())
-                    if request_count % 25 == 0:
-                        pending, oldest_age = self._request_pacer.queue_stats()
-                        rate_limited_count = sum(
-                            self._http_rate_limits.values()
-                        )
-                        logger.debug(
-                            "Axiom HTTP diagnostics: attempts=%s 429=%s "
-                            "rate_limited=%.1f%% "
-                            "pending=%s oldest_wait=%.3fs",
-                            dict(self._http_attempts),
-                            dict(self._http_rate_limits),
-                            rate_limited_count / request_count * 100,
-                            pending,
-                            oldest_age,
-                        )
-                    return await endpoint_method(
-                        session_and_agent=session_and_agent,
-                        **kwargs,
+                self._http_attempts[endpoint_name] += 1
+                request_count = sum(self._http_attempts.values())
+                if request_count % 25 == 0:
+                    pending, oldest_age = self._request_pacer.queue_stats()
+                    rate_limited_count = sum(self._http_rate_limits.values())
+                    logger.debug(
+                        "Axiom HTTP diagnostics: attempts=%s 429=%s "
+                        "rate_limited=%.1f%% "
+                        "pending=%s oldest_wait=%.3fs",
+                        dict(self._http_attempts),
+                        dict(self._http_rate_limits),
+                        rate_limited_count / request_count * 100,
+                        pending,
+                        oldest_age,
                     )
-                finally:
-                    self._request_pacer.release_turn()
+                self._agent_selector.mark_dispatched(session_and_agent)
+                response = await endpoint_method(
+                    session_and_agent=session_and_agent,
+                    **kwargs,
+                )
+                self._agent_selector.mark_success(session_and_agent)
+                return response
             except AxiomHTTPStatusError as exc:
                 if exc.status_code != 429:
                     raise
@@ -206,8 +188,35 @@ class AxiomTradeClient:
                 )
             finally:
                 self._agent_selector.release_agent(session_and_agent)
+                self._request_pacer.release_turn()
 
         raise RuntimeError("unreachable")
+
+    async def _acquire_paced_agent(
+        self,
+        excluded_routes: set[str],
+        deadline: float,
+        last_error: AxiomHTTPStatusError | AxiomRequestError | None,
+    ) -> SessionAndAgent:
+        while True:
+            # Select at dispatch time: queued work must see fresh cooldowns.
+            await self._request_pacer.wait_turn()
+            try:
+                selected = self._agent_selector.acquire_agent(excluded_routes)
+            except Exception:
+                self._request_pacer.release_turn()
+                raise
+            if selected is not None:
+                return selected
+            self._request_pacer.release_turn()
+            excluded_routes.clear()
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                if last_error is not None:
+                    raise last_error
+                raise TimeoutError("No Axiom route became available")
+            delay = self._agent_selector.next_available_delay()
+            await asyncio.sleep(min(max(delay, 0.01), remaining))
 
     async def pair_chart_v2(
         self, pair_address: str, chart_from: int, chart_to: int

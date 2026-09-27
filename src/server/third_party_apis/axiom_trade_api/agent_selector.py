@@ -18,6 +18,8 @@ class AgentSelector:
         self._in_flight: dict[int, int] = {}
         self._rate_limited_until: dict[str, float] = {}
         self._unavailable_until: dict[str, float] = {}
+        self._route_intervals: dict[str, float] = {}
+        self._next_start: dict[str, float] = {}
         self._route_cursor = 0
         self._agent_cursors: dict[str, int] = {}
 
@@ -120,10 +122,27 @@ class AgentSelector:
     ) -> None:
         route = self.route_key(session_and_agent)
         cooldown = retry_after if retry_after is not None else 0.5
+        # Keep spacing subsequent starts after a limit, even after cooldown.
+        self._route_intervals[route] = min(
+            5.0, max(0.2, self._route_intervals.get(route, 0.1) * 2)
+        )
         self._rate_limited_until[route] = max(
             self._rate_limited_until.get(route, 0.0),
             time.monotonic() + cooldown,
         )
+
+    def mark_dispatched(self, selected: SessionAndAgent) -> None:
+        route = self.route_key(selected)
+        self._next_start[route] = time.monotonic() + self._route_intervals.get(
+            route, 0.0
+        )
+
+    def mark_success(self, selected: SessionAndAgent) -> None:
+        route = self.route_key(selected)
+        if route in self._route_intervals:
+            self._route_intervals[route] = max(
+                0.1, self._route_intervals[route] * 0.9
+            )
 
     def mark_unavailable(
         self,
@@ -157,6 +176,7 @@ class AgentSelector:
         return max(
             self._rate_limited_until.get(route, 0.0),
             self._unavailable_until.get(route, 0.0),
+            self._next_start.get(route, 0.0),
         )
 
     def random_websocket_agent(self) -> SessionAndAgent:

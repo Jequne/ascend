@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from typing import Protocol
 
 from .domain import History, PairDetails, PairEvent, TokenFeedBase, TokenFees
@@ -25,10 +25,10 @@ class PairSource(Protocol):
 
 class FeedPreparer(Protocol):
     async def prepare_token_feed(self, event: PairEvent) -> TokenFeedBase: ...
-    async def prepare_developer_update(
+    def developer_updates(
         self, event: PairEvent, base: TokenFeedBase
-    ) -> TokenFeedBase | None: ...
-    async def prepare_funding_update(
+    ) -> AsyncIterator[TokenFeedBase]: ...
+    def funding_updates(
         self, event: PairEvent, base: TokenFeedBase
-    ) -> TokenFeedBase | None: ...
+    ) -> AsyncIterator[TokenFeedBase]: ...
     async def stop(self) -> None: ...

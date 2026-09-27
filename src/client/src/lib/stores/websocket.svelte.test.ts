@@ -92,6 +92,55 @@ afterEach(() => {
 });
 
 describe("WebSocketStore realtime pipeline", () => {
+    it("opens on ATH preview and enriches the same card without reopening", () => {
+        filtersStore.updateFilters({
+            ...DEFAULT_FILTERS,
+            autoOpenMode: "new_tab",
+            minLastTokenAthMcap: 100_000,
+            lastTokensRequiredCount: 1,
+        });
+        const dispatch = vi.fn<AutoOpenDispatcher["dispatch"]>();
+        const { store, sockets } = createHarness({ dispatch });
+        store.connect();
+        const previewToken = createLastDeployedToken({
+            total_pair_fees_paid: null,
+            ath_mcap_in_usd: 200_000,
+            website: null,
+        });
+        sockets[0]?.receive(
+            tokenMessage({ last_deployed_tokens: [previewToken] }),
+        );
+        expect(dispatch).toHaveBeenCalledOnce();
+        expect(store.tokenFeeds).toHaveLength(1);
+        expect(store.tokenFeeds[0]?.indicators).toContain("last tokens");
+        const clientKey = store.tokenFeeds[0]?.clientKey;
+        sockets[0]?.receive(
+            tokenMessage({
+                last_deployed_tokens: [
+                    { ...previewToken, total_pair_fees_paid: 10 },
+                ],
+            }),
+        );
+        sockets[0]?.receive(
+            tokenMessage({
+                last_deployed_tokens: [
+                    {
+                        ...previewToken,
+                        total_pair_fees_paid: 10,
+                        website: "https://example.com",
+                    },
+                ],
+            }),
+        );
+        expect(dispatch).toHaveBeenCalledOnce();
+        expect(store.tokenFeeds).toHaveLength(1);
+        expect(store.tokenFeeds[0]?.clientKey).toBe(clientKey);
+        expect(store.tokenFeeds[0]?.last_deployed_tokens[0]?.website).toBe(
+            "https://example.com",
+        );
+        store.disconnect();
+    });
+
     it.each(["new_tab", "current_axiom_tab"] as const)(
         "blocks future developer tokens after blacklisting a funding card in %s mode",
         async (autoOpenMode) => {

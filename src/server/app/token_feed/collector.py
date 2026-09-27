@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import AsyncIterator, Callable, Coroutine
 
 from .contracts import FeedPreparer, PairSource
 from .domain import PairEvent, TokenFeedBase
@@ -44,22 +44,21 @@ class TokenFeedCollector:
         await self.tokens_feed.put(base)
         logger.info("%s", format_token_log(base))
         for update in (
-            self._preparer.prepare_developer_update,
-            self._preparer.prepare_funding_update,
+            self._preparer.developer_updates,
+            self._preparer.funding_updates,
         ):
             self._spawn(self._emit_update(update, event, base))
 
     async def _emit_update(
         self,
         update: Callable[
-            [PairEvent, TokenFeedBase], Awaitable[TokenFeedBase | None]
+            [PairEvent, TokenFeedBase], AsyncIterator[TokenFeedBase]
         ],
         event: PairEvent,
         base: TokenFeedBase,
     ) -> None:
         try:
-            feed = await update(event, base)
-            if feed is not None:
+            async for feed in update(event, base):
                 await self.tokens_feed.put(feed)
                 logger.info("%s", format_token_log(feed))
         except Exception:
