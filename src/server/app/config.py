@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from pydantic_settings import BaseSettings
-from pydantic import Field, field_serializer
 import json
-from pathlib import Path
-from typing import List, Optional
 import logging
+from pathlib import Path
+from typing import Optional
+
+from pydantic import Field
+from pydantic_settings import BaseSettings
+
+from third_party_apis import axiom_trade_api as axiom
 
 
 def logging_configuration(log_level: str):
@@ -26,11 +29,12 @@ def logging_configuration(log_level: str):
     logging.basicConfig(
         format=FORMAT,
         handlers=[
-            # file_handler, 
+            # file_handler,
             stream_handler
-            ],
-        level=logging.DEBUG
+        ],
+        level=logging.DEBUG,
     )
+
 
 class AxiomTradeConfig(BaseSettings):
     agents_file_json: Optional[str] = "axiom_users_fingerprints.json"
@@ -41,40 +45,35 @@ class AxiomTradeConfig(BaseSettings):
         env_file = ".env"
         extra = "ignore"
 
-    def _check_users_fingerprints_file_path(self, agents_path: Path):
-        agents_path = Path(self.agents_file_json)
+    def _check_users_fingerprints_file_path(self, agents_path: str | None) -> Path:
+        resolved_path = Path(self.agents_file_json or "")
 
-        if not agents_path.exists():
-            raise FileNotFoundError(
-                f"❌ {self.agents_file_json} not found"
-            )
-        return agents_path
+        if not resolved_path.exists():
+            raise FileNotFoundError(f"❌ {self.agents_file_json} not found")
+        return resolved_path
 
-    def load_axiom_api_agents(self) -> List:
-        from third_party_apis.axiom_trade_api.models.auth import AxiomAgentData
+    def load_axiom_api_agents(self) -> list[axiom.AxiomAgentData]:
 
-        agents_path = self._check_users_fingerprints_file_path(
-           self.agents_file_json
-           )
-        
+        agents_path = self._check_users_fingerprints_file_path(self.agents_file_json)
+
         try:
-            with open(agents_path, 'r', encoding="utf-8") as f:
+            with open(agents_path, "r", encoding="utf-8") as f:
                 agents_data = json.load(f)
 
             if isinstance(agents_data, list):
-                agents = [AxiomAgentData(**agent) for agent in agents_data]
+                agents = [axiom.AxiomAgentData(**agent) for agent in agents_data]
 
             else:
-                agents = [AxiomAgentData(**agents_data)]
+                agents = [axiom.AxiomAgentData(**agents_data)]
 
-            print(f"✅ loaded {len(agents)} agents from {agents_path}") 
+            print(f"✅ loaded {len(agents)} agents from {agents_path}")
             return agents
 
         except json.JSONDecodeError as e:
-            raise json.JSONDecodeError(f"❌ parsing error: {e}")
+            raise json.JSONDecodeError(f"❌ parsing error: {e}", e.doc, e.pos) from e
 
         except Exception as e:
-            raise Exception(f"❌ loading agents error: {e}")     
+            raise Exception(f"❌ loading agents error: {e}")
 
 
 class Settings(BaseSettings):

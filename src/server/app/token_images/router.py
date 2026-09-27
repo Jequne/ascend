@@ -2,20 +2,19 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
-from .provider import (
-    AxiomTokenImageProvider,
+from .contracts import (
     TokenImageProvider,
     TokenImageUpstreamError,
 )
-
+from .domain import validate_solana_address
 
 router = APIRouter(prefix="/token-images", tags=["token-images"])
 
 
-def get_token_image_provider() -> TokenImageProvider:
-    return AxiomTokenImageProvider()
+def get_token_image_provider(request: Request) -> TokenImageProvider:
+    return request.app.state.runtime.images
 
 
 @router.get("/{token_address}", response_class=Response)
@@ -27,7 +26,7 @@ async def get_token_image(
     ],
 ) -> Response:
     try:
-        image = await provider.fetch(token_address)
+        image = await provider.fetch(validate_solana_address(token_address))
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

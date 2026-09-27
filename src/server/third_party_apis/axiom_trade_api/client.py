@@ -1,20 +1,26 @@
-from typing import Any, Awaitable, Callable, List, Literal, Optional, TypeVar
-from collections import Counter
-import logging
 import asyncio
+import logging
 import time
+from collections import Counter
+from typing import Any, Awaitable, Callable, List, Literal, Optional, TypeVar
 
-from .auth import AuthManager
 from .agent_selector import AgentSelector
-from .request_pacer import AxiomRequestPacer
-from .models import *
-from .endpoints import *
+from .auth import AuthManager
+from .endpoints import AxiomTradeEndpoints, AxiomTradeWebsocket
 from .endpoints.exceptions import (
     AxiomHTTPStatusError,
     AxiomRequestError,
     AxiomWebSocketError,
 )
-
+from .models import (
+    AxiomAgentData,
+    DevTokensV3Response,
+    PairChartV2Params,
+    PairChartV2Response,
+    PairInfoResponse,
+    TokenInfoResponse,
+)
+from .request_pacer import AxiomRequestPacer
 
 logger = logging.getLogger(__name__)
 ResponseModelT = TypeVar("ResponseModelT")
@@ -22,21 +28,16 @@ ResponseModelT = TypeVar("ResponseModelT")
 
 class AxiomTradeClient:
     def __init__(
-            self,
-            agents: List[AxiomAgentData],
-            ):
+        self,
+        agents: List[AxiomAgentData],
+    ):
         self._auth_manager = AuthManager()
         self._agent_selector = AgentSelector()
         self._request_pacer = AxiomRequestPacer()
         self._http_attempts: Counter[str] = Counter()
         self._http_rate_limits: Counter[str] = Counter()
-        self._endpoints = AxiomTradeEndpoints(
-            self._auth_manager
-        )
-        self._wsocket = AxiomTradeWebsocket(
-            self._auth_manager,
-            self._endpoints
-        )
+        self._endpoints = AxiomTradeEndpoints(self._auth_manager)
+        self._wsocket = AxiomTradeWebsocket(self._auth_manager, self._endpoints)
         self._ws_task: Optional[asyncio.Task[Any]] = None
 
         self.add_agents(agents=agents)
@@ -46,8 +47,11 @@ class AxiomTradeClient:
 
     def connect_websocket(
         self,
-        rooms: List[Literal["new_pairs", "sol_price", "migrations"]] = \
-            ["new_pairs", "sol_price", "migrations"]
+        rooms: List[Literal["new_pairs", "sol_price", "migrations"]] = [
+            "new_pairs",
+            "sol_price",
+            "migrations",
+        ],
     ) -> None:
         """Connect to WebSocket and run stream in background"""
         if self._ws_task is not None and not self._ws_task.done():
@@ -57,10 +61,7 @@ class AxiomTradeClient:
         random_session_and_agent = self._agent_selector.random_websocket_agent()
 
         self._ws_task = asyncio.create_task(
-            self._wsocket.start(
-                session_and_agent=random_session_and_agent, 
-                rooms=rooms
-                )
+            self._wsocket.start(session_and_agent=random_session_and_agent, rooms=rooms)
         )
         self._ws_task.add_done_callback(self._handle_websocket_task_done)
 
@@ -100,6 +101,12 @@ class AxiomTradeClient:
         """Register callback for new pairs response messages"""
         self._wsocket.register_callback("new_pairs", callback)
 
+    def off_new_pairs(self, callback: Callable[[Any], Any]) -> None:
+        self._wsocket.unregister_callback("new_pairs", callback)
+
+    def off_sol_price(self, callback: Callable[[Any], Any]) -> None:
+        self._wsocket.unregister_callback("sol_price", callback)
+
     async def _call_with_random_agent(
         self,
         endpoint_method: Callable[..., Awaitable[Optional[ResponseModelT]]],
@@ -138,14 +145,15 @@ class AxiomTradeClient:
                     if request_count % 25 == 0:
                         pending, oldest_age = self._request_pacer.queue_stats()
                         rate_limited_count = sum(self._http_rate_limits.values())
-                        logger.info(
+                        logger.debug(
                             "Axiom HTTP diagnostics: attempts=%s 429=%s "
                             "rate_limited=%.1f%% "
                             "pending=%s oldest_wait=%.3fs",
                             dict(self._http_attempts),
                             dict(self._http_rate_limits),
                             rate_limited_count / request_count * 100,
-                            pending, oldest_age,
+                            pending,
+                            oldest_age,
                         )
                     return await endpoint_method(
                         session_and_agent=session_and_agent,
@@ -166,9 +174,7 @@ class AxiomTradeClient:
                 if attempt == max_attempts - 1:
                     raise
 
-                excluded_routes.add(
-                    self._agent_selector.route_key(session_and_agent)
-                )
+                excluded_routes.add(self._agent_selector.route_key(session_and_agent))
                 logger.warning(
                     "%s rate limited; retrying via another proxy route",
                     session_and_agent[1].agent_name,
@@ -179,9 +185,7 @@ class AxiomTradeClient:
                 if attempt == max_attempts - 1:
                     raise
 
-                excluded_routes.add(
-                    self._agent_selector.route_key(session_and_agent)
-                )
+                excluded_routes.add(self._agent_selector.route_key(session_and_agent))
                 logger.warning(
                     "%s request failed; retrying via another proxy route",
                     session_and_agent[1].agent_name,
@@ -192,82 +196,61 @@ class AxiomTradeClient:
         raise RuntimeError("unreachable")
 
     async def pair_chart_v2(
-        self,
-        pair_address: str,
-        chart_from: int,
-        chart_to: int
+        self, pair_address: str, chart_from: int, chart_to: int
     ) -> Optional[PairChartV2Response]:
         """Get chart data for a pair"""
         pair_chart_v2_params = PairChartV2Params(
-            pair_address=pair_address,
-            chart_from=chart_from,
-            chart_to=chart_to
+            pair_address=pair_address, chart_from=chart_from, chart_to=chart_to
         )
-        
+
         return await self._call_with_random_agent(
-            self._endpoints.pair_chart_v2,
-            pair_chart_v2_params=pair_chart_v2_params
+            self._endpoints.pair_chart_v2, pair_chart_v2_params=pair_chart_v2_params
         )
-    
-    async def dev_tokens_v3(
-        self,
-        dev_address: str
-    ) -> Optional[DevTokensV3Response]:
+
+    async def dev_tokens_v3(self, dev_address: str) -> Optional[DevTokensV3Response]:
         return await self._call_with_random_agent(
-            self._endpoints.dev_tokens_v3,
-            dev_address=dev_address
+            self._endpoints.dev_tokens_v3, dev_address=dev_address
         )
-    
-    async def token_info(
-        self,
-        pair_address: str
-    ) -> Optional[TokenInfoResponse]:
+
+    async def token_info(self, pair_address: str) -> Optional[TokenInfoResponse]:
         return await self._call_with_random_agent(
-            self._endpoints.token_info,
-            pair_address=pair_address
+            self._endpoints.token_info, pair_address=pair_address
         )
-    
-    async def pair_info(
-        self,
-        pair_address: str
-    ) -> Optional[PairInfoResponse]:
+
+    async def pair_info(self, pair_address: str) -> Optional[PairInfoResponse]:
         return await self._call_with_random_agent(
-            self._endpoints.pair_info,
-            pair_address=pair_address
+            self._endpoints.pair_info, pair_address=pair_address
         )
-    
+
     async def close(self) -> None:
         """Close all connections"""
-        await self._request_pacer.close()
-        if self._ws_task:
-            if not self._ws_task.done():
-                self._ws_task.cancel()
+        try:
+            await self._request_pacer.close()
+            if self._ws_task:
+                if not self._ws_task.done():
+                    self._ws_task.cancel()
+                try:
+                    await self._ws_task
+                except asyncio.CancelledError:
+                    pass
+                except AxiomWebSocketError:
+                    # The task callback has already logged the terminal error.
+                    pass
+                finally:
+                    self._ws_task = None
+        finally:
             try:
-                await self._ws_task
-            except asyncio.CancelledError:
-                pass
-            except AxiomWebSocketError:
-                # The task callback has already logged the terminal error.
-                pass
+                await self._wsocket.close()
             finally:
-                self._ws_task = None
-        # await self._session.close()
+                await asyncio.gather(
+                    *(
+                        session.close()
+                        for session, _ in self._agent_selector.get_agents_and_sessions()
+                    )
+                )
 
-        cancel_tasks = []
-        for session_and_agent in self._agent_selector.get_agents_and_sessions():
-            cancel_tasks.append(
-                session_and_agent[0].close()
-            )
-
-        await asyncio.gather(*cancel_tasks)
-    
     async def __aenter__(self) -> "AxiomTradeClient":
         return self
-    
+
     async def __aexit__(self, *args: object) -> None:
         await self.close()
-    
-
-
-
-    

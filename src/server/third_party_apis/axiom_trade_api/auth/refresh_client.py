@@ -8,7 +8,6 @@ from ..models.auth import AxiomAgentData, AxiomCookie
 from ..urls import AAllBaseUrls, AxiomTradeApiUrls
 from .exceptions import AxiomRefreshTokenError
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -73,25 +72,19 @@ class AuthRefreshClient:
         )
 
         return auth_access_token
-        
+
     def _get_cookies_from_session(self, session: AsyncSession) -> dict:
         cookies = session.cookies.get_dict()
         return cookies
-    
+
     def _save_cf_cookies_for_agent(
-            self, 
-            axiom_agent: AxiomAgentData,
-            session: AsyncSession
-            ) -> None:
+        self, axiom_agent: AxiomAgentData, session: AsyncSession
+    ) -> None:
         cf_cookies: dict = self._get_cookies_from_session(session)
 
         axiom_agent_cookies = axiom_agent.cookies
         for key, value in cf_cookies.items():
             cookie = AxiomCookie(cookie=value)
-            axiom_agent_cookies.key = cookie
+            setattr(axiom_agent_cookies, "key", cookie)
 
-        logger.info(
-            "✅ cf cookies for %s saved in state", 
-            axiom_agent.agent_name
-            )
-        
+        logger.info("✅ cf cookies for %s saved in state", axiom_agent.agent_name)

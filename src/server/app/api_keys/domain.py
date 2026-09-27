@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import ClassVar
 from enum import StrEnum
+from typing import ClassVar
 
 from .exceptions import InvalidApiKeyFormat
 
@@ -17,25 +17,27 @@ class ApiKey:
     kid: str
     expires_at: datetime
     key_hash: str
-    status: ApiKeyStatus = ApiKeyStatus.ACTIVE 
-    label: str = None
+    status: ApiKeyStatus = ApiKeyStatus.ACTIVE
+    label: str | None = None
     max_active_sessions: int = 3
-    revoked_at: datetime = None
+    revoked_at: datetime | None = None
 
     # Чтобы не было видно, что это поле класса при создании объекта ApiKey
-    MAX_ACTIVE_SESSIONS_LIMIT: ClassVar[int] = 5 
+    MAX_ACTIVE_SESSIONS_LIMIT: ClassVar[int] = 5
     MAX_EXPIRATION_DAYS: ClassVar[int] = 30
 
     def __post_init__(self):
-        if self.max_active_sessions < 1 or \
-            self.max_active_sessions >= self.MAX_ACTIVE_SESSIONS_LIMIT:
+        if (
+            self.max_active_sessions < 1
+            or self.max_active_sessions >= self.MAX_ACTIVE_SESSIONS_LIMIT
+        ):
             raise ValueError(
                 f"{self.max_active_sessions} \
                 should be less than or \
                 equal to {self.MAX_ACTIVE_SESSIONS_LIMIT}"
             )
 
-    def current_status(self, now: datetime = None) -> ApiKeyStatus:
+    def current_status(self, now: datetime | None = None) -> ApiKeyStatus:
         if now is None:
             now = datetime.now(timezone.utc)
 
@@ -47,12 +49,12 @@ class ApiKey:
             return ApiKeyStatus.EXPIRED
 
         return ApiKeyStatus.ACTIVE
-        
+
 
 class ApiKeyFormat:
     @staticmethod
     def parse(api_key: str) -> tuple[str, str]:
-        if not api_key.startswith("asc_"): 
+        if not api_key.startswith("asc_"):
             raise InvalidApiKeyFormat("api key format should start with asc_")
 
         parts = api_key.split("_", 2)
@@ -65,5 +67,3 @@ class ApiKeyFormat:
             raise InvalidApiKeyFormat("invalid api key format")
 
         return kid, secret
-
-        

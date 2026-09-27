@@ -49,7 +49,9 @@ class NewPairsRoomContent(BaseModel):
     initial_liquidity_token: Optional[float] = None
     top_10_holders: Optional[float] = Field(
         default=None,
-        validation_alias=AliasChoices("top_10_holders", "top10_holders", "top10Holders")
+        validation_alias=AliasChoices(
+            "top_10_holders", "top10_holders", "top10Holders"
+        ),
     )
     lp_burned: Optional[float] = None
     freeze_authority: Optional[str] = None

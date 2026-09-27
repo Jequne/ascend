@@ -4,16 +4,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ....config import settings
-from ...models import ApiKeyModel
-
+from ...adapters.models import ApiKeyModel
 
 pytestmark = pytest.mark.integration
 
 
 @pytest.mark.asyncio
 async def test_create_api_key_success(
-    client: AsyncClient,
-    session: AsyncSession
+    client: AsyncClient, session: AsyncSession
 ) -> None:
     response = await client.post(
         "/api-keys/create-api-key",
@@ -36,9 +34,7 @@ async def test_create_api_key_success(
     assert body["max_active_sessions"] == 3
     assert body["label"] == "Test key"
 
-    result = await session.execute(
-        select(ApiKeyModel).filter_by(kid=body["kid"])
-    )
+    result = await session.execute(select(ApiKeyModel).filter_by(kid=body["kid"]))
     saved_api_key = result.scalar_one()
 
     assert saved_api_key.kid == body["kid"]
@@ -53,30 +49,15 @@ async def test_create_api_key_success(
         pytest.param(
             {"X-Admin-Secret": "incorrect-admin-secret"},
             401,
-            id="incorrect-admin-secret"
+            id="incorrect-admin-secret",
         ),
-        pytest.param(
-            {"X-Admin-Secret": ""},
-            401,
-            id="empty-string-admin-secret"
-        ),
-        pytest.param(
-            {},
-            401,
-            id="empty-x-admin-secret-header"
-        ),
-        pytest.param(
-            None,
-            401,
-            id="headers-is-none"
-        ),
-    ]
+        pytest.param({"X-Admin-Secret": ""}, 401, id="empty-string-admin-secret"),
+        pytest.param({}, 401, id="empty-x-admin-secret-header"),
+        pytest.param(None, 401, id="headers-is-none"),
+    ],
 )
 async def test_create_test_when_no_x_admin_secret(
-    client: AsyncClient,
-    session: AsyncSession,
-    headers,
-    excepted_status_code
+    client: AsyncClient, session: AsyncSession, headers, excepted_status_code
 ) -> None:
     response = await client.post(
         "/api-keys/create-api-key",
@@ -91,3 +72,26 @@ async def test_create_test_when_no_x_admin_secret(
     assert response.status_code == excepted_status_code
 
 
+@pytest.mark.asyncio
+async def test_request_label_and_session_boundaries_preserve_current_contract(
+    client: AsyncClient,
+) -> None:
+    headers = {"X-Admin-Secret": settings.admin_secret}
+    omitted = await client.post(
+        "/api-keys/create-api-key", headers=headers, json={"max_active_sessions": 4}
+    )
+    assert omitted.status_code == 201 and omitted.json()["label"] is None
+    explicit_null = await client.post(
+        "/api-keys/create-api-key", headers=headers, json={"label": None}
+    )
+    assert explicit_null.status_code == 422
+    assert explicit_null.json()["detail"][0]["type"] == "string_type"
+    zero = await client.post(
+        "/api-keys/create-api-key", headers=headers, json={"max_active_sessions": 0}
+    )
+    assert zero.status_code == 422
+    # Existing DTO/domain disagreement; deliberately retained, not fixed here.
+    with pytest.raises(ValueError):
+        await client.post(
+            "/api-keys/create-api-key", headers=headers, json={"max_active_sessions": 5}
+        )

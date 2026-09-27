@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
+
 from .config import settings
 
 # synchronous engine/session (existing)
@@ -18,7 +18,10 @@ SessionLocal = sessionmaker(
     bind=engine,
     expire_on_commit=False,
 )
-Base = declarative_base()
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 def get_db():
@@ -30,7 +33,7 @@ def get_db():
 
 
 def init_db():
-    from .models import ApiKey  # noqa: F401
+    register_models()
 
     Base.metadata.create_all(bind=engine)
 
@@ -51,3 +54,7 @@ async def get_async_db():
         except Exception as e:
             await session.rollback()
             raise e
+
+
+def register_models() -> None:
+    from .api_keys.adapters.models import ApiKeyModel  # noqa: F401

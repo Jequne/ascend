@@ -1,17 +1,17 @@
 class AAllBaseUrls:
-   URLS = [
-      #   "https://api.axiomtrade.com",
+    URLS = [
+        #   "https://api.axiomtrade.com",
         "https://api2.axiom.trade",
         "https://api3.axiom.trade",
         # "https://api4.axiom.trade",
-      #   "https://api5.axiom.trade",
+        #   "https://api5.axiom.trade",
         "https://api6.axiom.trade",
         "https://api7.axiom.trade",
         "https://api8.axiom.trade",
         "https://api9.axiom.trade",
         "https://api10.axiom.trade",
         # "https://api.axiom.trade",
-   ]
+    ]
 
 
 class AxiomWssUrls:

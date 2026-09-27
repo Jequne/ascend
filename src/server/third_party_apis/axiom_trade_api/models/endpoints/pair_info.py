@@ -1,14 +1,14 @@
-from pydantic import BaseModel, Field, ConfigDict, model_validator, model_serializer
-from typing import Optional, Dict, List
-from datetime import datetime, timedelta
-import time
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DevWalletFunding(BaseModel):
     amount_sol: float = Field(..., alias="amountSol")
     funded_at: datetime = Field(..., alias="fundedAt")
     funding_wallet_address: str = Field(..., alias="fundingWalletAddress")
-    signature: str 
+    signature: str
     wallet_address: str = Field(..., alias="walletAddress")
 
 

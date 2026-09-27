@@ -17,23 +17,45 @@ cd src/server
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-python -m pip install pytest pytest-asyncio
+python -m pip install -r requirements-dev.txt
 Copy-Item .env.example .env
 Copy-Item axiom_users_fingerprints.example.json axiom_users_fingerprints.json
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Минимальные проверки текущего server toolchain:
+Проверки server toolchain (версии в `requirements-dev.txt`, настройки в
+`pyproject.toml`):
 
 ```powershell
-python -m compileall app third_party_apis migrations
+python -m ruff format --check app third_party_apis scripts migrations
+python -m ruff check app third_party_apis scripts migrations
+python -m mypy app third_party_apis scripts migrations
+python -m compileall app third_party_apis scripts migrations
 python -m pytest -q
 ```
 
-В Python-части пока не закреплены formatter, linter и static type checker. При
-добавлении этих инструментов их версии, конфигурация и команды должны быть
-зафиксированы в репозитории и в этом разделе.
+Ruff проверяет imports, базовые ошибки и async; mypy с Pydantic plugin проверяет
+собственные функции и тела всех backend/SDK модулей, включая тесты. Pytest
+использует strict asyncio и importlib import mode. Применённые миграции
+исключены только из форматирования и сортировки imports: их содержимое
+неизменяемо; остальные lint и type проверки действуют.
+Fixtures используют временные БД и подменяют внешние адаптеры, credentials не
+нужны. Для параллельных runtime используйте отдельные соединения файловой
+временной SQLite: in-memory StaticPool разделяет одно соединение между сессиями.
+
+При доступном Docker из `src/server`: `docker build -t ascend-server-check .`.
+Compileall проверяет синтаксис и не заменяет сборку Docker image. Результаты
+baseline и итоговых проверок: [отчёт рефакторинга](backend-refactoring.md).
+
+На уровне INFO token feed выводит многострочные карточки с 🔍 адресом/именем,
+🛠️ кошельком разработчика, долей миграций и 🪙 предыдущими монетами с fees.
+Базовая карточка появляется сразу; developer/funding enrichment выводит
+обновлённые данные отдельно, funding wallet отмечен 💰. При пустой истории
+доля миграций помечается как неизвестная, без деления на ноль.
+`Axiom HTTP diagnostics` (attempts/429/pending/oldest_wait) имеет уровень DEBUG;
+для него установите `LOG_LEVEL=debug`. Предупреждения и ошибки upstream сохраняют
+свои уровни.
 
 ### Ручная проверка сырого Axiom WebSocket
 
@@ -41,7 +63,7 @@ python -m pytest -q
 `axiom_users_fingerprints.json`, запустите:
 
 ```powershell
-python -m third_party_apis.axiom_trade_api.tests.manual_wss_probe --rooms new_pairs sol_price
+python -m scripts.manual_wss_probe --rooms new_pairs sol_price
 ```
 
 Доступные комнаты: `new_pairs`, `sol_price`, `migrations`. Если `--rooms` не указан,

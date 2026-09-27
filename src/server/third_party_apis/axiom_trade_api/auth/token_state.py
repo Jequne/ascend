@@ -3,9 +3,8 @@ from datetime import datetime
 
 import jwt
 
-from .exceptions import AxiomAccessTokenError
 from ..models.auth import AxiomAgentData, AxiomCookie
-
+from .exceptions import AxiomAccessTokenError
 
 logger = logging.getLogger(__name__)
 

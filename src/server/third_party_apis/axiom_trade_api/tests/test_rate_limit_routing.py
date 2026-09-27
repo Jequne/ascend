@@ -3,12 +3,12 @@ import unittest
 
 from third_party_apis.axiom_trade_api.agent_selector import AgentSelector
 from third_party_apis.axiom_trade_api.client import AxiomTradeClient
-from third_party_apis.axiom_trade_api.request_pacer import AxiomRequestPacer
 from third_party_apis.axiom_trade_api.endpoints.exceptions import (
     AxiomHTTPStatusError,
     AxiomRequestError,
 )
 from third_party_apis.axiom_trade_api.models.auth import AxiomAgentData
+from third_party_apis.axiom_trade_api.request_pacer import AxiomRequestPacer
 
 
 def _agent(number: int, proxy: str) -> AxiomAgentData:
@@ -23,17 +23,20 @@ def _agent(number: int, proxy: str) -> AxiomAgentData:
 class AgentSelectorTests(unittest.IsolatedAsyncioTestCase):
     async def test_concurrent_reservations_are_balanced_by_proxy(self) -> None:
         selector = AgentSelector()
-        selector.add_agents([
-            _agent(1, "socks5://proxy-1"),
-            _agent(2, "socks5://proxy-2"),
-            _agent(3, "socks5://proxy-3"),
-        ])
+        selector.add_agents(
+            [
+                _agent(1, "socks5://proxy-1"),
+                _agent(2, "socks5://proxy-2"),
+                _agent(3, "socks5://proxy-3"),
+            ]
+        )
 
         selected = [selector.acquire_agent() for _ in range(6)]
         self.assertNotIn(None, selected)
 
         route_counts: dict[str, int] = {}
         for session_and_agent in selected:
+            assert session_and_agent is not None
             route = selector.route_key(session_and_agent)
             route_counts[route] = route_counts.get(route, 0) + 1
 
@@ -43,47 +46,59 @@ class AgentSelectorTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_agents_with_same_proxy_share_one_route_load(self) -> None:
         selector = AgentSelector()
-        selector.add_agents([
-            _agent(1, "socks5://shared-proxy"),
-            _agent(2, "socks5://shared-proxy"),
-            _agent(3, "socks5://other-proxy"),
-        ])
+        selector.add_agents(
+            [
+                _agent(1, "socks5://shared-proxy"),
+                _agent(2, "socks5://shared-proxy"),
+                _agent(3, "socks5://other-proxy"),
+            ]
+        )
 
         selected = [selector.acquire_agent() for _ in range(2)]
         routes = {
             selector.route_key(session_and_agent)
             for session_and_agent in selected
+            if session_and_agent is not None
         }
 
-        self.assertEqual(routes, {
-            "socks5://shared-proxy",
-            "socks5://other-proxy",
-        })
+        self.assertEqual(
+            routes,
+            {
+                "socks5://shared-proxy",
+                "socks5://other-proxy",
+            },
+        )
 
         await self._close_selector(selector)
 
     async def test_sequential_requests_rotate_between_proxies(self) -> None:
         selector = AgentSelector()
-        selector.add_agents([
-            _agent(1, "socks5://proxy-1"),
-            _agent(2, "socks5://proxy-2"),
-            _agent(3, "socks5://proxy-3"),
-        ])
+        selector.add_agents(
+            [
+                _agent(1, "socks5://proxy-1"),
+                _agent(2, "socks5://proxy-2"),
+                _agent(3, "socks5://proxy-3"),
+            ]
+        )
 
         routes = []
         for _ in range(6):
             selected = selector.acquire_agent()
+            assert selected is not None
             routes.append(selector.route_key(selected))
             selector.release_agent(selected)
 
-        self.assertEqual(routes, [
-            "socks5://proxy-1",
-            "socks5://proxy-2",
-            "socks5://proxy-3",
-            "socks5://proxy-1",
-            "socks5://proxy-2",
-            "socks5://proxy-3",
-        ])
+        self.assertEqual(
+            routes,
+            [
+                "socks5://proxy-1",
+                "socks5://proxy-2",
+                "socks5://proxy-3",
+                "socks5://proxy-1",
+                "socks5://proxy-2",
+                "socks5://proxy-3",
+            ],
+        )
 
         await self._close_selector(selector)
 
@@ -96,7 +111,9 @@ class AgentSelectorTests(unittest.IsolatedAsyncioTestCase):
 class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
     async def test_shared_http_concurrency_limit_under_burst(self) -> None:
         client = AxiomTradeClient([_agent(1, "socks5://proxy-1")])
-        client._request_pacer = AxiomRequestPacer(interval_seconds=0)
+        client._request_pacer = AxiomRequestPacer(
+            interval_seconds=0, max_concurrency=15
+        )
         in_flight = 0
         peak = 0
 
@@ -109,9 +126,9 @@ class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
             return "ok"
 
         try:
-            results = await asyncio.gather(*[
-                client._call_with_random_agent(endpoint) for _ in range(20)
-            ])
+            results = await asyncio.gather(
+                *[client._call_with_random_agent(endpoint) for _ in range(20)]
+            )
         finally:
             await client.close()
 
@@ -142,10 +159,12 @@ class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(client._http_rate_limits["endpoint"], 1)
 
     async def test_network_error_is_retried_through_another_proxy(self) -> None:
-        client = AxiomTradeClient([
-            _agent(1, "socks5://proxy-1"),
-            _agent(2, "socks5://proxy-2"),
-        ])
+        client = AxiomTradeClient(
+            [
+                _agent(1, "socks5://proxy-1"),
+                _agent(2, "socks5://proxy-2"),
+            ]
+        )
         called_routes: list[str] = []
 
         async def endpoint(session_and_agent, **kwargs):
@@ -165,10 +184,12 @@ class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotEqual(called_routes[0], called_routes[1])
 
     async def test_429_is_retried_through_another_proxy(self) -> None:
-        client = AxiomTradeClient([
-            _agent(1, "socks5://proxy-1"),
-            _agent(2, "socks5://proxy-2"),
-        ])
+        client = AxiomTradeClient(
+            [
+                _agent(1, "socks5://proxy-1"),
+                _agent(2, "socks5://proxy-2"),
+            ]
+        )
         called_routes: list[str] = []
 
         async def endpoint(session_and_agent, **kwargs):

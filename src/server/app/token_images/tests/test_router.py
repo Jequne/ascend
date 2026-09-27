@@ -1,13 +1,12 @@
 from collections.abc import AsyncGenerator
 
-from fastapi import FastAPI
 import httpx
 import pytest
 import pytest_asyncio
+from fastapi import FastAPI
 
 from app.token_images.domain import TokenImage
 from app.token_images.router import get_token_image_provider, router
-
 
 TOKEN_ADDRESS = "9LoWfvBgTzwqAMzNeMRwVY8YFBY8hEZjyvo3Mvb8pump"
 

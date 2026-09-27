@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field, ConfigDict, model_validator
-from typing import Optional, Dict, TypedDict
-from datetime import datetime, timedelta
 import time
+from datetime import datetime, timedelta
+from typing import Dict, Optional, TypedDict
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class AxiomHttpRequestContext(TypedDict, total=False):
@@ -14,33 +15,34 @@ class AxiomHeaders(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     user_agent: str = Field(..., alias="User-Agent")
-    accept: str = 'application/json, text/plain, */*'
+    accept: str = "application/json, text/plain, */*"
     accept_language: str = Field(
-        default='en,es-CL;q=0.9,es-419;q=0.8,es;q=0.7,fr;q=0.6',
-        serialization_alias='accept-language'
-        )
+        default="en,es-CL;q=0.9,es-419;q=0.8,es;q=0.7,fr;q=0.6",
+        serialization_alias="accept-language",
+    )
     content_length: str = Field(default="0", serialization_alias="content-length")
-    origin: str = 'https://axiom.trade'
-    priority: str = 'u=1, i'
-    referer: str = 'https://axiom.trade/'
+    origin: str = "https://axiom.trade"
+    priority: str = "u=1, i"
+    referer: str = "https://axiom.trade/"
     sec_fetch_dest: str = Field(default="empty", serialization_alias="sec-fetch-dest")
     sec_fetch_mode: str = Field(default="cors", serialization_alias="sec-fetch-mode")
-    sec_fetch_size: str = Field(default="same-site", serialization_alias="sec-fetch-site")
+    sec_fetch_size: str = Field(
+        default="same-site", serialization_alias="sec-fetch-site"
+    )
 
     @property
     def headers_for_wss(self) -> dict:
-        return  {
+        return {
             "User-Agent": self.user_agent,
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache',
-            'Accept-Language': 'en,es-CL;q=0.9,es-419;q=0.8,es;q=0.7,fr;q=0.6',
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+            "Accept-Language": "en,es-CL;q=0.9,es-419;q=0.8,es;q=0.7,fr;q=0.6",
         }
-
 
 
 class AxiomCookie(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
-    
+
     cookie: str
     expires_at: Optional[int] = Field(None, alias="exp")
 
@@ -49,17 +51,17 @@ class AxiomCookies(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     auth_refresh_token: AxiomCookie = Field(..., alias="auth-refresh-token")
-    auth_access_token: Optional[AxiomCookie] = Field(
-        None, 
-        alias="auth-access-token"
-        )
+    auth_access_token: Optional[AxiomCookie] = Field(None, alias="auth-access-token")
 
     @model_validator(mode="after")
     def set_refresh_token_expiry(self) -> "AxiomCookies":
         if self.auth_refresh_token and not self.auth_refresh_token.expires_at:
             expires_at = datetime.now() + timedelta(days=90)
             self.auth_refresh_token.expires_at = int(expires_at.timestamp())
-        elif self.auth_refresh_token.expires_at < time.time():
+        elif (
+            self.auth_refresh_token.expires_at is not None
+            and self.auth_refresh_token.expires_at < time.time()
+        ):
             raise ValueError("auth_refresh_token already expired")
         return self
 
@@ -84,9 +86,8 @@ class AxiomCookies(BaseModel):
 
 class AxiomAgentData(BaseModel):
     agent_name: str = Field(
-        default="unnamed agent", 
-        description="Agent num (for example axiom_api_agent_1)"
-        )
+        default="unnamed agent", description="Agent num (for example axiom_api_agent_1)"
+    )
     headers: AxiomHeaders = Field(...)
     cookies: AxiomCookies = Field(...)
     proxy: Optional[str] = Field(None, description="proxy for agent")
@@ -106,8 +107,7 @@ class AxiomAgentData(BaseModel):
             cookies=AxiomCookies(
                 auth_refresh_token=AxiomCookie(cookie=auth_refresh_token),
                 auth_access_token=(
-                    AxiomCookie(cookie=auth_access_token) \
-                    if auth_access_token else None
+                    AxiomCookie(cookie=auth_access_token) if auth_access_token else None
                 ),
             ),
             proxy=proxy,
@@ -123,5 +123,3 @@ class AxiomAgentData(BaseModel):
             context["proxy"] = self.proxy
 
         return context
-
-

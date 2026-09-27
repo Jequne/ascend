@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field, model_validator
-from typing import Any, Optional, List, Union
 from datetime import datetime
+from typing import Any, List, Optional, Union
+
+from pydantic import BaseModel, Field, model_validator
 
 
 class Counts(BaseModel):
@@ -24,7 +25,7 @@ class Token(BaseModel):
     migration_info: Optional[MigrationInfo]
     created_at: datetime
     is_migrated: bool
-    current_price_in_sol: Union[float, int]  
+    current_price_in_sol: Union[float, int]
     ath_mcap_in_usd: Optional[float]
 
     @model_validator(mode="before")

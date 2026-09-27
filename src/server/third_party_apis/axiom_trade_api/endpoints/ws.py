@@ -11,6 +11,9 @@ from curl_cffi.requests.websockets import (
 )
 
 from ..auth import AuthManager
+from ..models import AxiomAgentData, RoomSubscribeRequest
+from ..urls import AxiomWssUrls
+from .endpoints import AxiomTradeEndpoints
 from .exceptions import (
     AxiomApiError,
     AxiomWebSocketCloseError,
@@ -19,18 +22,11 @@ from .exceptions import (
     AxiomWebSocketReceiveError,
     AxiomWebSocketSubscriptionError,
 )
-from ..models import (
-    RoomSubscribeRequest,
-    AxiomAgentData
-)
-from ..urls import AxiomWssUrls
-from .endpoints import AxiomTradeEndpoints
 from .ws_router import (
     MessageCallback,
     MessageCallbackDecorator,
     WebsocketMessageRouter,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -126,8 +122,7 @@ class AxiomTradeWebsocket:
 
         except (CurlError, AxiomApiError) as exc:
             raise AxiomWebSocketConnectionError(
-                f"{agent_data.agent_name}: "
-                "failed to connect to Axiom WebSocket"
+                f"{agent_data.agent_name}: failed to connect to Axiom WebSocket"
             ) from exc
 
         logger.info(
@@ -150,9 +145,7 @@ class AxiomTradeWebsocket:
         finally:
             self._wsocket = None
 
-        logger.info(
-            "Disconnected from Axiom WebSocket"
-        )
+        logger.info("Disconnected from Axiom WebSocket")
 
     async def raw_messages(self) -> AsyncIterator[bytes]:
         """Yield WebSocket payloads before JSON parsing and room validation."""
@@ -189,18 +182,12 @@ class AxiomTradeWebsocket:
                     )
                     continue
 
-                validated_data = (
-                    self._message_router.validate_room_message(
-                        data
-                    )
-                )
+                validated_data = self._message_router.validate_room_message(data)
 
                 if validated_data is None:
                     continue
 
-                await self._message_router.dispatch_message(
-                    validated_data
-                )
+                await self._message_router.dispatch_message(validated_data)
 
         except (WebSocketError, CurlError) as exc:
             raise AxiomWebSocketReceiveError(
@@ -219,14 +206,11 @@ class AxiomTradeWebsocket:
             )
 
         try:
-            await self._wsocket.send_str(
-                subscription_message.model_dump_json()
-            )
+            await self._wsocket.send_str(subscription_message.model_dump_json())
 
         except CurlError as exc:
             raise AxiomWebSocketSubscriptionError(
-                f"Failed to subscribe to room "
-                f"{subscription_message.room}"
+                f"Failed to subscribe to room {subscription_message.room}"
             ) from exc
 
         logger.debug(
@@ -289,8 +273,7 @@ class AxiomTradeWebsocket:
                     ) from exc
 
                 logger.warning(
-                    "%s WebSocket problem: %s. "
-                    "Retrying (%s/%s)",
+                    "%s WebSocket problem: %s. Retrying (%s/%s)",
                     agent_data.agent_name,
                     exc,
                     retry_count,
@@ -307,6 +290,4 @@ class AxiomTradeWebsocket:
                         exc,
                     )
 
-            await asyncio.sleep(
-                reconnecting_time_in_sec
-            )
+            await asyncio.sleep(reconnecting_time_in_sec)

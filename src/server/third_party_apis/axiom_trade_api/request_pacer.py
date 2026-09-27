@@ -1,14 +1,13 @@
 """Shared pacing for authenticated Axiom HTTP calls."""
 
 import asyncio
-from contextlib import contextmanager
-from contextvars import ContextVar
 import heapq
 import itertools
 import logging
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Iterator
-
 
 _request_priority: ContextVar[int] = ContextVar("axiom_request_priority", default=0)
 logger = logging.getLogger(__name__)
@@ -53,7 +52,9 @@ class AxiomRequestPacer:
             await future
             logger.debug(
                 "Axiom HTTP request waited %.3fs; priority=%s pending=%s",
-                time.monotonic() - queued_at, priority, self.queue_stats()[0],
+                time.monotonic() - queued_at,
+                priority,
+                self.queue_stats()[0],
             )
         except asyncio.CancelledError:
             if future.done() and not future.cancelled():
@@ -74,10 +75,12 @@ class AxiomRequestPacer:
                 break
             background_positions = (
                 [
-                    index for index, item in enumerate(self._pending)
+                    index
+                    for index, item in enumerate(self._pending)
                     if item[0] == 1 and not item[3].cancelled()
                 ]
-                if self._foreground_streak >= MAX_FOREGROUND_BURST else []
+                if self._foreground_streak >= MAX_FOREGROUND_BURST
+                else []
             )
             if background_positions:
                 position = min(

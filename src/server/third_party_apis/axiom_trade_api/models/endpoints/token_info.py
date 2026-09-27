@@ -1,7 +1,7 @@
-from pydantic import BaseModel, Field, ConfigDict, model_validator, model_serializer
-from typing import Optional, Dict, List
-from datetime import datetime, timedelta
-import time
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, Field
 
 
 class TokenInfoResponse(BaseModel):
@@ -15,4 +15,3 @@ class TokenInfoResponse(BaseModel):
     snipers_hold_percent: float = Field(..., alias="snipersHoldPercent")
     top10_holders_percent: float = Field(..., alias="top10HoldersPercent")
     total_pair_fees_paid: float = Field(..., alias="totalPairFeesPaid")
-    

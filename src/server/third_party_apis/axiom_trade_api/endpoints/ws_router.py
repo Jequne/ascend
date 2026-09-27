@@ -3,13 +3,12 @@ import inspect
 import logging
 from typing import Any, Awaitable, Callable, Dict, Set, TypeAlias
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from ..models import (
     NewPairsRoomMessage,
     SolPriceRoomMessage,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +58,7 @@ class WebsocketMessageRouter:
         self,
         data: Dict[str, Any],
     ) -> Any | None:
+        model: type[BaseModel]
         room = data.get("room")
 
         match room:
@@ -91,9 +91,7 @@ class WebsocketMessageRouter:
         elif isinstance(data, dict):
             room = data.get("room")
         else:
-            logger.debug(
-                "Skipping websocket message without room information"
-            )
+            logger.debug("Skipping websocket message without room information")
             return
 
         if not room:
@@ -104,9 +102,7 @@ class WebsocketMessageRouter:
         if not callbacks:
             return
 
-        async_callbacks: list[
-            tuple[MessageCallback, Awaitable[Any]]
-        ] = []
+        async_callbacks: list[tuple[MessageCallback, Awaitable[Any]]] = []
 
         for callback in callbacks:
             try:
@@ -121,9 +117,7 @@ class WebsocketMessageRouter:
                 continue
 
             if inspect.isawaitable(result):
-                async_callbacks.append(
-                    (callback, result)
-                )
+                async_callbacks.append((callback, result))
 
         if not async_callbacks:
             return

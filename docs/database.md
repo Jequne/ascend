@@ -34,6 +34,13 @@ Docker Compose использует PostgreSQL 16 и передает прило
 Alembic-конфигурация находится в `src/server/alembic.ini`, версии — в
 `src/server/migrations/versions`.
 
+ORM-модель находится в `app/api_keys/adapters/models.py`; `database.register_models`
+регистрирует её явно и идемпотентно для startup и Alembic. Старых ORM aliases нет.
+Рефакторинг модулей не меняет схему и содержимое применённых миграций.
+Pytest проверяет `alembic upgrade head` и отсутствие metadata diff на временной БД.
+Очистка удаляет до 200 записей за проход каждые 7200 секунд: status expired
+или expires_at < now. Транзакцией владеет adapter.
+
 ```powershell
 cd src/server
 alembic upgrade head

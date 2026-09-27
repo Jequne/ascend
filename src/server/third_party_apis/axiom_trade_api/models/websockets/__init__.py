@@ -1,13 +1,14 @@
 """Models for WebSocket messages"""
 
 from .subscription_message import (
+    NewPairsRoomContent,
     NewPairsRoomMessage,
     RoomSubscribeRequest,
     SolPriceRoomMessage,
-    NewPairsRoomContent,
 )
 
 __all__ = [
+    "NewPairsRoomContent",
     "RoomSubscribeRequest",
     "SolPriceRoomMessage",
     "NewPairsRoomMessage",

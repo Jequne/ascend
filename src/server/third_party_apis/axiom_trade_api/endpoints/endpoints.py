@@ -10,10 +10,22 @@ from curl_cffi.requests.exceptions import RequestException
 from pydantic import ValidationError
 
 from ..auth import AuthManager
-from .exceptions import *
-from ..models import *
+from ..models import (
+    AxiomAgentData,
+    DevTokensV3Response,
+    PairChartV2Params,
+    PairChartV2Response,
+    PairInfoResponse,
+    TokenInfoResponse,
+)
 from ..urls import AAllBaseUrls, AxiomTradeApiUrls
-
+from .exceptions import (
+    AxiomApiError,
+    AxiomHTTPStatusError,
+    AxiomRequestError,
+    AxiomResponseError,
+    AxiomResponseValidationError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -99,9 +111,7 @@ class AxiomTradeEndpoints:
     ) -> ResponseModelT:
         agent_data = session_and_agent[1]
 
-        is_valid = await self._auth_manager.ensure_validation(
-            session_and_agent
-        )
+        is_valid = await self._auth_manager.ensure_validation(session_and_agent)
 
         if not is_valid:
             raise AxiomApiError(
@@ -126,8 +136,7 @@ class AxiomTradeEndpoints:
 
         except ValueError as exc:
             raise AxiomResponseError(
-                f"{agent_data.agent_name}: "
-                f"{endpoint_name} returned invalid JSON"
+                f"{agent_data.agent_name}: {endpoint_name} returned invalid JSON"
             ) from exc
 
         logger.debug(
@@ -142,8 +151,7 @@ class AxiomTradeEndpoints:
 
         except ValidationError as exc:
             raise AxiomResponseValidationError(
-                f"{agent_data.agent_name}: "
-                f"{endpoint_name} response validation failed"
+                f"{agent_data.agent_name}: {endpoint_name} response validation failed"
             ) from exc
 
     async def pair_chart_v2(
@@ -174,11 +182,7 @@ class AxiomTradeEndpoints:
         session_and_agent: tuple[AsyncSession, AxiomAgentData],
         dev_address: str,
     ) -> DevTokensV3Response:
-        url = (
-            self._base_url
-            + AxiomTradeApiUrls.DEV_TOKENS_V5
-            + dev_address
-        )
+        url = self._base_url + AxiomTradeApiUrls.DEV_TOKENS_V5 + dev_address
 
         return await self.__get_response_model(
             session_and_agent=session_and_agent,
@@ -192,11 +196,7 @@ class AxiomTradeEndpoints:
         session_and_agent: tuple[AsyncSession, AxiomAgentData],
         pair_address: str,
     ) -> TokenInfoResponse:
-        url = (
-            self._base_url
-            + AxiomTradeApiUrls.TOKEN_INFO
-            + pair_address
-        )
+        url = self._base_url + AxiomTradeApiUrls.TOKEN_INFO + pair_address
 
         return await self.__get_response_model(
             session_and_agent=session_and_agent,
@@ -210,11 +210,7 @@ class AxiomTradeEndpoints:
         session_and_agent: tuple[AsyncSession, AxiomAgentData],
         pair_address: str,
     ) -> PairInfoResponse:
-        url = (
-            self._base_url
-            + AxiomTradeApiUrls.PAIR_INFO
-            + pair_address
-        )
+        url = self._base_url + AxiomTradeApiUrls.PAIR_INFO + pair_address
 
         return await self.__get_response_model(
             session_and_agent=session_and_agent,
