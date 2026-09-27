@@ -43,7 +43,7 @@ Pytest проверяет `alembic upgrade head` и отсутствие metadat
 
 ```powershell
 cd src/server
-alembic upgrade head
+uv run --locked alembic upgrade head
 ```
 
 Для изменения схемы создайте новую миграцию и проверьте upgrade и downgrade на

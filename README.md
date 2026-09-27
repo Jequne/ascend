@@ -22,15 +22,16 @@ Ascend принимает поток токенов из внешнего про
 
 ```powershell
 cd src/server
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+uv sync --locked
 Copy-Item .env.example .env
 Copy-Item axiom_users_fingerprints.example.json axiom_users_fingerprints.json
-alembic upgrade head
-uvicorn app.main:app --reload
+uv run --locked alembic upgrade head
+uv run --locked uvicorn app.main:app --reload
 ```
 
+Установите [uv](https://docs.astral.sh/uv/getting-started/installation/).
+Версия Python задана в `src/server/.python-version`; uv создаёт `.venv`
+и устанавливает зависимости из `uv.lock`.
 Перед запуском замените демонстрационные значения в `.env` и файле
 fingerprints. Healthcheck будет доступен по адресу
 `http://localhost:8000/health`, OpenAPI — `http://localhost:8000/docs`.

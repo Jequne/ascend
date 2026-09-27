@@ -2,7 +2,8 @@
 
 ## Требования
 
-- Python 3.11 или новее;
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) 0.12.3 или новее;
+- Python 3.14 для backend (uv установит его при отсутствии);
 - Node.js и npm;
 - Rust toolchain и системные зависимости Tauri;
 - Docker с Compose plugin для полного серверного окружения;
@@ -14,25 +15,49 @@
 
 ```powershell
 cd src/server
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
+uv sync --locked
 Copy-Item .env.example .env
 Copy-Item axiom_users_fingerprints.example.json axiom_users_fingerprints.json
-alembic upgrade head
-uvicorn app.main:app --reload
+uv run --locked alembic upgrade head
+uv run --locked uvicorn app.main:app --reload
 ```
 
-Проверки server toolchain (версии в `requirements-dev.txt`, настройки в
-`pyproject.toml`):
+Зависимости приложения перечислены в `pyproject.toml`, инструменты проверок —
+в его группе `dev`. `uv.lock` фиксирует полный граф зависимостей и хранится
+в Git вместе с `pyproject.toml`. `.python-version` выбирает Python 3.14,
+как и Docker. `uv sync --locked` создаёт или синхронизирует `.venv` и включает
+группу `dev`; активировать окружение вручную не требуется.
+Backend запускается из исходников (`tool.uv.package = false`).
+
+Добавление и обновление зависимостей выполняйте из `src/server`:
 
 ```powershell
-python -m ruff format --check app third_party_apis scripts migrations
-python -m ruff check app third_party_apis scripts migrations
-python -m mypy app third_party_apis scripts migrations
-python -m compileall app third_party_apis scripts migrations
-python -m pytest -q
+uv add package-name
+uv add --dev tool-name
+uv remove package-name
+uv add "package-name==1.2.3"
+uv sync --locked
+```
+
+Изменения `pyproject.toml` и `uv.lock` коммитятся вместе. `--locked` проверяет,
+что lock-файл соответствует декларациям, и не обновляет его при запуске.
+В `pyproject.toml` перечислены только используемые прямые зависимости.
+Транзитивные зависимости фиксируются в `uv.lock`. Версии оставшихся прямых
+зависимостей сохранены; для обновления задайте новую версию через `uv add`.
+Наборы `uvicorn[standard]`, `SQLAlchemy[asyncio]` и `psycopg[binary]` сохраняют
+HTTP/WebSocket backend, reload, асинхронную БД и PostgreSQL driver.
+Для окружения без инструментов разработки используйте `uv sync --locked --no-dev`
+и запускайте команды с `uv run --locked --no-dev ...`.
+
+Проверки server toolchain:
+
+```powershell
+uv lock --check
+uv run --locked ruff format --check app third_party_apis scripts migrations
+uv run --locked ruff check app third_party_apis scripts migrations
+uv run --locked mypy app third_party_apis scripts migrations
+uv run --locked python -m compileall app third_party_apis scripts migrations
+uv run --locked pytest -q
 ```
 
 Ruff ограничивает строки Python-кода 79 символами по PEP 8 (`line-length = 79`)
@@ -40,8 +65,11 @@ Ruff ограничивает строки Python-кода 79 символами
 переносит автоматически. Ruff также проверяет imports, базовые ошибки и async;
 mypy с Pydantic plugin проверяет
 собственные функции и тела всех backend/SDK модулей, включая тесты. Pytest
-использует strict asyncio и importlib import mode. Применённые миграции
-исключены из форматирования и сортировки imports: их содержимое неизменяемо.
+использует strict asyncio и importlib import mode.
+Для запуска через console entrypoint `uv run pytest` путь исходников server
+явно задан в настройке pytest `pythonpath = ["."]`.
+Применённые миграции исключены из форматирования и сортировки imports:
+их содержимое неизменяемо.
 Для существующей миграции `801c5e2b52e7_added_revoked_at_api_keys.py` также
 сохранено исключение E501; новые миграции проходят проверку длины строк.
 Остальные lint и type проверки действуют для всех миграций.
@@ -68,7 +96,7 @@ baseline и итоговых проверок: [отчёт рефакторин�
 `axiom_users_fingerprints.json`, запустите:
 
 ```powershell
-python -m scripts.manual_wss_probe --rooms new_pairs sol_price
+uv run --locked python -m scripts.manual_wss_probe --rooms new_pairs sol_price
 ```
 
 Доступные комнаты: `new_pairs`, `sol_price`, `migrations`. Если `--rooms` не указан,

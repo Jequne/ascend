@@ -1,4 +1,5 @@
 venv
+.venv/
 __pycache__
 users_fingerprints.json
 logs.txt

@@ -225,7 +225,7 @@ class FeedEnrichment:
             if funding is None:
                 return None, None, None, None
             funding_wallet = validate_funding_address(funding)
-        except (ValueError, AttributeError):
+        except ValueError, AttributeError:
             return None, None, None, None
         except Exception:
             logger.warning("Current pair funding lookup failed", exc_info=True)

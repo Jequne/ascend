@@ -1,18 +1,20 @@
-FROM python:3.11-slim
+FROM python:3.14-slim
 
-ENV PIP_DEFAULT_TIMEOUT=60 \
-    PIP_RETRIES=5 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+COPY --from=ghcr.io/astral-sh/uv:0.12.3 /uv /uvx /bin/
+
+ENV UV_HTTP_TIMEOUT=60 \
+    UV_HTTP_RETRIES=5 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_LINK_MODE=copy \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app
 
-# Install the existing Python dependencies.
-COPY requirements.txt ./requirements.txt
-RUN pip install --upgrade pip \
-    && pip install -r requirements.txt
+# Install locked runtime dependencies before copying application code.
+COPY pyproject.toml uv.lock .python-version ./
+RUN uv sync --locked --no-dev --no-cache
 
 # Copy the server code after dependencies so Docker can reuse the layer cache.
 COPY . .

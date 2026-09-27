@@ -40,12 +40,17 @@ flowchart LR
   backend и получает credentials от вызывающей стороны.
 - `migrations` хранит версионируемую схему Alembic.
 
+Backend использует uv: `pyproject.toml` объявляет зависимости и группу `dev`,
+`uv.lock` фиксирует полный граф, `.python-version` выбирает Python 3.14.
+Разработка и Docker устанавливают зависимости с `--locked`; Docker исключает
+группу `dev`. Решение описано в [ADR 0004](adr/0004-backend-uv.md).
+
 `app/composition.py` собирает Runtime; `main.py` подключает маршруты и управляет
 его lifespan. Импорт entrypoint не читает fingerprints и не создаёт SDK-клиент.
 При остановке снимаются callbacks, отменяются и ожидаются задачи, закрывается
 клиент. Неудачный startup освобождает созданные ресурсы.
 Генератор lifespan имеет тип `AsyncGenerator[None, None]`; эта аннотация
-подходит для `asynccontextmanager` и совместима с Python 3.11.
+подходит для `asynccontextmanager` и совместима с Python 3.14.
 `database.py` регистрирует единственную ORM-модель через register_models;
 Alembic использует ту же регистрацию. Схема и применённые миграции сохранены.
 HTTP dependency providers собирают сервис ключей на транзакции запроса.

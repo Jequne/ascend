@@ -48,7 +48,7 @@ def _get_retry_after_seconds(response: Response) -> float | None:
                 0.0,
                 (retry_at - datetime.now(timezone.utc)).total_seconds(),
             )
-        except (TypeError, ValueError, OverflowError):
+        except TypeError, ValueError, OverflowError:
             return None
 
 

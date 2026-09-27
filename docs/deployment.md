@@ -32,6 +32,12 @@
 
 ## Запуск
 
+Docker устанавливает зависимости через `uv sync --locked --no-dev` из
+`pyproject.toml` и `uv.lock`. Версия uv закреплена в Dockerfile, Python — 3.14.
+Группа `dev` не устанавливается. Команды `alembic` и `uvicorn` в Compose
+используют `/app/.venv/bin` из `PATH`; при старте контейнера синхронизация
+и сетевое разрешение зависимостей не выполняются.
+
 ```powershell
 cd src/server
 docker compose config
