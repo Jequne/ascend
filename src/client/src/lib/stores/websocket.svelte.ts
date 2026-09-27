@@ -10,7 +10,7 @@ import {
 } from "$lib/services/audioNotifications";
 import { filtersStore } from "$lib/stores/filters.svelte";
 import { notificationsStore } from "$lib/stores/notifications.svelte";
-import type { FilterSnapshot, TokenFeed } from "$lib/types";
+import type { FilterSnapshot, TokenFeed, TokenFeedPayload } from "$lib/types";
 import { evaluateTokenFeed, prependRollingFeed } from "$lib/utils/feed";
 import { parseWebSocketMessage } from "$lib/utils/websocketMessage";
 import { SvelteMap } from "svelte/reactivity";
@@ -25,7 +25,7 @@ export class WebSocketStore {
     private feedSequence = 0;
     private seenTokens = new SvelteMap<
         string,
-        { clientKey: string; accepted: boolean }
+        { clientKey: string; accepted: boolean; payload: TokenFeedPayload }
     >();
 
     isConnected = $state(false);
@@ -80,36 +80,52 @@ export class WebSocketStore {
 
         const incoming = message.payload;
         const tokenId = incoming.pair_address || incoming.token_address;
-        const existing = this.tokenFeeds.find(
-            (feed) => (feed.pair_address || feed.token_address) === tokenId,
-        );
-        // Funding enrichment never retracts a previously verified history.
-        // A delayed base message must not erase a newer funding result.
-        const payload =
-            existing?.funding_wallet && incoming.funding_wallet == null
-                ? {
-                      ...incoming,
-                      funding_wallet: existing.funding_wallet,
-                      funding_deployed_tokens: existing.funding_deployed_tokens,
-                      funding_migrated_tokens_count:
-                          existing.funding_migrated_tokens_count,
-                      funding_all_tokens_count:
-                          existing.funding_all_tokens_count,
-                  }
-                : incoming;
         const seen = this.seenTokens.get(tokenId);
+        const payload = seen
+            ? {
+                  ...seen.payload,
+                  ...incoming,
+                  ...(incoming.last_deployed_tokens === null &&
+                  incoming.all_tokens_count === 0
+                      ? {
+                            last_deployed_tokens:
+                                seen.payload.last_deployed_tokens,
+                            migrated_tokens_count:
+                                seen.payload.migrated_tokens_count,
+                            all_tokens_count: seen.payload.all_tokens_count,
+                        }
+                      : {}),
+                  ...(incoming.funding_wallet == null
+                      ? {
+                            funding_wallet: seen.payload.funding_wallet,
+                            funding_deployed_tokens:
+                                seen.payload.funding_deployed_tokens,
+                            funding_migrated_tokens_count:
+                                seen.payload.funding_migrated_tokens_count,
+                            funding_all_tokens_count:
+                                seen.payload.funding_all_tokens_count,
+                        }
+                      : {}),
+              }
+            : incoming;
         const clientKey = seen?.clientKey ?? `${tokenId}:${this.feedSequence}`;
         const snapshot = filtersStore.snapshot;
         const decision = evaluateTokenFeed(payload, snapshot, clientKey);
 
         if (!seen) {
             this.feedSequence += 1;
-            this.seenTokens.set(tokenId, { clientKey, accepted: false });
+            this.seenTokens.set(tokenId, {
+                clientKey,
+                accepted: false,
+                payload,
+            });
             if (this.seenTokens.size > MAX_SEEN_TOKENS) {
                 const oldest = this.seenTokens.keys().next().value;
                 if (oldest !== undefined) this.seenTokens.delete(oldest);
             }
         }
+
+        if (seen) this.seenTokens.set(tokenId, { ...seen, payload });
 
         if (!decision.accepted) {
             if (!seen) this.tokenFeedTotalCount += 1;
@@ -123,7 +139,7 @@ export class WebSocketStore {
             return;
         }
 
-        this.seenTokens.set(tokenId, { clientKey, accepted: true });
+        this.seenTokens.set(tokenId, { clientKey, accepted: true, payload });
         this.openAcceptedFeed(decision.feed, snapshot);
         if (!seen) this.tokenFeedTotalCount += 1;
         this.tokenFeedCount += 1;

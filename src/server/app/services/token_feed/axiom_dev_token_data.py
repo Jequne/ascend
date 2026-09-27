@@ -276,29 +276,7 @@ class AxiomDevTokenData():
             cls, 
             new_pairs_data: NewPairsRoomMessage
             ) -> Optional[TokenFeedBase]:
-        dev_wallet = new_pairs_data.content.deployer_address
-
-        try:
-            dev_tokens = await cls._run_bounded_request(
-                cls._get_client().dev_tokens_v3,
-                dev_address=dev_wallet,
-            )
-        except Exception:
-            logger.warning("Developer token history lookup failed", exc_info=True)
-            dev_tokens = None
-        
         blockchain = cls._define_blockchain(new_pairs_data)
-
-        try:
-            last_deployed_tokens = await cls._prepared_last_deployed_tokens(
-                blockchain=blockchain,
-                dev_tokens=dev_tokens,
-                dev_wallet=dev_wallet,
-                new_token_pair_address=new_pairs_data.content.pair_address,
-            ) if dev_tokens else None
-        except Exception:
-            logger.warning("Developer history enrichment failed", exc_info=True)
-            last_deployed_tokens = None
 
         token_feed_base = TokenFeedBase(
             blockchain=blockchain,
@@ -316,14 +294,45 @@ class AxiomDevTokenData():
             token_ticker=new_pairs_data.content.token_ticker,
             dev_wallet=new_pairs_data.content.deployer_address,
             protocol=new_pairs_data.content.protocol,
-            last_deployed_tokens=last_deployed_tokens,
-            migrated_tokens_count=dev_tokens.counts.migrated_count if dev_tokens else 0,
-            all_tokens_count=dev_tokens.counts.total_count if dev_tokens else 0,
+            last_deployed_tokens=None,
+            migrated_tokens_count=0,
+            all_tokens_count=0,
             funding_wallet=None,
             funding_deployed_tokens=None,
         )
 
         return token_feed_base
+
+    @classmethod
+    async def prepare_developer_update(
+        cls, new_pairs_data: NewPairsRoomMessage, base_feed: TokenFeedBase
+    ) -> TokenFeedBase | None:
+        dev_wallet = new_pairs_data.content.deployer_address
+        try:
+            dev_tokens = await cls._run_bounded_request(
+                cls._get_client().dev_tokens_v3,
+                dev_address=dev_wallet,
+            )
+        except Exception:
+            logger.warning("Developer token history lookup failed", exc_info=True)
+            return None
+        if dev_tokens is None:
+            return None
+        try:
+            last_deployed_tokens = await cls._prepared_last_deployed_tokens(
+                blockchain=base_feed.blockchain,
+                dev_tokens=dev_tokens,
+                dev_wallet=dev_wallet,
+                new_token_pair_address=base_feed.pair_address,
+            )
+        except Exception:
+            logger.warning("Developer history enrichment failed", exc_info=True)
+            last_deployed_tokens = None
+        return base_feed.model_copy(update={
+            "last_deployed_tokens": last_deployed_tokens,
+            "migrated_tokens_count": dev_tokens.counts.migrated_count,
+            "all_tokens_count": dev_tokens.counts.total_count,
+        })
 
     @classmethod
     async def prepare_funding_update(

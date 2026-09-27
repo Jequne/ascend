@@ -116,7 +116,7 @@ class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
             await client.close()
 
         self.assertEqual(results, ["ok"] * 20)
-        self.assertEqual(peak, 10)
+        self.assertEqual(peak, 15)
 
     async def test_single_route_waits_for_retry_after_before_retry(self) -> None:
         client = AxiomTradeClient([_agent(1, "socks5://proxy-1")])

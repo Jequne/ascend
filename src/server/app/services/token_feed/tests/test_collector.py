@@ -56,6 +56,18 @@ class _LateFundingSource(_ControlledSource):
         return base_feed.model_copy(update={"funding_wallet": "funding-wallet"})
 
 
+class _ParallelUpdatesSource(_LateFundingSource):
+    def __init__(self) -> None:
+        super().__init__()
+        self.developer_release = asyncio.Event()
+
+    async def prepare_developer_update(
+        self, message: str, base_feed: TokenFeedBase
+    ) -> TokenFeedBase:
+        await self.developer_release.wait()
+        return base_feed.model_copy(update={"all_tokens_count": 2})
+
+
 class TokenFeedCollectorTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         TokenFeedCollector.tokens_feed = asyncio.Queue()
@@ -107,6 +119,23 @@ class TokenFeedCollectorTests(unittest.IsolatedAsyncioTestCase):
         update = await asyncio.wait_for(TokenFeedCollector.tokens_feed.get(), 0.1)
         self.assertEqual(update.pair_address, "pair")
         self.assertEqual(update.funding_wallet, "funding-wallet")
+        await collector.stop()
+
+    async def test_funding_can_arrive_before_slow_developer_history(self) -> None:
+        source = _ParallelUpdatesSource()
+        collector = TokenFeedCollector([source])
+        await collector.start()
+        source.callback("pair")
+        await asyncio.sleep(0)
+        source.releases["pair"].set()
+        base = await asyncio.wait_for(TokenFeedCollector.tokens_feed.get(), 0.1)
+        self.assertIsNone(base.funding_wallet)
+        source.funding_release.set()
+        funding = await asyncio.wait_for(TokenFeedCollector.tokens_feed.get(), 0.1)
+        self.assertEqual(funding.funding_wallet, "funding-wallet")
+        source.developer_release.set()
+        developer = await asyncio.wait_for(TokenFeedCollector.tokens_feed.get(), 0.1)
+        self.assertEqual(developer.all_tokens_count, 2)
         await collector.stop()
 
 

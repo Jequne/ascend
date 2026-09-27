@@ -90,6 +90,49 @@ afterEach(() => {
 });
 
 describe("WebSocketStore realtime pipeline", () => {
+    it("accepts a token after developer and funding updates arrive in either order", () => {
+        const dispatch = vi.fn<AutoOpenDispatcher["dispatch"]>();
+        const { store, sockets } = createHarness({ dispatch });
+        filtersStore.updateFilters({
+            ...DEFAULT_FILTERS,
+            autoOpenMode: "new_tab",
+            fundingEnabled: true,
+        });
+        store.connect();
+        sockets[0]?.open();
+        const base = createPayload({
+            all_tokens_count: 0,
+            migrated_tokens_count: 0,
+            last_deployed_tokens: null,
+        });
+        sockets[0]?.receive(tokenMessage(base));
+        expect(store.tokenFeeds).toHaveLength(0);
+
+        sockets[0]?.receive(
+            tokenMessage({
+                ...base,
+                funding_wallet: "funding-wallet",
+                funding_all_tokens_count: 2,
+                funding_migrated_tokens_count: 1,
+                funding_deployed_tokens: [createLastDeployedToken()],
+            }),
+        );
+        sockets[0]?.receive(
+            tokenMessage({
+                ...base,
+                all_tokens_count: 2,
+                migrated_tokens_count: 1,
+                last_deployed_tokens: [createLastDeployedToken()],
+            }),
+        );
+
+        expect(store.tokenFeeds).toHaveLength(1);
+        expect(store.tokenFeeds[0]?.funding_wallet).toBe("funding-wallet");
+        expect(store.tokenFeeds[0]?.all_tokens_count).toBe(2);
+        expect(dispatch).toHaveBeenCalledOnce();
+        expect(store.tokenFeedTotalCount).toBe(1);
+    });
+
     it("notifies once only after a token passes filters", () => {
         const dispatch = vi.fn<AutoOpenDispatcher["dispatch"]>();
         const play = vi

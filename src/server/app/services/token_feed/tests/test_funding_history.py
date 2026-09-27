@@ -130,7 +130,7 @@ class FundingEnrichmentTests(unittest.IsolatedAsyncioTestCase):
         initial = await AxiomDevTokenData.prepare_token_feed(_message())
         self.assertIsNone(initial.funding_wallet)
         feed = await AxiomDevTokenData.prepare_funding_update(_message(), initial)
-        self.assertEqual(fake.requested_wallets, ["developer", FUNDING_WALLET])
+        self.assertEqual(fake.requested_wallets, [FUNDING_WALLET])
         self.assertEqual(feed.funding_wallet, FUNDING_WALLET)
         self.assertEqual(len(feed.funding_deployed_tokens), 1)
         self.assertEqual(feed.funding_deployed_tokens[0].pair_address, "previous-pair")
@@ -144,7 +144,7 @@ class FundingEnrichmentTests(unittest.IsolatedAsyncioTestCase):
         AxiomDevTokenData._client = fake
         initial = await AxiomDevTokenData.prepare_token_feed(_message())
         feed = await AxiomDevTokenData.prepare_funding_update(_message(), initial)
-        self.assertEqual(fake.requested_wallets, ["developer"])
+        self.assertEqual(fake.requested_wallets, [])
         self.assertIsNone(feed)
 
     async def test_invalid_fees_are_not_treated_as_zero(self) -> None:
@@ -165,10 +165,21 @@ class FundingEnrichmentTests(unittest.IsolatedAsyncioTestCase):
             )
 
         fake.dev_tokens_v3 = developer_history
-        feed = await AxiomDevTokenData.prepare_token_feed(_message())
+        initial = await AxiomDevTokenData.prepare_token_feed(_message())
+        feed = await AxiomDevTokenData.prepare_developer_update(_message(), initial)
         self.assertEqual(len(feed.last_deployed_tokens), 1)
         self.assertIsNone(feed.last_deployed_tokens[0].total_pair_fees_paid)
         self.assertEqual(feed.last_deployed_tokens[0].ath_mcap_in_usd, 100_000)
+
+    async def test_initial_feed_does_not_wait_for_developer_history(self) -> None:
+        class SlowClient(FakeClient):
+            async def dev_tokens_v3(self, dev_address: str):
+                await asyncio.Event().wait()
+
+        AxiomDevTokenData._client = SlowClient()
+        feed = await asyncio.wait_for(AxiomDevTokenData.prepare_token_feed(_message()), 0.1)
+        self.assertEqual(feed.pair_address, "current-pair")
+        self.assertIsNone(feed.last_deployed_tokens)
 
     async def test_concurrent_funding_tokens_share_one_request(self) -> None:
         class SlowClient(FakeClient):

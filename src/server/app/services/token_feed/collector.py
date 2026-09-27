@@ -71,27 +71,14 @@ class TokenFeedCollector():
                     len(self._preparation_tasks), self.tokens_feed.qsize(),
                 )
 
-                prepare_funding_update = getattr(
-                    token_feed_source, "prepare_funding_update", None
-                )
-                if prepare_funding_update is not None:
-                    funding_started = time.monotonic()
-                    try:
-                        funding_update = await prepare_funding_update(
-                            websocket_message_data, prepared_token_feed
-                        )
-                        if funding_update is not None:
-                            await self._add_to_tokens_feed(funding_update)
-                            logger.info(
-                                "Funding update emitted in %.3fs (%.3fs total) "
-                                "with %s tokens; output_queue=%s",
-                                time.monotonic() - funding_started,
-                                time.monotonic() - message_started,
-                                len(funding_update.funding_deployed_tokens or []),
-                                self.tokens_feed.qsize(),
-                            )
-                    except Exception:
-                        logger.exception("Funding update failed")
+                for method_name in ("prepare_developer_update", "prepare_funding_update"):
+                    prepare_update = getattr(token_feed_source, method_name, None)
+                    if prepare_update is not None:
+                        task = asyncio.create_task(self._emit_update(
+                            prepare_update, websocket_message_data, prepared_token_feed
+                        ))
+                        self._preparation_tasks.add(task)
+                        task.add_done_callback(self._finish_preparation_task)
 
                 logger.debug("prepared token feed: %s", prepared_token_feed)
                 logger.info(
@@ -99,6 +86,14 @@ class TokenFeedCollector():
                         prepared_token_feed
                         )
                     )
+
+    async def _emit_update(self, prepare_update, message, base_feed) -> None:
+        try:
+            update = await prepare_update(message, base_feed)
+            if update is not None:
+                await self._add_to_tokens_feed(update)
+        except Exception:
+            logger.exception("Token feed enrichment failed")
 
     def schedule_token_feed_data(self, websocket_message_data: Any) -> None:
         """Start enrichment without blocking the upstream WebSocket reader."""

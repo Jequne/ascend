@@ -26,7 +26,7 @@ def background_axiom_request() -> Iterator[None]:
 
 class AxiomRequestPacer:
     def __init__(
-        self, interval_seconds: float = 0.1, max_concurrency: int = 10
+        self, interval_seconds: float = 0.1, max_concurrency: int = 50
     ) -> None:
         if interval_seconds < 0 or max_concurrency < 1:
             raise ValueError("Axiom pacing requires a nonnegative interval and slots")
