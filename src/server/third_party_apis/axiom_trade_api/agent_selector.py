@@ -1,7 +1,7 @@
 import logging
 import random
 import time
-from typing import Sequence, Tuple
+from collections.abc import Sequence
 
 from curl_cffi import AsyncSession
 from curl_cffi.requests import Response
@@ -9,13 +9,12 @@ from curl_cffi.requests import Response
 from .models import AxiomAgentData
 
 logger = logging.getLogger(__name__)
+SessionAndAgent = tuple[AsyncSession, AxiomAgentData]
 
 
 class AgentSelector:
     def __init__(self) -> None:
-        self._agents_and_sessions: list[
-            Tuple[AsyncSession, AxiomAgentData]
-        ] = []
+        self._agents_and_sessions: list[SessionAndAgent] = []
         self._in_flight: dict[int, int] = {}
         self._rate_limited_until: dict[str, float] = {}
         self._unavailable_until: dict[str, float] = {}
@@ -34,13 +33,13 @@ class AgentSelector:
         if not self._agents_and_sessions:
             raise Exception("No agents configured. Use add_agents() first")
 
-    def random_agent(self) -> Tuple[AsyncSession, AxiomAgentData]:
+    def random_agent(self) -> SessionAndAgent:
         self.require_agents()
         return random.choice(self._agents_and_sessions)
 
     @staticmethod
     def route_key(
-        session_and_agent: Tuple[AsyncSession, AxiomAgentData],
+        session_and_agent: SessionAndAgent,
     ) -> str:
         agent = session_and_agent[1]
         # Agents without an explicit proxy still share the server's public IP.
@@ -59,58 +58,40 @@ class AgentSelector:
     def acquire_agent(
         self,
         excluded_routes: set[str] | None = None,
-    ) -> Tuple[AsyncSession, AxiomAgentData] | None:
+    ) -> SessionAndAgent | None:
         """Reserve the least busy available proxy route and agent."""
         self.require_agents()
         excluded_routes = excluded_routes or set()
         now = time.monotonic()
 
-        available = [
-            session_and_agent
-            for session_and_agent in self._agents_and_sessions
-            if self.route_key(session_and_agent) not in excluded_routes
-            and self._rate_limited_until.get(
-                self.route_key(session_and_agent), 0.0
-            )
-            <= now
-            and self._unavailable_until.get(
-                self.route_key(session_and_agent), 0.0
-            )
-            <= now
-        ]
-        if not available:
-            return None
-
+        # Group agents by proxy once and count all requests on each route.
+        available_by_route: dict[str, list[SessionAndAgent]] = {}
         route_loads: dict[str, int] = {}
         for session_and_agent in self._agents_and_sessions:
             route = self.route_key(session_and_agent)
-            route_loads[route] = (
-                route_loads.get(route, 0)
-                + self._in_flight[id(session_and_agent[1])]
-            )
+            agent_load = self._in_flight[id(session_and_agent[1])]
+            route_loads[route] = route_loads.get(route, 0) + agent_load
+            if route in excluded_routes or self._ready_at(route) > now:
+                continue
+            available_by_route.setdefault(route, []).append(session_and_agent)
 
+        if not available_by_route:
+            return None
+
+        # Rotate between equally busy routes, then equally busy agents.
         minimum_route_load = min(
-            route_loads[self.route_key(session_and_agent)]
-            for session_and_agent in available
+            route_loads[route] for route in available_by_route
         )
-        least_busy_routes = list(
-            dict.fromkeys(
-                self.route_key(session_and_agent)
-                for session_and_agent in available
-                if route_loads[self.route_key(session_and_agent)]
-                == minimum_route_load
-            )
-        )
+        least_busy_routes = [
+            route
+            for route in available_by_route
+            if route_loads[route] == minimum_route_load
+        ]
         route = least_busy_routes[self._route_cursor % len(least_busy_routes)]
         self._route_cursor += 1
-        route_agents = [
-            session_and_agent
-            for session_and_agent in available
-            if self.route_key(session_and_agent) == route
-        ]
+        route_agents = available_by_route[route]
         minimum_agent_load = min(
-            self._in_flight[id(session_and_agent[1])]
-            for session_and_agent in route_agents
+            self._in_flight[id(agent)] for _, agent in route_agents
         )
         least_busy_agents = [
             session_and_agent
@@ -125,7 +106,7 @@ class AgentSelector:
 
     def release_agent(
         self,
-        session_and_agent: Tuple[AsyncSession, AxiomAgentData],
+        session_and_agent: SessionAndAgent,
     ) -> None:
         agent_key = id(session_and_agent[1])
         self._in_flight[agent_key] = max(
@@ -134,7 +115,7 @@ class AgentSelector:
 
     def mark_rate_limited(
         self,
-        session_and_agent: Tuple[AsyncSession, AxiomAgentData],
+        session_and_agent: SessionAndAgent,
         retry_after: float | None,
     ) -> None:
         route = self.route_key(session_and_agent)
@@ -146,7 +127,7 @@ class AgentSelector:
 
     def mark_unavailable(
         self,
-        session_and_agent: Tuple[AsyncSession, AxiomAgentData],
+        session_and_agent: SessionAndAgent,
         cooldown: float = 5.0,
     ) -> None:
         """Temporarily stop routing requests through a failed proxy."""
@@ -162,25 +143,23 @@ class AgentSelector:
     ) -> float:
         excluded_routes = excluded_routes or set()
         now = time.monotonic()
-        waits = [
-            max(
-                0.0,
-                max(
-                    self._rate_limited_until.get(
-                        self.route_key(session_and_agent), 0.0
-                    ),
-                    self._unavailable_until.get(
-                        self.route_key(session_and_agent), 0.0
-                    ),
-                )
-                - now,
-            )
+        routes = {
+            self.route_key(session_and_agent)
             for session_and_agent in self._agents_and_sessions
-            if self.route_key(session_and_agent) not in excluded_routes
+        }
+        waits = [
+            max(0.0, self._ready_at(route) - now)
+            for route in routes - excluded_routes
         ]
         return min(waits, default=0.0)
 
-    def random_websocket_agent(self) -> Tuple[AsyncSession, AxiomAgentData]:
+    def _ready_at(self, route: str) -> float:
+        return max(
+            self._rate_limited_until.get(route, 0.0),
+            self._unavailable_until.get(route, 0.0),
+        )
+
+    def random_websocket_agent(self) -> SessionAndAgent:
         self.require_agents()
 
         has_any_proxy = any(
@@ -210,5 +189,5 @@ class AgentSelector:
 
     def get_agents_and_sessions(
         self,
-    ) -> list[Tuple[AsyncSession, AxiomAgentData]]:
+    ) -> list[SessionAndAgent]:
         return self._agents_and_sessions

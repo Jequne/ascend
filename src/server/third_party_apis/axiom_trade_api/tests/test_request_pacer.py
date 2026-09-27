@@ -108,3 +108,70 @@ class AxiomRequestPacerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(order.index("history"), 10)
         await pacer.close()
+
+    async def test_fifo_and_fairness_ignore_cancelled_requests(self) -> None:
+        pacer = AxiomRequestPacer(interval_seconds=0, max_concurrency=1)
+        with background_axiom_request():
+            await pacer.wait_turn()
+        order: list[str] = []
+
+        async def start(name: str, background: bool = False) -> None:
+            if background:
+                with background_axiom_request():
+                    await pacer.wait_turn()
+            else:
+                await pacer.wait_turn()
+            order.append(name)
+            pacer.release_turn()
+
+        histories = [
+            asyncio.create_task(start(f"history-{index}", background=True))
+            for index in range(3)
+        ]
+        fresh = [
+            asyncio.create_task(start(f"new-{index}")) for index in range(13)
+        ]
+        try:
+            await asyncio.sleep(0)
+            histories[0].cancel()
+            fresh[0].cancel()
+            fresh[5].cancel()
+            await asyncio.gather(
+                histories[0], fresh[0], fresh[5], return_exceptions=True
+            )
+            self.assertEqual(pacer.queue_stats()[0], 13)
+            pacer.release_turn()
+            await asyncio.gather(*histories[1:], *fresh[1:5], *fresh[6:])
+            expected_fresh = [
+                f"new-{index}" for index in range(13) if index not in (0, 5)
+            ]
+            self.assertEqual(
+                order,
+                expected_fresh[:10]
+                + ["history-1"]
+                + expected_fresh[10:]
+                + ["history-2"],
+            )
+        finally:
+            await pacer.close()
+
+    async def test_close_cancels_both_queues(self) -> None:
+        pacer = AxiomRequestPacer(interval_seconds=0, max_concurrency=1)
+        await pacer.wait_turn()
+        with background_axiom_request():
+            background = asyncio.create_task(pacer.wait_turn())
+        foreground = asyncio.create_task(pacer.wait_turn())
+        await asyncio.sleep(0)
+        self.assertEqual(pacer.queue_stats()[0], 2)
+        await pacer.close()
+        results = await asyncio.gather(
+            foreground, background, return_exceptions=True
+        )
+        self.assertTrue(
+            all(
+                isinstance(result, asyncio.CancelledError)
+                for result in results
+            )
+        )
+        self.assertEqual(pacer.queue_stats(), (0, 0.0))
+        pacer.release_turn()

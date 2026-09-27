@@ -138,3 +138,35 @@ async def test_lifespan_routes_without_credentials_or_live_axiom(
                 "/api/v1/token-images/{token_address}",
             } <= paths
     assert runtime._closed
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure_stage", ["database", "runtime"])
+async def test_lifespan_cleanup_on_initialization_failure(
+    sessions: async_sessionmaker[AsyncSession], failure_stage: str
+) -> None:
+    client = axiom.AxiomTradeClient([])
+    runtime = Runtime(client, sessions, "")
+
+    def initialize_database() -> None:
+        if failure_stage == "database":
+            raise RuntimeError("initialization failure")
+
+    app = create_app(lambda: runtime, initialize_database)
+    with (
+        patch.object(
+            runtime,
+            "start",
+            AsyncMock(side_effect=RuntimeError("initialization failure")),
+        ) as start,
+        patch.object(runtime, "stop", wraps=runtime.stop) as stop,
+    ):
+        with pytest.raises(RuntimeError, match="initialization failure"):
+            async with app.router.lifespan_context(app):
+                pytest.fail("Failed startup must not enter the lifespan")
+        if failure_stage == "database":
+            start.assert_not_awaited()
+        else:
+            start.assert_awaited_once()
+        stop.assert_awaited_once()
+    assert runtime._closed

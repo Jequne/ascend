@@ -1,5 +1,6 @@
 import asyncio
 import unittest
+from unittest.mock import patch
 
 from third_party_apis.axiom_trade_api.agent_selector import AgentSelector
 from third_party_apis.axiom_trade_api.client import AxiomTradeClient
@@ -106,6 +107,54 @@ class AgentSelectorTests(unittest.IsolatedAsyncioTestCase):
     async def _close_selector(selector: AgentSelector) -> None:
         for session, _ in selector.get_agents_and_sessions():
             await session.close()
+
+    async def test_shared_route_rotation_and_cooldowns(self) -> None:
+        selector = AgentSelector()
+        selector.add_agents(
+            [
+                _agent(1, "socks5://shared"),
+                _agent(2, "socks5://shared"),
+                _agent(3, "socks5://other"),
+            ]
+        )
+        excluded = {"socks5://other"}
+        try:
+            names = []
+            for _ in range(4):
+                selected = selector.acquire_agent(excluded)
+                assert selected is not None
+                names.append(selected[1].agent_name)
+                selector.release_agent(selected)
+            self.assertEqual(names, ["agent-1", "agent-2"] * 2)
+            assert selected is not None
+
+            with patch(
+                "third_party_apis.axiom_trade_api.agent_selector."
+                "time.monotonic",
+                return_value=100.0,
+            ):
+                selector.mark_rate_limited(selected, retry_after=3)
+                selector.mark_unavailable(selected, cooldown=6)
+                self.assertIsNone(selector.acquire_agent(excluded))
+                self.assertEqual(selector.next_available_delay(excluded), 6)
+                self.assertEqual(selector.next_available_delay(), 0)
+                other = selector.acquire_agent()
+                assert other is not None
+                self.assertEqual(other[1].agent_name, "agent-3")
+                selector.release_agent(other)
+            with patch(
+                "third_party_apis.axiom_trade_api.agent_selector."
+                "time.monotonic",
+                return_value=106.0,
+            ):
+                recovered = selector.acquire_agent(excluded)
+                assert recovered is not None
+                self.assertEqual(
+                    selector.route_key(recovered), "socks5://shared"
+                )
+                selector.release_agent(recovered)
+        finally:
+            await self._close_selector(selector)
 
 
 class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):

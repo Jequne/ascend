@@ -3,8 +3,8 @@ import logging
 import math
 import re
 import time
-from collections.abc import Awaitable, Callable
-from dataclasses import replace
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass, replace
 from typing import ParamSpec, TypeVar, cast
 
 from .base import prepare_base
@@ -25,6 +25,7 @@ from .funding_history import (
 logger = logging.getLogger(__name__)
 P = ParamSpec("P")
 T = TypeVar("T")
+REQUEST_CACHE_LIMIT = 256
 FUNDING_ADDRESS = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 
 
@@ -35,12 +36,16 @@ def validate_funding_address(address: str) -> str:
     return address
 
 
+@dataclass(frozen=True, slots=True)
+class CachedRequest:
+    expires_at: float
+    task: asyncio.Task[object]
+
+
 class FeedEnrichment:
     def __init__(self, provider: HistoryProvider):
         self._provider = provider
-        self._request_cache: dict[
-            tuple[str, str], tuple[float, asyncio.Task[object]]
-        ] = {}
+        self._request_cache: dict[tuple[str, str], CachedRequest] = {}
         self._pending_requests: set[asyncio.Task[object]] = set()
         self._cache_hits: dict[str, int] = {}
         self._cache_misses: dict[str, int] = {}
@@ -50,39 +55,28 @@ class FeedEnrichment:
         self,
         kind: str,
         address: str,
-        request: Callable[P, Awaitable[T | None]],
+        request: Callable[P, Coroutine[object, object, T | None]],
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> T | None:
         now = time.monotonic()
         key = (kind, address)
         cached = self._request_cache.get(key)
-        cache_hit = bool(cached and (cached[0] > now or not cached[1].done()))
-        if cache_hit:
+        if cached is not None and (
+            cached.expires_at > now or not cached.task.done()
+        ):
+            cache_hit = True
             self._cache_hits[kind] = self._cache_hits.get(kind, 0) + 1
-            assert cached is not None
             # Each (kind, address) has a single provider result type.
-            task = cast(asyncio.Task[T | None], cached[1])
+            task = cast(asyncio.Task[T | None], cached.task)
         else:
+            cache_hit = False
             self._cache_misses[kind] = self._cache_misses.get(kind, 0) + 1
-            task = asyncio.create_task(
-                self._run_bounded_request(request, *args, **kwargs)
-            )
+            task = asyncio.create_task(request(*args, **kwargs))
             stored_task = cast(asyncio.Task[object], task)
             self._pending_requests.add(stored_task)
             task.add_done_callback(self._pending_requests.discard)
-            if len(self._request_cache) >= 256:
-                for old_key, (_, candidate) in list(
-                    self._request_cache.items()
-                ):
-                    if candidate.done():
-                        del self._request_cache[old_key]
-                        break
-            if len(self._request_cache) < 256:
-                self._request_cache[key] = (
-                    now + self._request_cache_ttl_seconds,
-                    stored_task,
-                )
+            self._remember_request(key, now, stored_task)
         logger.debug(
             "Enrichment cache %s: %s hits=%s misses=%s",
             "hit" if cache_hit else "miss",
@@ -93,20 +87,40 @@ class FeedEnrichment:
         try:
             result = await asyncio.shield(task)
             entry = self._request_cache.get(key)
-            if entry is not None and entry[1] is task and not cache_hit:
+            if entry is not None and entry.task is task and not cache_hit:
                 if result is None:
                     self._request_cache.pop(key, None)
                 else:
-                    self._request_cache[key] = (
-                        time.monotonic() + self._request_cache_ttl_seconds,
-                        cast(asyncio.Task[object], task),
+                    self._request_cache[key] = CachedRequest(
+                        expires_at=(
+                            time.monotonic() + self._request_cache_ttl_seconds
+                        ),
+                        task=cast(asyncio.Task[object], task),
                     )
             return result
         except Exception:
             entry = self._request_cache.get(key)
-            if entry is not None and entry[1] is task:
+            if entry is not None and entry.task is task:
                 self._request_cache.pop(key, None)
             raise
+
+    def _remember_request(
+        self,
+        key: tuple[str, str],
+        now: float,
+        task: asyncio.Task[object],
+    ) -> None:
+        # Make room by evicting a completed request, never shared active work.
+        if len(self._request_cache) >= REQUEST_CACHE_LIMIT:
+            for old_key, cached in self._request_cache.items():
+                if cached.task.done():
+                    del self._request_cache[old_key]
+                    break
+        if len(self._request_cache) < REQUEST_CACHE_LIMIT:
+            self._request_cache[key] = CachedRequest(
+                expires_at=now + self._request_cache_ttl_seconds,
+                task=task,
+            )
 
     async def _get_cached_funding_tokens(self, wallet: str) -> History | None:
         return await self._get_cached_request(
@@ -117,108 +131,85 @@ class FeedEnrichment:
             background=True,
         )
 
-    async def _run_bounded_request(
-        self,
-        request: Callable[P, Awaitable[T | None]],
-        *args: P.args,
-        **kwargs: P.kwargs,
-    ) -> T | None:
-        return await request(*args, **kwargs)
-
-    async def _get_full_info_about_recent_tokens(
+    async def _enrich_history_tokens(
         self,
         tokens: list[HistoryToken],
         dev_wallet: str,
         blockchain: str,
         require_verified_fees: bool = True,
     ) -> list[DeployedToken]:
-        async def enrich(token: HistoryToken) -> DeployedToken | None:
-            pair_result, token_result = await asyncio.gather(
-                self._get_cached_request(
-                    "pair_info",
-                    token.pair_address,
-                    self._provider.pair_info,
-                    pair_address=token.pair_address,
-                    background=True,
-                ),
-                self._get_cached_request(
-                    "token_info",
-                    token.pair_address,
-                    self._provider.token_info,
-                    pair_address=token.pair_address,
-                    background=True,
-                ),
-                return_exceptions=True,
+        results = await asyncio.gather(
+            *(
+                self._enrich_history_token(
+                    token, dev_wallet, blockchain, require_verified_fees
+                )
+                for token in tokens
             )
-            pair_info = (
-                None if isinstance(pair_result, BaseException) else pair_result
-            )
-            fees_info = (
-                None
-                if isinstance(token_result, BaseException)
-                else token_result
-            )
-            verified = (
-                fees_info is not None
-                and math.isfinite(fees_info.total_pair_fees_paid)
-                and fees_info.total_pair_fees_paid >= 0
-            )
-            if not verified and require_verified_fees:
-                logger.warning("Previous token fees unavailable or invalid")
-                return None
-            return DeployedToken(
-                blockchain=blockchain,
-                total_pair_fees_paid=fees_info.total_pair_fees_paid
-                if verified and fees_info
-                else None,
-                ath_mcap_in_usd=token.ath_mcap_in_usd,
-                dex_paid=fees_info.dex_paid
-                if verified and fees_info
-                else False,
-                pair_address=token.pair_address,
-                token_address=token.token_address,
-                token_image=(pair_info.token_image if pair_info else None)
-                or token.token_image_link,
-                is_migrated=token.is_migrated,
-                website=pair_info.website if pair_info else None,
-                telegram=pair_info.telegram if pair_info else None,
-                discord=pair_info.discord if pair_info else None,
-                twitter=pair_info.twitter if pair_info else None,
-                token_name=token.token_name,
-                token_ticker=token.token_ticker,
-                twitter_admin_nickname=None,
-                twitter_admin_id=None,
-                dev_wallet=dev_wallet,
-                protocol=token.current_protocol,
-                created_at=token.created_at,
-            )
-
-        results = await asyncio.gather(*(enrich(token) for token in tokens))
+        )
         return [token for token in results if token is not None]
 
-    async def _prepared_last_deployed_tokens(
+    async def _enrich_history_token(
         self,
-        new_token_pair_address: str,
-        blockchain: str,
-        dev_tokens: History,
+        token: HistoryToken,
         dev_wallet: str,
-    ) -> list[DeployedToken] | None:
-        if dev_tokens:
-            recent_deployed_tokens = select_developer_tokens(
-                dev_tokens.tokens, new_token_pair_address
-            )
-            recent_deployed_tokens_data: list[
-                DeployedToken
-            ] = await self._get_full_info_about_recent_tokens(
-                recent_deployed_tokens,
-                dev_wallet,
-                blockchain,
-                require_verified_fees=False,
-            )
-
-            return recent_deployed_tokens_data
-
-        return None
+        blockchain: str,
+        require_verified_fees: bool,
+    ) -> DeployedToken | None:
+        pair_result, token_result = await asyncio.gather(
+            self._get_cached_request(
+                "pair_info",
+                token.pair_address,
+                self._provider.pair_info,
+                pair_address=token.pair_address,
+                background=True,
+            ),
+            self._get_cached_request(
+                "token_info",
+                token.pair_address,
+                self._provider.token_info,
+                pair_address=token.pair_address,
+                background=True,
+            ),
+            return_exceptions=True,
+        )
+        pair_info = (
+            None if isinstance(pair_result, BaseException) else pair_result
+        )
+        fees_info = (
+            None if isinstance(token_result, BaseException) else token_result
+        )
+        if fees_info is not None and (
+            not math.isfinite(fees_info.total_pair_fees_paid)
+            or fees_info.total_pair_fees_paid < 0
+        ):
+            fees_info = None
+        if fees_info is None and require_verified_fees:
+            logger.warning("Previous token fees unavailable or invalid")
+            return None
+        return DeployedToken(
+            blockchain=blockchain,
+            total_pair_fees_paid=fees_info.total_pair_fees_paid
+            if fees_info is not None
+            else None,
+            ath_mcap_in_usd=token.ath_mcap_in_usd,
+            dex_paid=fees_info.dex_paid if fees_info is not None else False,
+            pair_address=token.pair_address,
+            token_address=token.token_address,
+            token_image=(pair_info.token_image if pair_info else None)
+            or token.token_image_link,
+            is_migrated=token.is_migrated,
+            website=pair_info.website if pair_info else None,
+            telegram=pair_info.telegram if pair_info else None,
+            discord=pair_info.discord if pair_info else None,
+            twitter=pair_info.twitter if pair_info else None,
+            token_name=token.token_name,
+            token_ticker=token.token_ticker,
+            twitter_admin_nickname=None,
+            twitter_admin_id=None,
+            dev_wallet=dev_wallet,
+            protocol=token.current_protocol,
+            created_at=token.created_at,
+        )
 
     async def _get_funding_history(
         self,
@@ -226,8 +217,7 @@ class FeedEnrichment:
     ) -> tuple[str | None, list[DeployedToken] | None, int | None, int | None]:
         """Resolve only the immediate funder and its Axiom token history."""
         try:
-            pair_info = await self._run_bounded_request(
-                self._provider.pair_info,
+            pair_info = await self._provider.pair_info(
                 pair_address=new_pairs_data.content.pair_address,
                 background=True,
             )
@@ -267,7 +257,7 @@ class FeedEnrichment:
             selected_tokens = [
                 history.tokens[index] for index in selected_indexes
             ]
-            tokens = await self._get_full_info_about_recent_tokens(
+            tokens = await self._enrich_history_tokens(
                 selected_tokens, funding_wallet, "sol"
             )
             return funding_wallet, tokens, migrated_count, total_count
@@ -285,8 +275,7 @@ class FeedEnrichment:
     ) -> TokenFeedBase | None:
         dev_wallet = new_pairs_data.content.deployer_address
         try:
-            dev_tokens = await self._run_bounded_request(
-                self._provider.dev_tokens_v3,
+            dev_tokens = await self._provider.dev_tokens_v3(
                 dev_address=dev_wallet,
             )
         except Exception:
@@ -297,11 +286,14 @@ class FeedEnrichment:
         if dev_tokens is None:
             return None
         try:
-            last_deployed_tokens = await self._prepared_last_deployed_tokens(
-                blockchain=base_feed.blockchain,
-                dev_tokens=dev_tokens,
-                dev_wallet=dev_wallet,
-                new_token_pair_address=base_feed.pair_address,
+            recent_tokens = select_developer_tokens(
+                dev_tokens.tokens, base_feed.pair_address
+            )
+            last_deployed_tokens = await self._enrich_history_tokens(
+                recent_tokens,
+                dev_wallet,
+                base_feed.blockchain,
+                require_verified_fees=False,
             )
         except Exception:
             logger.warning(

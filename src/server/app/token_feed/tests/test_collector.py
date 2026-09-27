@@ -1,12 +1,13 @@
 import asyncio
 from collections.abc import Callable
 from dataclasses import replace
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from ..collector import TokenFeedCollector
 from ..developer_history import select_developer_tokens
-from ..domain import PairEvent, TokenFeedBase
+from ..domain import Counts, History, PairEvent, TokenFeedBase
 from ..enrichment import FeedEnrichment
 from .test_funding_history import FakeClient, _message
 
@@ -182,3 +183,128 @@ async def test_isolated_caches_and_cancelled_waiter_preserve_request() -> None:
     ]
     await first.stop()
     await second.stop()
+
+
+@pytest.mark.asyncio
+async def test_cache_reuses_success_and_refreshes_after_expiry() -> None:
+    provider = FakeClient()
+    result = History(Counts(total_count=0, migrated_count=0), [])
+    enrichment = FeedEnrichment(provider)
+    try:
+        with patch.object(
+            provider, "dev_tokens_v3", AsyncMock(return_value=result)
+        ) as request:
+            with patch(
+                "app.token_feed.enrichment.time.monotonic", return_value=100
+            ):
+                assert (
+                    await enrichment._get_cached_funding_tokens("wallet")
+                    == result
+                )
+                assert (
+                    await enrichment._get_cached_funding_tokens("wallet")
+                    == result
+                )
+                request.assert_awaited_once()
+            with patch(
+                "app.token_feed.enrichment.time.monotonic", return_value=104
+            ):
+                assert (
+                    await enrichment._get_cached_funding_tokens("wallet")
+                    == result
+                )
+                assert request.await_count == 2
+    finally:
+        await enrichment.stop()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("first_response", [None, RuntimeError("upstream")])
+async def test_cache_retries_empty_or_failed_response(
+    first_response: RuntimeError | None,
+) -> None:
+    provider = FakeClient()
+    result = History(Counts(total_count=0, migrated_count=0), [])
+    enrichment = FeedEnrichment(provider)
+    try:
+        with patch.object(
+            provider,
+            "dev_tokens_v3",
+            AsyncMock(side_effect=[first_response, result]),
+        ) as request:
+            if isinstance(first_response, RuntimeError):
+                with pytest.raises(RuntimeError, match="upstream"):
+                    await enrichment._get_cached_funding_tokens("wallet")
+            else:
+                assert (
+                    await enrichment._get_cached_funding_tokens("wallet")
+                    is None
+                )
+            assert (
+                await enrichment._get_cached_funding_tokens("wallet") == result
+            )
+            assert request.await_count == 2
+    finally:
+        await enrichment.stop()
+
+
+@pytest.mark.asyncio
+async def test_full_cache_evicts_completed_requests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("app.token_feed.enrichment.REQUEST_CACHE_LIMIT", 1)
+    provider = FakeClient()
+    enrichment = FeedEnrichment(provider)
+    try:
+        await enrichment._get_cached_funding_tokens("first")
+        await enrichment._get_cached_funding_tokens("second")
+        await enrichment._get_cached_funding_tokens("second")
+        assert provider.requested_wallets == ["first", "second"]
+        await enrichment._get_cached_funding_tokens("first")
+        assert provider.requested_wallets == ["first", "second", "first"]
+    finally:
+        await enrichment.stop()
+
+
+@pytest.mark.asyncio
+async def test_full_cache_keeps_shared_active_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("app.token_feed.enrichment.REQUEST_CACHE_LIMIT", 1)
+    provider = FakeClient()
+    enrichment = FeedEnrichment(provider)
+    started: asyncio.Queue[str] = asyncio.Queue()
+    release = asyncio.Event()
+    result = History(Counts(total_count=0, migrated_count=0), [])
+    tasks: list[asyncio.Task[History | None]] = []
+
+    async def load_history(
+        dev_address: str, *, background: bool = False
+    ) -> History:
+        started.put_nowait(dev_address)
+        await release.wait()
+        return result
+
+    try:
+        with patch.object(
+            provider, "dev_tokens_v3", AsyncMock(side_effect=load_history)
+        ) as request:
+            for wallet in ("first", "second"):
+                tasks.append(
+                    asyncio.create_task(
+                        enrichment._get_cached_funding_tokens(wallet)
+                    )
+                )
+                assert await asyncio.wait_for(started.get(), 1) == wallet
+            tasks.append(
+                asyncio.create_task(
+                    enrichment._get_cached_funding_tokens("first")
+                )
+            )
+            await asyncio.sleep(0)
+            release.set()
+            assert await asyncio.gather(*tasks) == [result] * 3
+            assert request.await_count == 2
+    finally:
+        await enrichment.stop()
+        await asyncio.gather(*tasks, return_exceptions=True)
