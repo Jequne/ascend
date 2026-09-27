@@ -11,7 +11,9 @@ class Counts(BaseModel):
 
 class MigrationInfo(BaseModel):
     migrated_from: str | None = Field(None, alias="migratedFrom")
-    pump_deployer_address: str | None = Field(None, alias="pumpDeployerAddress")
+    pump_deployer_address: str | None = Field(
+        None, alias="pumpDeployerAddress"
+    )
 
 
 class Token(BaseModel):

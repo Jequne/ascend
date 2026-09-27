@@ -58,9 +58,19 @@ async def test_base_then_independent_updates_in_either_order(
         source.callback(_message())
         base = await asyncio.wait_for(collector.tokens_feed.get(), 1)
         assert base.pair_address == "current-pair"
-        assert base.last_deployed_tokens is None and base.funding_wallet is None
-        first = updates.funding_release if funding_first else updates.developer_release
-        second = updates.developer_release if funding_first else updates.funding_release
+        assert (
+            base.last_deployed_tokens is None and base.funding_wallet is None
+        )
+        first = (
+            updates.funding_release
+            if funding_first
+            else updates.developer_release
+        )
+        second = (
+            updates.developer_release
+            if funding_first
+            else updates.funding_release
+        )
         first.set()
         update = await asyncio.wait_for(collector.tokens_feed.get(), 1)
         assert update.pair_address == base.pair_address
@@ -102,12 +112,17 @@ async def test_new_events_and_runtime_queues_are_independent() -> None:
     first_source.callback(_message())
     event = _message()
     first_source.callback(
-        replace(event, content=replace(event.content, pair_address="second-pair"))
+        replace(
+            event, content=replace(event.content, pair_address="second-pair")
+        )
     )
     try:
         one = await asyncio.wait_for(first.tokens_feed.get(), 1)
         two = await asyncio.wait_for(first.tokens_feed.get(), 1)
-        assert {one.pair_address, two.pair_address} == {"current-pair", "second-pair"}
+        assert {one.pair_address, two.pair_address} == {
+            "current-pair",
+            "second-pair",
+        }
         assert second.tokens_feed.empty()
     finally:
         await first.stop()
@@ -128,25 +143,27 @@ async def test_bsc_skips_funding_requests() -> None:
 def test_developer_selection_preserves_current_pair_when_not_first() -> None:
     tokens = FakeClient().history
     assert select_developer_tokens(tokens, "current-pair") == tokens[1:]
-    assert select_developer_tokens(list(reversed(tokens)), "current-pair") == list(
-        reversed(tokens)
-    )
+    assert select_developer_tokens(
+        list(reversed(tokens)), "current-pair"
+    ) == list(reversed(tokens))
 
 
 @pytest.mark.asyncio
-async def test_caches_are_isolated_and_cancelled_waiter_does_not_cancel_shared_request() -> (
-    None
-):
+async def test_isolated_caches_and_cancelled_waiter_preserve_request() -> None:
     class ControlledClient(FakeClient):
         def __init__(self) -> None:
             super().__init__()
             self.started = asyncio.Event()
             self.release = asyncio.Event()
 
-        async def dev_tokens_v3(self, dev_address: str, *, background: bool = False):
+        async def dev_tokens_v3(
+            self, dev_address: str, *, background: bool = False
+        ):
             self.started.set()
             await self.release.wait()
-            return await super().dev_tokens_v3(dev_address, background=background)
+            return await super().dev_tokens_v3(
+                dev_address, background=background
+            )
 
     one, two = ControlledClient(), ControlledClient()
     first, second = FeedEnrichment(one), FeedEnrichment(two)
@@ -160,6 +177,8 @@ async def test_caches_are_isolated_and_cancelled_waiter_does_not_cancel_shared_r
     one.release.set()
     two.release.set()
     await asyncio.gather(b, c)
-    assert one.requested_wallets == ["wallet"] and two.requested_wallets == ["wallet"]
+    assert one.requested_wallets == ["wallet"] and two.requested_wallets == [
+        "wallet"
+    ]
     await first.stop()
     await second.stop()

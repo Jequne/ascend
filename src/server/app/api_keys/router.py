@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from .api_key_manager import ApiKeyManager, CreateApiKeyCommand, ValidApiKeyResult
+from .api_key_manager import (
+    ApiKeyManager,
+    CreateApiKeyCommand,
+    ValidApiKeyResult,
+)
 from .dependencies import (
     get_api_key_manager,
     require_admin_credentials,
@@ -14,7 +18,11 @@ from .exceptions import (
     InvalidApiKeyError,
     InvalidApiKeyFormat,
 )
-from .schemas import CreateApiKeyRequest, CreateApiKeyResponse, ValidApiKeyResponse
+from .schemas import (
+    CreateApiKeyRequest,
+    CreateApiKeyResponse,
+    ValidApiKeyResponse,
+)
 
 router = APIRouter(tags=["api-keys"], prefix="/api-keys")
 
@@ -48,7 +56,8 @@ async def create_api_key(
 
     except ApiKeyAlreadyExistsError as exc:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Api Key Creation Error"
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Api Key Creation Error",
         ) from exc
 
 
@@ -62,8 +71,8 @@ async def validate_api_key(
     api_key_manager: ApiKeyManager = Depends(get_api_key_manager),
 ) -> ValidApiKeyResponse:
     try:
-        validate_api_key_result: ValidApiKeyResult = await api_key_manager.validate(
-            x_api_key
+        validate_api_key_result: ValidApiKeyResult = (
+            await api_key_manager.validate(x_api_key)
         )
 
         return ValidApiKeyResponse(

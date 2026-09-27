@@ -13,7 +13,9 @@ class PairChartV2Params(BaseModel):
     interval: str = Field(default="24h")
     count_bars: int = Field(default=500, alias="countBars")
     open_trading: Optional[int] = Field(None, alias="openTrading")
-    last_transaction_time: Optional[int] = Field(None, alias="lastTransactionTime")
+    last_transaction_time: Optional[int] = Field(
+        None, alias="lastTransactionTime"
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -21,7 +23,10 @@ class PairChartV2Params(BaseModel):
         if not isinstance(data, dict):
             return data
 
-        if data.get("open_trading") is None and data.get("openTrading") is None:
+        if (
+            data.get("open_trading") is None
+            and data.get("openTrading") is None
+        ):
             chart_from = data.get("from", data.get("chart_from"))
             if chart_from is not None:
                 data["openTrading"] = chart_from

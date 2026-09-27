@@ -1,8 +1,9 @@
 [tool.ruff]
 target-version = "py311"
+line-length = 79
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I", "ASYNC"]
+select = ["E4", "E7", "E9", "E501", "F", "I", "ASYNC"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -21,3 +22,4 @@ exclude = ["migrations/versions/*.py"]
 
 [tool.ruff.lint.per-file-ignores]
 "migrations/versions/*.py" = ["I001"]
+"migrations/versions/801c5e2b52e7_added_revoked_at_api_keys.py" = ["E501"]

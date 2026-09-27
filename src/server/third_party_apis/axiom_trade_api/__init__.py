@@ -1,7 +1,8 @@
 """
 Axiom Trade API Client Library
 
-A high-level Python client for interacting with Axiom Trade API with WebSocket support.
+A high-level Python client for interacting with Axiom Trade API
+with WebSocket support.
 
 Usage:
     from axiom_trade_api import AxiomTradeClient, AxiomAgentData

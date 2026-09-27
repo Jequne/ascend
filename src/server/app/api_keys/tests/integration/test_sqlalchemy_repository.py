@@ -37,12 +37,17 @@ async def test_saving_new_api_key_in_db(session: AsyncSession) -> None:
     assert saved_api_key.key_hash == api_key.key_hash
     assert saved_api_key.label == api_key.label
     assert saved_api_key.status == api_key.status
-    assert saved_api_key.expires_at.replace(tzinfo=timezone.utc) == api_key.expires_at
+    assert (
+        saved_api_key.expires_at.replace(tzinfo=timezone.utc)
+        == api_key.expires_at
+    )
     assert saved_api_key.max_active_sessions == api_key.max_active_sessions
 
 
 @pytest.mark.asyncio
-async def test_saving_api_key_which_already_in_db(session: AsyncSession) -> None:
+async def test_saving_api_key_which_already_in_db(
+    session: AsyncSession,
+) -> None:
     repository = SqlAlchemyApiKeyRepository(session=session)
 
     api_key = ApiKey(
@@ -91,7 +96,9 @@ async def test_get_api_key_by_kid_when_it_in_db(session: AsyncSession):
 
     api_key_from_db = await repository.get_api_key_by_kid(api_key.kid)
     assert api_key_from_db is not None
-    api_key_from_db.expires_at = api_key_from_db.expires_at.replace(tzinfo=timezone.utc)
+    api_key_from_db.expires_at = api_key_from_db.expires_at.replace(
+        tzinfo=timezone.utc
+    )
     assert api_key_from_db == api_key
 
 
@@ -113,7 +120,9 @@ async def test_updating_api_key_in_db(session: AsyncSession) -> None:
 
     updated_api_key = await repository.update_api_key(api_key)
 
-    result = await session.execute(select(ApiKeyModel).filter_by(kid=api_key.kid))
+    result = await session.execute(
+        select(ApiKeyModel).filter_by(kid=api_key.kid)
+    )
     saved_api_key = result.scalar_one()
 
     assert updated_api_key == api_key

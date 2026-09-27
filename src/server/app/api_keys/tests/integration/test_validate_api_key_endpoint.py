@@ -77,12 +77,13 @@ async def test_validate_api_key_if_api_key_is_valid(
 
     assert validate_api_key_response.status == ApiKeyStatus.ACTIVE
     assert (
-        validate_api_key_response.expires_at.replace(tzinfo=timezone.utc) == expires_at
+        validate_api_key_response.expires_at.replace(tzinfo=timezone.utc)
+        == expires_at
     )
 
 
 @pytest.mark.asyncio
-async def test_validate_api_key_if_input_api_key_is_incorrect_returns_401_status(
+async def test_incorrect_api_key_returns_401_status(
     client: AsyncClient,
 ) -> None:
     response_1 = await client.post(
@@ -91,7 +92,8 @@ async def test_validate_api_key_if_input_api_key_is_incorrect_returns_401_status
     assert response_1.status_code == 401
 
     response_2 = await client.post(
-        "/api-keys/validate-api-key", headers={"X-Api-Key": "incorrect-format-api-key"}
+        "/api-keys/validate-api-key",
+        headers={"X-Api-Key": "incorrect-format-api-key"},
     )
     assert response_2.status_code == 401
 

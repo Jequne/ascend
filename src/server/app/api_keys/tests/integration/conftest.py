@@ -51,7 +51,9 @@ async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     transport = ASGITransport(app=app)
 
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client:
         yield client
 
     app.dependency_overrides.clear()

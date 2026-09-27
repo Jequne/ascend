@@ -37,7 +37,9 @@ class SqlAlchemyApiKeyRepository(ApiKeyRepository):
             )
 
     async def get_api_key_by_kid(self, kid: str) -> ApiKey | None:
-        result = await self._session.execute(select(ApiKeyModel).filter_by(kid=kid))
+        result = await self._session.execute(
+            select(ApiKeyModel).filter_by(kid=kid)
+        )
         row = result.scalar_one_or_none()
         return self._to_domain(row) if row is not None else None
 
@@ -48,7 +50,9 @@ class SqlAlchemyApiKeyRepository(ApiKeyRepository):
         api_key_model = result.scalar_one_or_none()
 
         if api_key_model is None:
-            raise ApiKeyNotFoundError(f"api_key with kid {api_key.kid} does not exist")
+            raise ApiKeyNotFoundError(
+                f"api_key with kid {api_key.kid} does not exist"
+            )
 
         api_key_model.key_hash = api_key.key_hash
         api_key_model.label = api_key.label

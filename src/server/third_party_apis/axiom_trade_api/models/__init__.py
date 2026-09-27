@@ -9,7 +9,11 @@ from .endpoints import (
     Token,
     TokenInfoResponse,
 )
-from .websockets import NewPairsRoomMessage, RoomSubscribeRequest, SolPriceRoomMessage
+from .websockets import (
+    NewPairsRoomMessage,
+    RoomSubscribeRequest,
+    SolPriceRoomMessage,
+)
 
 __all__ = [
     "SolPriceRoomMessage",

@@ -9,7 +9,9 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Iterator
 
-_request_priority: ContextVar[int] = ContextVar("axiom_request_priority", default=0)
+_request_priority: ContextVar[int] = ContextVar(
+    "axiom_request_priority", default=0
+)
 logger = logging.getLogger(__name__)
 MAX_FOREGROUND_BURST = 10
 
@@ -28,7 +30,9 @@ class AxiomRequestPacer:
         self, interval_seconds: float = 0.1, max_concurrency: int = 50
     ) -> None:
         if interval_seconds < 0 or max_concurrency < 1:
-            raise ValueError("Axiom pacing requires a nonnegative interval and slots")
+            raise ValueError(
+                "Axiom pacing requires a nonnegative interval and slots"
+            )
         self.interval_seconds = interval_seconds
         self.max_concurrency = max_concurrency
         self._pending: list[tuple[int, int, float, asyncio.Future[None]]] = []
@@ -42,7 +46,9 @@ class AxiomRequestPacer:
     async def wait_turn(self) -> None:
         queued_at = time.monotonic()
         priority = _request_priority.get()
-        future: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+        future: asyncio.Future[None] = (
+            asyncio.get_running_loop().create_future()
+        )
         heapq.heappush(
             self._pending, (priority, next(self._sequence), queued_at, future)
         )
@@ -106,7 +112,9 @@ class AxiomRequestPacer:
 
     def queue_stats(self) -> tuple[int, float]:
         """Return active waiters and age of the oldest queued HTTP request."""
-        queued_at = [item[2] for item in self._pending if not item[3].cancelled()]
+        queued_at = [
+            item[2] for item in self._pending if not item[3].cancelled()
+        ]
         if not queued_at:
             return 0, 0.0
         return len(queued_at), time.monotonic() - min(queued_at)

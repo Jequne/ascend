@@ -22,7 +22,10 @@ async def test_feed_and_heartbeat_envelopes() -> None:
     assert connection.messages == [
         {
             "type": "token_feed",
-            "payload": {"pair_address": "pair", "funding_deployed_tokens": None},
+            "payload": {
+                "pair_address": "pair",
+                "funding_deployed_tokens": None,
+            },
         }
     ]
     stop.clear()
@@ -42,7 +45,7 @@ async def test_feed_and_heartbeat_envelopes() -> None:
 
 
 @pytest.mark.asyncio
-async def test_send_failure_keeps_session_and_delivers_to_other_connections() -> None:
+async def test_send_failure_keeps_session_and_delivers_to_others() -> None:
     class FailedConnection(RecordingConnection):
         async def send_json(self, message: dict[str, object]) -> None:
             raise OSError("disconnected")

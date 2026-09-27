@@ -122,7 +122,8 @@ class AxiomTradeWebsocket:
 
         except (CurlError, AxiomApiError) as exc:
             raise AxiomWebSocketConnectionError(
-                f"{agent_data.agent_name}: failed to connect to Axiom WebSocket"
+                f"{agent_data.agent_name}: "
+                "failed to connect to Axiom WebSocket"
             ) from exc
 
         logger.info(
@@ -151,7 +152,8 @@ class AxiomTradeWebsocket:
         """Yield WebSocket payloads before JSON parsing and room validation."""
         if not self._wsocket:
             raise AxiomWebSocketNotConnectedError(
-                "Cannot receive messages without an active WebSocket connection"
+                "Cannot receive messages without "
+                "an active WebSocket connection"
             )
 
         async for message in self._wsocket:
@@ -182,7 +184,9 @@ class AxiomTradeWebsocket:
                     )
                     continue
 
-                validated_data = self._message_router.validate_room_message(data)
+                validated_data = self._message_router.validate_room_message(
+                    data
+                )
 
                 if validated_data is None:
                     continue
@@ -206,7 +210,9 @@ class AxiomTradeWebsocket:
             )
 
         try:
-            await self._wsocket.send_str(subscription_message.model_dump_json())
+            await self._wsocket.send_str(
+                subscription_message.model_dump_json()
+            )
 
         except CurlError as exc:
             raise AxiomWebSocketSubscriptionError(

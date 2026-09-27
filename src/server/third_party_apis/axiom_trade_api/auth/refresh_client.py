@@ -87,4 +87,6 @@ class AuthRefreshClient:
             cookie = AxiomCookie(cookie=value)
             setattr(axiom_agent_cookies, "key", cookie)
 
-        logger.info("✅ cf cookies for %s saved in state", axiom_agent.agent_name)
+        logger.info(
+            "✅ cf cookies for %s saved in state", axiom_agent.agent_name
+        )

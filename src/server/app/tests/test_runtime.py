@@ -6,7 +6,11 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.composition import Runtime
 from app.database import Base, register_models
@@ -16,9 +20,13 @@ from third_party_apis import axiom_trade_api as axiom
 
 
 @pytest_asyncio.fixture
-async def sessions(tmp_path: Path) -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+async def sessions(
+    tmp_path: Path,
+) -> AsyncIterator[async_sessionmaker[AsyncSession]]:
     register_models()
-    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'runtime.db'}")
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{tmp_path / 'runtime.db'}"
+    )
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
     yield async_sessionmaker(engine, expire_on_commit=False)
@@ -53,7 +61,9 @@ async def test_two_runtimes_delivery_callbacks_and_shutdown(
     for client in clients:
         with (
             patch.object(client, "connect_websocket"),
-            patch.object(client, "dev_tokens_v3", AsyncMock(return_value=None)),
+            patch.object(
+                client, "dev_tokens_v3", AsyncMock(return_value=None)
+            ),
             patch.object(client, "pair_info", AsyncMock(return_value=None)),
         ):
             await runtimes[clients.index(client)].start()
@@ -69,7 +79,9 @@ async def test_two_runtimes_delivery_callbacks_and_shutdown(
                 connection.received.clear()
                 await connection.received.wait()
         feed = next(
-            item for item in connection.messages if item["type"] == "token_feed"
+            item
+            for item in connection.messages
+            if item["type"] == "token_feed"
         )
         assert isinstance(feed["payload"], dict)
         assert feed["payload"]["pair_address"] == "pair"
@@ -92,7 +104,9 @@ async def test_partial_startup_releases_resources(
     runtime = Runtime(client, sessions, "")
     with (
         patch.object(
-            client, "connect_websocket", side_effect=RuntimeError("startup failure")
+            client,
+            "connect_websocket",
+            side_effect=RuntimeError("startup failure"),
         ),
         patch.object(client, "close", wraps=client.close) as close,
     ):

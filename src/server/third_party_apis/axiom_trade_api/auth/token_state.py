@@ -30,7 +30,8 @@ class AuthTokenStateService:
             expires_at: int = decoded_auth_access_token["exp"]
         except KeyError as exc:
             raise AxiomAccessTokenError(
-                f"{agent_data.agent_name}: access token does not contain exp claim"
+                f"{agent_data.agent_name}: "
+                "access token does not contain exp claim"
             ) from exc
 
         agent_data.cookies.auth_access_token = AxiomCookie(

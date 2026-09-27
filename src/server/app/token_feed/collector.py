@@ -51,7 +51,9 @@ class TokenFeedCollector:
 
     async def _emit_update(
         self,
-        update: Callable[[PairEvent, TokenFeedBase], Awaitable[TokenFeedBase | None]],
+        update: Callable[
+            [PairEvent, TokenFeedBase], Awaitable[TokenFeedBase | None]
+        ],
         event: PairEvent,
         base: TokenFeedBase,
     ) -> None:

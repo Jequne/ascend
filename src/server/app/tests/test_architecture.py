@@ -11,7 +11,13 @@ from sqlalchemy import create_engine
 from app.database import Base, register_models
 
 SERVER = Path(__file__).resolve().parents[2]
-MODULES = {"api_keys", "token_feed", "streaming", "token_prices", "token_images"}
+MODULES = {
+    "api_keys",
+    "token_feed",
+    "streaming",
+    "token_prices",
+    "token_images",
+}
 
 
 def test_independent_sdk_import_without_backend_or_resources() -> None:
@@ -46,7 +52,12 @@ def test_domain_application_and_public_package_boundaries() -> None:
         owner = relative.parts[0]
         transport = (
             path.name
-            in {"router.py", "schemas.py", "dependencies.py", "serialization.py"}
+            in {
+                "router.py",
+                "schemas.py",
+                "dependencies.py",
+                "serialization.py",
+            }
             or "adapters" in relative.parts
         )
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
@@ -67,7 +78,10 @@ def test_domain_application_and_public_package_boundaries() -> None:
                 if not transport:
                     assert name.split(".")[0] not in forbidden, (path, name)
                 if name.startswith("app.") and name.split(".")[1] in MODULES:
-                    assert name.split(".")[1] == owner or len(name.split(".")) == 2, (
+                    assert (
+                        name.split(".")[1] == owner
+                        or len(name.split(".")) == 2
+                    ), (
                         path,
                         name,
                     )

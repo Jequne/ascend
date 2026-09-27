@@ -50,7 +50,9 @@ class ApiKeyManager:
     async def create(self, command: CreateApiKeyCommand) -> CreatedApiKey:
         generated_api_key: GeneratedApiKey = self._api_key_generator.generate()
 
-        api_key_hash: str = self._api_key_hasher.hash(generated_api_key.api_key)
+        api_key_hash: str = self._api_key_hasher.hash(
+            generated_api_key.api_key
+        )
 
         expires_at = datetime.now(timezone.utc) + timedelta(
             days=command.expires_in_days
@@ -89,7 +91,9 @@ class ApiKeyManager:
             raise InvalidApiKeyError("Invalid Api Key")
 
         api_key.current_status()
-        updated_api_key = await self._repository.update_api_key(api_key=api_key)
+        updated_api_key = await self._repository.update_api_key(
+            api_key=api_key
+        )
 
         if api_key.status == ApiKeyStatus.EXPIRED:
             raise ApiKeyExpirationError("Api Key Expired")

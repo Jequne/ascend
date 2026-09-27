@@ -35,6 +35,8 @@ class ApiKeysAccess:
                 ):
                     return AccessResult("invalid")
                 await session.commit()
-                return AccessResult("valid", result.kid, result.max_active_sessions)
+                return AccessResult(
+                    "valid", result.kid, result.max_active_sessions
+                )
         except Exception:
             return None

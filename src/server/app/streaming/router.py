@@ -25,7 +25,9 @@ async def ws_endpoint(websocket: WebSocket) -> None:
         return
     stop = asyncio.Event()
     task = asyncio.create_task(
-        auth.ws_key_watchdog(connection=connection, raw_key=ctx.raw_key, stop=stop)
+        auth.ws_key_watchdog(
+            connection=connection, raw_key=ctx.raw_key, stop=stop
+        )
     )
     try:
         while not stop.is_set():

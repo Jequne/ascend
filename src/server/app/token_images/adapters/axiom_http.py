@@ -53,6 +53,8 @@ class AxiomTokenImageProvider:
         except TokenImageUpstreamError:
             raise
         except httpx.HTTPError as exc:
-            raise TokenImageUpstreamError("Axiom image request failed") from exc
+            raise TokenImageUpstreamError(
+                "Axiom image request failed"
+            ) from exc
 
         return TokenImage(bytes(content), media_type)

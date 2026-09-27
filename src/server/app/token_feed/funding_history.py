@@ -27,7 +27,7 @@ def select_previous_token_indexes(
     current_created_at: datetime,
     limit: int = 3,
 ) -> list[int]:
-    """Return the newest distinct tokens strictly older than the current token."""
+    """Return newest distinct tokens strictly older than the current token."""
     seen_pairs = {current_pair_address}
     seen_tokens = {current_token_address}
     cutoff = _utc(current_created_at)

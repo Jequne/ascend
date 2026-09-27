@@ -135,7 +135,9 @@ class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(results, ["ok"] * 20)
         self.assertEqual(peak, 15)
 
-    async def test_single_route_waits_for_retry_after_before_retry(self) -> None:
+    async def test_single_route_waits_for_retry_after_before_retry(
+        self,
+    ) -> None:
         client = AxiomTradeClient([_agent(1, "socks5://proxy-1")])
         starts: list[float] = []
 
@@ -158,7 +160,9 @@ class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(client._http_attempts["endpoint"], 2)
         self.assertEqual(client._http_rate_limits["endpoint"], 1)
 
-    async def test_network_error_is_retried_through_another_proxy(self) -> None:
+    async def test_network_error_is_retried_through_another_proxy(
+        self,
+    ) -> None:
         client = AxiomTradeClient(
             [
                 _agent(1, "socks5://proxy-1"),

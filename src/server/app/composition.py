@@ -38,14 +38,20 @@ class Runtime:
         self.feed = token_feed.TokenFeedCollector(
             adapter, token_feed.FeedEnrichment(adapter)
         )
-        self.prices = token_prices.PriceService(AxiomPriceSource(client), self._price)
-        self.images: token_images.TokenImageProvider = AxiomTokenImageProvider()
+        self.prices = token_prices.PriceService(
+            AxiomPriceSource(client), self._price
+        )
+        self.images: token_images.TokenImageProvider = (
+            AxiomTokenImageProvider()
+        )
         self._stop = asyncio.Event()
         self._tasks: list[asyncio.Task[None]] = []
         self._closed = False
 
     async def _price(self, price: token_prices.SolPrice) -> None:
-        await self.manager.broadcast_json({"type": "sol_price", "payload": price.value})
+        await self.manager.broadcast_json(
+            {"type": "sol_price", "payload": price.value}
+        )
 
     async def _next_payload(self) -> dict[str, object]:
         return token_feed.serialize(await self.feed.tokens_feed.get())
@@ -67,7 +73,9 @@ class Runtime:
                     )
                 ),
                 asyncio.create_task(
-                    streaming.ping_broadcaster(self.manager, stop_event=self._stop)
+                    streaming.ping_broadcaster(
+                        self.manager, stop_event=self._stop
+                    )
                 ),
             ]
         except BaseException:
@@ -91,5 +99,7 @@ class Runtime:
 
 
 def build_runtime() -> Runtime:
-    client = axiom.AxiomTradeClient(settings.axiom_api_config.load_axiom_api_agents())
+    client = axiom.AxiomTradeClient(
+        settings.axiom_api_config.load_axiom_api_agents()
+    )
     return Runtime(client, AsyncSessionLocal, settings.api_key_pepper)

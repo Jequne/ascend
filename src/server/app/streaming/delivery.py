@@ -19,11 +19,16 @@ async def token_feed_broadcaster(
             payload = await asyncio.wait_for(next_payload(), timeout=3)
         except asyncio.TimeoutError:
             continue
-        await manager.broadcast_json({"type": "token_feed", "payload": payload})
+        await manager.broadcast_json(
+            {"type": "token_feed", "payload": payload}
+        )
 
 
 async def ping_broadcaster(
-    manager: ConnectionManager, *, stop_event: asyncio.Event, interval: float = 30
+    manager: ConnectionManager,
+    *,
+    stop_event: asyncio.Event,
+    interval: float = 30,
 ) -> None:
     while not stop_event.is_set():
         try:
@@ -35,7 +40,9 @@ async def ping_broadcaster(
             await manager.broadcast_json(
                 {
                     "type": "ping",
-                    "payload": {"timestamp": datetime.now(timezone.utc).isoformat()},
+                    "payload": {
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    },
                 }
             )
         except Exception:

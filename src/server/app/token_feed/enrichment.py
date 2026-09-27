@@ -10,8 +10,17 @@ from typing import ParamSpec, TypeVar, cast
 from .base import prepare_base
 from .contracts import HistoryProvider
 from .developer_history import select_developer_tokens
-from .domain import DeployedToken, History, HistoryToken, PairEvent, TokenFeedBase
-from .funding_history import HistoricalTokenCandidate, select_previous_token_indexes
+from .domain import (
+    DeployedToken,
+    History,
+    HistoryToken,
+    PairEvent,
+    TokenFeedBase,
+)
+from .funding_history import (
+    HistoricalTokenCandidate,
+    select_previous_token_indexes,
+)
 
 logger = logging.getLogger(__name__)
 P = ParamSpec("P")
@@ -63,7 +72,9 @@ class FeedEnrichment:
             self._pending_requests.add(stored_task)
             task.add_done_callback(self._pending_requests.discard)
             if len(self._request_cache) >= 256:
-                for old_key, (_, candidate) in list(self._request_cache.items()):
+                for old_key, (_, candidate) in list(
+                    self._request_cache.items()
+                ):
                     if candidate.done():
                         del self._request_cache[old_key]
                         break
@@ -139,9 +150,13 @@ class FeedEnrichment:
                 ),
                 return_exceptions=True,
             )
-            pair_info = None if isinstance(pair_result, BaseException) else pair_result
+            pair_info = (
+                None if isinstance(pair_result, BaseException) else pair_result
+            )
             fees_info = (
-                None if isinstance(token_result, BaseException) else token_result
+                None
+                if isinstance(token_result, BaseException)
+                else token_result
             )
             verified = (
                 fees_info is not None
@@ -157,7 +172,9 @@ class FeedEnrichment:
                 if verified and fees_info
                 else None,
                 ath_mcap_in_usd=token.ath_mcap_in_usd,
-                dex_paid=fees_info.dex_paid if verified and fees_info else False,
+                dex_paid=fees_info.dex_paid
+                if verified and fees_info
+                else False,
                 pair_address=token.pair_address,
                 token_address=token.token_address,
                 token_image=(pair_info.token_image if pair_info else None)
@@ -247,7 +264,9 @@ class FeedEnrichment:
             )
             if not selected_indexes:
                 return funding_wallet, [], migrated_count, total_count
-            selected_tokens = [history.tokens[index] for index in selected_indexes]
+            selected_tokens = [
+                history.tokens[index] for index in selected_indexes
+            ]
             tokens = await self._get_full_info_about_recent_tokens(
                 selected_tokens, funding_wallet, "sol"
             )
@@ -256,7 +275,9 @@ class FeedEnrichment:
             logger.warning("Funding history lookup failed", exc_info=True)
             return funding_wallet, None, None, None
 
-    async def prepare_token_feed(self, new_pairs_data: PairEvent) -> TokenFeedBase:
+    async def prepare_token_feed(
+        self, new_pairs_data: PairEvent
+    ) -> TokenFeedBase:
         return prepare_base(new_pairs_data)
 
     async def prepare_developer_update(
@@ -269,7 +290,9 @@ class FeedEnrichment:
                 dev_address=dev_wallet,
             )
         except Exception:
-            logger.warning("Developer token history lookup failed", exc_info=True)
+            logger.warning(
+                "Developer token history lookup failed", exc_info=True
+            )
             return None
         if dev_tokens is None:
             return None
@@ -281,7 +304,9 @@ class FeedEnrichment:
                 new_token_pair_address=base_feed.pair_address,
             )
         except Exception:
-            logger.warning("Developer history enrichment failed", exc_info=True)
+            logger.warning(
+                "Developer history enrichment failed", exc_info=True
+            )
             last_deployed_tokens = None
         return replace(
             base_feed,

@@ -29,7 +29,9 @@ class AxiomRequestPacerTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreaterEqual(order[1][1] - order[0][1], 0.03)
         await pacer.close()
 
-    async def test_cancelled_waiter_does_not_block_following_request(self) -> None:
+    async def test_cancelled_waiter_does_not_block_following_request(
+        self,
+    ) -> None:
         pacer = AxiomRequestPacer(interval_seconds=0.04)
         await pacer.wait_turn()
         pacer.release_turn()
@@ -45,7 +47,9 @@ class AxiomRequestPacerTests(unittest.IsolatedAsyncioTestCase):
         pacer.release_turn()
         await pacer.close()
 
-    async def test_saturated_slots_preserve_priority_and_start_spacing(self) -> None:
+    async def test_saturated_slots_preserve_priority_and_start_spacing(
+        self,
+    ) -> None:
         pacer = AxiomRequestPacer(interval_seconds=0.04, max_concurrency=1)
         await pacer.wait_turn()
         starts: list[tuple[str, float]] = []
@@ -69,7 +73,9 @@ class AxiomRequestPacerTests(unittest.IsolatedAsyncioTestCase):
         pacer.release_turn()
         await asyncio.gather(history, fresh)
 
-        self.assertEqual([name for name, _ in starts], ["new token", "history"])
+        self.assertEqual(
+            [name for name, _ in starts], ["new token", "history"]
+        )
         self.assertGreaterEqual(starts[1][1] - starts[0][1], 0.03)
         await pacer.close()
 
@@ -93,7 +99,9 @@ class AxiomRequestPacerTests(unittest.IsolatedAsyncioTestCase):
                 pacer.release_turn()
 
         history = asyncio.create_task(start("history", background=True))
-        fresh = [asyncio.create_task(start(f"new-{index}")) for index in range(12)]
+        fresh = [
+            asyncio.create_task(start(f"new-{index}")) for index in range(12)
+        ]
         await asyncio.sleep(0)
         pacer.release_turn()
         await asyncio.gather(history, *fresh)

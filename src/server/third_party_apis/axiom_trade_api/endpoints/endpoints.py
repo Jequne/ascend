@@ -111,7 +111,9 @@ class AxiomTradeEndpoints:
     ) -> ResponseModelT:
         agent_data = session_and_agent[1]
 
-        is_valid = await self._auth_manager.ensure_validation(session_and_agent)
+        is_valid = await self._auth_manager.ensure_validation(
+            session_and_agent
+        )
 
         if not is_valid:
             raise AxiomApiError(
@@ -136,7 +138,8 @@ class AxiomTradeEndpoints:
 
         except ValueError as exc:
             raise AxiomResponseError(
-                f"{agent_data.agent_name}: {endpoint_name} returned invalid JSON"
+                f"{agent_data.agent_name}: "
+                f"{endpoint_name} returned invalid JSON"
             ) from exc
 
         logger.debug(
@@ -151,7 +154,8 @@ class AxiomTradeEndpoints:
 
         except ValidationError as exc:
             raise AxiomResponseValidationError(
-                f"{agent_data.agent_name}: {endpoint_name} response validation failed"
+                f"{agent_data.agent_name}: "
+                f"{endpoint_name} response validation failed"
             ) from exc
 
     async def pair_chart_v2(

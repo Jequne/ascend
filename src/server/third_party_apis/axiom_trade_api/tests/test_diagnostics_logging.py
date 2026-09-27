@@ -22,7 +22,9 @@ async def test_http_diagnostics_are_only_visible_at_debug(
         return "ok"
 
     try:
-        with caplog.at_level(level, logger="third_party_apis.axiom_trade_api.client"):
+        with caplog.at_level(
+            level, logger="third_party_apis.axiom_trade_api.client"
+        ):
             assert await client._call_with_random_agent(endpoint) == "ok"
         diagnostics = [
             record

@@ -13,7 +13,9 @@ logger = logging.getLogger(__name__)
 
 class AgentSelector:
     def __init__(self) -> None:
-        self._agents_and_sessions: list[Tuple[AsyncSession, AxiomAgentData]] = []
+        self._agents_and_sessions: list[
+            Tuple[AsyncSession, AxiomAgentData]
+        ] = []
         self._in_flight: dict[int, int] = {}
         self._rate_limited_until: dict[str, float] = {}
         self._unavailable_until: dict[str, float] = {}
@@ -37,7 +39,9 @@ class AgentSelector:
         return random.choice(self._agents_and_sessions)
 
     @staticmethod
-    def route_key(session_and_agent: Tuple[AsyncSession, AxiomAgentData]) -> str:
+    def route_key(
+        session_and_agent: Tuple[AsyncSession, AxiomAgentData],
+    ) -> str:
         agent = session_and_agent[1]
         # Agents without an explicit proxy still share the server's public IP.
         return agent.proxy or "__direct__"
@@ -65,9 +69,13 @@ class AgentSelector:
             session_and_agent
             for session_and_agent in self._agents_and_sessions
             if self.route_key(session_and_agent) not in excluded_routes
-            and self._rate_limited_until.get(self.route_key(session_and_agent), 0.0)
+            and self._rate_limited_until.get(
+                self.route_key(session_and_agent), 0.0
+            )
             <= now
-            and self._unavailable_until.get(self.route_key(session_and_agent), 0.0)
+            and self._unavailable_until.get(
+                self.route_key(session_and_agent), 0.0
+            )
             <= now
         ]
         if not available:
@@ -77,7 +85,8 @@ class AgentSelector:
         for session_and_agent in self._agents_and_sessions:
             route = self.route_key(session_and_agent)
             route_loads[route] = (
-                route_loads.get(route, 0) + self._in_flight[id(session_and_agent[1])]
+                route_loads.get(route, 0)
+                + self._in_flight[id(session_and_agent[1])]
             )
 
         minimum_route_load = min(
@@ -88,7 +97,8 @@ class AgentSelector:
             dict.fromkeys(
                 self.route_key(session_and_agent)
                 for session_and_agent in available
-                if route_loads[self.route_key(session_and_agent)] == minimum_route_load
+                if route_loads[self.route_key(session_and_agent)]
+                == minimum_route_load
             )
         )
         route = least_busy_routes[self._route_cursor % len(least_busy_routes)]
@@ -118,7 +128,9 @@ class AgentSelector:
         session_and_agent: Tuple[AsyncSession, AxiomAgentData],
     ) -> None:
         agent_key = id(session_and_agent[1])
-        self._in_flight[agent_key] = max(0, self._in_flight.get(agent_key, 0) - 1)
+        self._in_flight[agent_key] = max(
+            0, self._in_flight.get(agent_key, 0) - 1
+        )
 
     def mark_rate_limited(
         self,
@@ -157,7 +169,9 @@ class AgentSelector:
                     self._rate_limited_until.get(
                         self.route_key(session_and_agent), 0.0
                     ),
-                    self._unavailable_until.get(self.route_key(session_and_agent), 0.0),
+                    self._unavailable_until.get(
+                        self.route_key(session_and_agent), 0.0
+                    ),
                 )
                 - now,
             )
@@ -194,5 +208,7 @@ class AgentSelector:
 
         return random.choice(self._agents_and_sessions)
 
-    def get_agents_and_sessions(self) -> list[Tuple[AsyncSession, AxiomAgentData]]:
+    def get_agents_and_sessions(
+        self,
+    ) -> list[Tuple[AsyncSession, AxiomAgentData]]:
         return self._agents_and_sessions

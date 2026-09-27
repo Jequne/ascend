@@ -21,13 +21,17 @@ class ApiKeyModel(Base):
     key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     label: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="active"
+    )
 
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
 
-    max_active_sessions: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    max_active_sessions: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=3
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

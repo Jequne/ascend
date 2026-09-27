@@ -11,14 +11,22 @@ from ...exceptions import ApiKeyRevocationError
 @pytest.mark.parametrize("limit", [0, 5])
 def test_rejects_session_boundary(limit: int) -> None:
     with pytest.raises(ValueError):
-        ApiKey("kid", datetime.now(timezone.utc), "hash", max_active_sessions=limit)
+        ApiKey(
+            "kid",
+            datetime.now(timezone.utc),
+            "hash",
+            max_active_sessions=limit,
+        )
 
 
 @pytest.mark.parametrize("limit", [1, 4])
 def test_accepts_session_boundary(limit: int) -> None:
     assert (
         ApiKey(
-            "kid", datetime.now(timezone.utc), "hash", max_active_sessions=limit
+            "kid",
+            datetime.now(timezone.utc),
+            "hash",
+            max_active_sessions=limit,
         ).max_active_sessions
         == limit
     )
@@ -28,7 +36,9 @@ def test_expiry_at_exact_boundary_and_existing_revocation_semantics() -> None:
     now = datetime.now(timezone.utc)
     key = ApiKey("kid", now, "hash")
     assert key.current_status(now) == ApiKeyStatus.EXPIRED
-    key = ApiKey("kid", now, "hash", status=ApiKeyStatus.REVOKED, revoked_at=now)
+    key = ApiKey(
+        "kid", now, "hash", status=ApiKeyStatus.REVOKED, revoked_at=now
+    )
     assert key.current_status(now) == ApiKeyStatus.REVOKED
     key.revoked_at = None
     assert key.current_status(now) == ApiKeyStatus.EXPIRED

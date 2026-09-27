@@ -49,11 +49,16 @@ async def test_cleanup_preserves_batch_size_and_existing_conditions(
     cleanup = ExpiryCleanup(sessions)
     assert await cleanup.remove_expired() is True
     async with sessions() as session:
-        assert await session.scalar(select(func.count()).select_from(ApiKeyModel)) == 3
+        assert (
+            await session.scalar(select(func.count()).select_from(ApiKeyModel))
+            == 3
+        )
     assert await cleanup.remove_expired() is True
     assert await cleanup.remove_expired() is False
     async with sessions() as session:
-        key = await SqlAlchemyApiKeyRepository(session).get_api_key_by_kid("revoked")
+        key = await SqlAlchemyApiKeyRepository(session).get_api_key_by_kid(
+            "revoked"
+        )
         assert key is not None and key.revoked_at is None
         row = await session.scalar(
             select(ApiKeyModel).where(ApiKeyModel.kid == "revoked")

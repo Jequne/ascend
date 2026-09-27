@@ -12,9 +12,13 @@ from third_party_apis import axiom_trade_api as axiom
 
 
 def logging_configuration(log_level: str):
-    FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
+    FORMAT = (
+        "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s"
+    )
 
-    # file_handler = logging.FileHandler(filename="./app/logs.txt", encoding="utf-8")
+    # file_handler = logging.FileHandler(
+    #     filename="./app/logs.txt", encoding="utf-8"
+    # )
     # file_handler.setLevel(level=logging.WARNING)
 
     stream_handler = logging.StreamHandler()
@@ -45,7 +49,9 @@ class AxiomTradeConfig(BaseSettings):
         env_file = ".env"
         extra = "ignore"
 
-    def _check_users_fingerprints_file_path(self, agents_path: str | None) -> Path:
+    def _check_users_fingerprints_file_path(
+        self, agents_path: str | None
+    ) -> Path:
         resolved_path = Path(self.agents_file_json or "")
 
         if not resolved_path.exists():
@@ -54,14 +60,18 @@ class AxiomTradeConfig(BaseSettings):
 
     def load_axiom_api_agents(self) -> list[axiom.AxiomAgentData]:
 
-        agents_path = self._check_users_fingerprints_file_path(self.agents_file_json)
+        agents_path = self._check_users_fingerprints_file_path(
+            self.agents_file_json
+        )
 
         try:
             with open(agents_path, "r", encoding="utf-8") as f:
                 agents_data = json.load(f)
 
             if isinstance(agents_data, list):
-                agents = [axiom.AxiomAgentData(**agent) for agent in agents_data]
+                agents = [
+                    axiom.AxiomAgentData(**agent) for agent in agents_data
+                ]
 
             else:
                 agents = [axiom.AxiomAgentData(**agents_data)]
@@ -70,7 +80,9 @@ class AxiomTradeConfig(BaseSettings):
             return agents
 
         except json.JSONDecodeError as e:
-            raise json.JSONDecodeError(f"❌ parsing error: {e}", e.doc, e.pos) from e
+            raise json.JSONDecodeError(
+                f"❌ parsing error: {e}", e.doc, e.pos
+            ) from e
 
         except Exception as e:
             raise Exception(f"❌ loading agents error: {e}")

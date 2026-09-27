@@ -17,7 +17,9 @@ class Extra(BaseModel):
 
 
 class ProtocolDetails(BaseModel):
-    # associated_bonding_curve: str = Field(..., alias="associatedBondingCurve")
+    # associated_bonding_curve: str = Field(
+    #     ..., alias="associatedBondingCurve"
+    # )
     # cashback: bool
     # creator: str
     # is_mayhem: bool = Field(..., alias="isMayhem")
@@ -31,7 +33,9 @@ class PairInfoResponse(BaseModel):
 
     created_at: datetime = Field(..., alias="createdAt")
     deployer_address: str = Field(..., alias="deployerAddress")
-    dev_wallet_funding: DevWalletFunding | None = Field(None, alias="devWalletFunding")
+    dev_wallet_funding: DevWalletFunding | None = Field(
+        None, alias="devWalletFunding"
+    )
     dex_paid: bool = Field(..., alias="dexPaid")
     discord: Optional[str]
     display_protocol: str = Field(..., alias="displayProtocol")

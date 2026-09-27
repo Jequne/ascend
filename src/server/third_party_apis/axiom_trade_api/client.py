@@ -37,7 +37,9 @@ class AxiomTradeClient:
         self._http_attempts: Counter[str] = Counter()
         self._http_rate_limits: Counter[str] = Counter()
         self._endpoints = AxiomTradeEndpoints(self._auth_manager)
-        self._wsocket = AxiomTradeWebsocket(self._auth_manager, self._endpoints)
+        self._wsocket = AxiomTradeWebsocket(
+            self._auth_manager, self._endpoints
+        )
         self._ws_task: Optional[asyncio.Task[Any]] = None
 
         self.add_agents(agents=agents)
@@ -58,16 +60,20 @@ class AxiomTradeClient:
             logger.debug("Axiom WebSocket task is already running")
             return
 
-        random_session_and_agent = self._agent_selector.random_websocket_agent()
+        random_session_and_agent = (
+            self._agent_selector.random_websocket_agent()
+        )
 
         self._ws_task = asyncio.create_task(
-            self._wsocket.start(session_and_agent=random_session_and_agent, rooms=rooms)
+            self._wsocket.start(
+                session_and_agent=random_session_and_agent, rooms=rooms
+            )
         )
         self._ws_task.add_done_callback(self._handle_websocket_task_done)
 
     @staticmethod
     def _handle_websocket_task_done(task: asyncio.Task[Any]) -> None:
-        """Retrieve background errors so asyncio never reports an orphan task."""
+        """Retrieve errors so asyncio never reports an orphan task."""
         if task.cancelled():
             return
 
@@ -116,7 +122,9 @@ class AxiomTradeClient:
         endpoint_name = endpoint_method.__name__
         excluded_routes: set[str] = set()
         retry_deadline = time.monotonic() + 120.0
-        last_retry_error: AxiomHTTPStatusError | AxiomRequestError | None = None
+        last_retry_error: AxiomHTTPStatusError | AxiomRequestError | None = (
+            None
+        )
 
         for attempt in range(max_attempts):
             session_and_agent = self._agent_selector.acquire_agent(
@@ -144,7 +152,9 @@ class AxiomTradeClient:
                     request_count = sum(self._http_attempts.values())
                     if request_count % 25 == 0:
                         pending, oldest_age = self._request_pacer.queue_stats()
-                        rate_limited_count = sum(self._http_rate_limits.values())
+                        rate_limited_count = sum(
+                            self._http_rate_limits.values()
+                        )
                         logger.debug(
                             "Axiom HTTP diagnostics: attempts=%s 429=%s "
                             "rate_limited=%.1f%% "
@@ -174,7 +184,9 @@ class AxiomTradeClient:
                 if attempt == max_attempts - 1:
                     raise
 
-                excluded_routes.add(self._agent_selector.route_key(session_and_agent))
+                excluded_routes.add(
+                    self._agent_selector.route_key(session_and_agent)
+                )
                 logger.warning(
                     "%s rate limited; retrying via another proxy route",
                     session_and_agent[1].agent_name,
@@ -185,7 +197,9 @@ class AxiomTradeClient:
                 if attempt == max_attempts - 1:
                     raise
 
-                excluded_routes.add(self._agent_selector.route_key(session_and_agent))
+                excluded_routes.add(
+                    self._agent_selector.route_key(session_and_agent)
+                )
                 logger.warning(
                     "%s request failed; retrying via another proxy route",
                     session_and_agent[1].agent_name,
@@ -204,15 +218,20 @@ class AxiomTradeClient:
         )
 
         return await self._call_with_random_agent(
-            self._endpoints.pair_chart_v2, pair_chart_v2_params=pair_chart_v2_params
+            self._endpoints.pair_chart_v2,
+            pair_chart_v2_params=pair_chart_v2_params,
         )
 
-    async def dev_tokens_v3(self, dev_address: str) -> Optional[DevTokensV3Response]:
+    async def dev_tokens_v3(
+        self, dev_address: str
+    ) -> Optional[DevTokensV3Response]:
         return await self._call_with_random_agent(
             self._endpoints.dev_tokens_v3, dev_address=dev_address
         )
 
-    async def token_info(self, pair_address: str) -> Optional[TokenInfoResponse]:
+    async def token_info(
+        self, pair_address: str
+    ) -> Optional[TokenInfoResponse]:
         return await self._call_with_random_agent(
             self._endpoints.token_info, pair_address=pair_address
         )
@@ -242,11 +261,9 @@ class AxiomTradeClient:
             try:
                 await self._wsocket.close()
             finally:
+                agents = self._agent_selector.get_agents_and_sessions()
                 await asyncio.gather(
-                    *(
-                        session.close()
-                        for session, _ in self._agent_selector.get_agents_and_sessions()
-                    )
+                    *(session.close() for session, _ in agents)
                 )
 
     async def __aenter__(self) -> "AxiomTradeClient":

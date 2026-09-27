@@ -12,12 +12,16 @@ from .test_collector import PairSource
 from .test_funding_history import FakeClient, _message
 
 
-@pytest.mark.parametrize("total, expected", [(0, "⁉️ no history"), (4, "50.0%")])
+@pytest.mark.parametrize(
+    "total, expected", [(0, "⁉️ no history"), (4, "50.0%")]
+)
 def test_token_log_includes_identity_holds_and_migration_share(
     total: int, expected: str
 ) -> None:
     base = replace(
-        prepare_base(_message()), migrated_tokens_count=2, all_tokens_count=total
+        prepare_base(_message()),
+        migrated_tokens_count=2,
+        all_tokens_count=total,
     )
     text = format_token_log(base)
     assert "🔍 current-token ; NEW (Current) ; dev holds: 5 %" in text
@@ -45,7 +49,8 @@ async def test_collector_logs_base_and_enriched_history_at_info(
         assert "🔍 current-token" in messages[0].getMessage()
         assert "💰 funding:" in caplog.text
         assert (
-            "|- 🪙 previous-token (previous-token); total fees paid: 2.0" in caplog.text
+            "|- 🪙 previous-token (previous-token); total fees paid: 2.0"
+            in caplog.text
         )
     finally:
         await collector.stop()

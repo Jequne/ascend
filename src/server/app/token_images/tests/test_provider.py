@@ -14,7 +14,9 @@ TOKEN_ADDRESS = "9LoWfvBgTzwqAMzNeMRwVY8YFBY8hEZjyvo3Mvb8pump"
 @pytest.mark.asyncio
 async def test_fetches_only_the_expected_axiom_image() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
-        assert str(request.url) == (f"{AXIOM_IMAGE_BASE_URL}/{TOKEN_ADDRESS}.webp")
+        assert str(request.url) == (
+            f"{AXIOM_IMAGE_BASE_URL}/{TOKEN_ADDRESS}.webp"
+        )
         return httpx.Response(
             200,
             headers={"content-type": "image/webp"},
@@ -70,9 +72,13 @@ async def test_missing_upstream_image(status_code: int) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "status_code", [500, 302, 200], ids=["server-error", "redirect", "oversized"]
+    "status_code",
+    [500, 302, 200],
+    ids=["server-error", "redirect", "oversized"],
 )
-async def test_upstream_failure_redirect_and_size_limit(status_code: int) -> None:
+async def test_upstream_failure_redirect_and_size_limit(
+    status_code: int,
+) -> None:
     body = b"x" * (MAX_IMAGE_BYTES + 1) if status_code == 200 else b""
     provider = AxiomTokenImageProvider(
         httpx.MockTransport(

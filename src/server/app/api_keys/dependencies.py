@@ -12,16 +12,20 @@ from .contracts import ApiKeyRepository
 
 
 def require_admin_credentials(
-    x_admin_secret: Annotated[str | None, Header(alias="X-Admin-Secret")] = None,
+    x_admin_secret: Annotated[
+        str | None, Header(alias="X-Admin-Secret")
+    ] = None,
 ) -> None:
     if x_admin_secret is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="No X-Admin-Secret"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No X-Admin-Secret",
         )
 
     if x_admin_secret != settings.admin_secret:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect X-Admin-Secret"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect X-Admin-Secret",
         )
 
 
@@ -36,12 +40,15 @@ def get_api_key_manager(
     repository: ApiKeyRepository = Depends(get_sqlalchemy_repository),
 ) -> ApiKeyManager:
     return ApiKeyManager(
-        repository=repository, api_key_hasher=ApiKeyHasher(settings.api_key_pepper)
+        repository=repository,
+        api_key_hasher=ApiKeyHasher(settings.api_key_pepper),
     )
 
 
 def require_x_api_key_credentials(
-    x_api_key: Annotated[str | None, Header(alias="X-Api-Key", max_length=70)] = None,
+    x_api_key: Annotated[
+        str | None, Header(alias="X-Api-Key", max_length=70)
+    ] = None,
 ) -> str:
     if x_api_key is None:
         raise HTTPException(

@@ -22,7 +22,9 @@ class _ResetWebSocket:
 
 class _RawWebSocket:
     def __init__(self):
-        self.messages = iter((b'{"room":"new_pairs","unknown":1}', b"not JSON"))
+        self.messages = iter(
+            (b'{"room":"new_pairs","unknown":1}', b"not JSON")
+        )
 
     def __aiter__(self):
         return self
@@ -37,7 +39,8 @@ class _RawWebSocket:
 class AxiomTradeWebsocketTests(unittest.IsolatedAsyncioTestCase):
     async def test_raw_messages_keep_payloads_unchanged(self) -> None:
         websocket = AxiomTradeWebsocket(
-            auth_manager=AuthManager(), endpoints=AxiomTradeEndpoints(AuthManager())
+            auth_manager=AuthManager(),
+            endpoints=AxiomTradeEndpoints(AuthManager()),
         )
         patcher = patch.object(websocket, "_wsocket", _RawWebSocket())
         patcher.start()

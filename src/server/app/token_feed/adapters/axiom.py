@@ -29,7 +29,8 @@ class AxiomFeedAdapter:
 
     def _on_pair(self, message: axiom.NewPairsRoomMessage) -> None:
         data = message.content
-        # The old transport rejects a missing developer; keep invalid events out.
+        # The old transport rejects a missing developer;
+        # keep invalid events out.
         if data.deployer_address is None:
             raise ValueError("developer address missing")
         event = PairEvent(
@@ -104,5 +105,7 @@ class AxiomFeedAdapter:
         with axiom.background_axiom_request() if background else nullcontext():
             result = await self._client.token_info(pair_address)
         return (
-            TokenFees(result.total_pair_fees_paid, result.dex_paid) if result else None
+            TokenFees(result.total_pair_fees_paid, result.dex_paid)
+            if result
+            else None
         )

@@ -28,7 +28,9 @@ class AuthManager:
     async def _refresh_auth_access_token(
         self, session_and_agent: Tuple[AsyncSession, AxiomAgentData]
     ) -> str:
-        return await self._refresh_client.refresh_access_token(session_and_agent)
+        return await self._refresh_client.refresh_access_token(
+            session_and_agent
+        )
 
     def _save_access_token_age(
         self,
@@ -53,7 +55,9 @@ class AuthManager:
     async def ensure_validation(
         self, session_and_agent: Tuple[AsyncSession, AxiomAgentData]
     ) -> bool:
-        auth_refresh_token = session_and_agent[1].cookies.auth_refresh_token.cookie
+        auth_refresh_token = session_and_agent[
+            1
+        ].cookies.auth_refresh_token.cookie
         agent_lock = self._get_agent_lock(auth_refresh_token)
 
         async with agent_lock:
@@ -64,7 +68,9 @@ class AuthManager:
             if is_access_token_valid:
                 return True
 
-            auth_access_token = await self._refresh_auth_access_token(session_and_agent)
+            auth_access_token = await self._refresh_auth_access_token(
+                session_and_agent
+            )
 
             self._save_access_token_age(session_and_agent, auth_access_token)
             return await self._is_auth_access_token_valid(session_and_agent)

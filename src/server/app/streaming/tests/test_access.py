@@ -8,7 +8,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app import api_keys, streaming
-from app.api_keys.adapters.sqlalchemy_repository import SqlAlchemyApiKeyRepository
+from app.api_keys.adapters.sqlalchemy_repository import (
+    SqlAlchemyApiKeyRepository,
+)
 from app.api_keys.api_key_hasher import ApiKeyHasher
 from app.api_keys.router import router as keys_router
 from app.database import Base, get_async_db, register_models
@@ -83,7 +85,9 @@ def test_http_key_connects_ws_limit_and_disconnect(tmp_path) -> None:
 def test_credentials_preserve_priority_and_whitespace_short_circuit() -> None:
     assert (
         extract_raw_api_key(
-            body_key=" query ", x_api_key="header", authorization="Bearer bearer"
+            body_key=" query ",
+            x_api_key="header",
+            authorization="Bearer bearer",
         )
         == "query"
     )
@@ -124,7 +128,9 @@ async def test_watchdog_uses_injected_access_result() -> None:
     await auth.ws_key_watchdog(
         connection=connection, raw_key="key", stop=stop, interval_seconds=0
     )
-    assert connection.messages == [{"type": "error", "payload": {"reason": "revoked"}}]
+    assert connection.messages == [
+        {"type": "error", "payload": {"reason": "revoked"}}
+    ]
     assert connection.code == 1008 and stop.is_set()
 
 

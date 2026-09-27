@@ -15,7 +15,9 @@ class AuthStreamingProcessor:
         connection: Connection, reason: str, code: int = 1008
     ) -> None:
         try:
-            await connection.send_json({"type": "error", "payload": {"reason": reason}})
+            await connection.send_json(
+                {"type": "error", "payload": {"reason": reason}}
+            )
         except Exception:
             pass
         try:
@@ -59,7 +61,9 @@ class AuthStreamingProcessor:
                 continue
             # Preserve the documented legacy failure on a database outage.
             if check is None:
-                raise AttributeError("'NoneType' object has no attribute 'status'")
+                raise AttributeError(
+                    "'NoneType' object has no attribute 'status'"
+                )
             reason = {
                 "invalid": "invalid_key",
                 "expired": "expired",

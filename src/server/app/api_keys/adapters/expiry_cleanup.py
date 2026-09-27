@@ -21,7 +21,8 @@ class ExpiryCleanup:
                                 ApiKeyModel.status == "expired",
                                 and_(
                                     ApiKeyModel.expires_at.is_not(None),
-                                    ApiKeyModel.expires_at < datetime.now(timezone.utc),
+                                    ApiKeyModel.expires_at
+                                    < datetime.now(timezone.utc),
                                 ),
                             )
                         )

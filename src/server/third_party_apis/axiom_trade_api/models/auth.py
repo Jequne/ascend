@@ -20,12 +20,18 @@ class AxiomHeaders(BaseModel):
         default="en,es-CL;q=0.9,es-419;q=0.8,es;q=0.7,fr;q=0.6",
         serialization_alias="accept-language",
     )
-    content_length: str = Field(default="0", serialization_alias="content-length")
+    content_length: str = Field(
+        default="0", serialization_alias="content-length"
+    )
     origin: str = "https://axiom.trade"
     priority: str = "u=1, i"
     referer: str = "https://axiom.trade/"
-    sec_fetch_dest: str = Field(default="empty", serialization_alias="sec-fetch-dest")
-    sec_fetch_mode: str = Field(default="cors", serialization_alias="sec-fetch-mode")
+    sec_fetch_dest: str = Field(
+        default="empty", serialization_alias="sec-fetch-dest"
+    )
+    sec_fetch_mode: str = Field(
+        default="cors", serialization_alias="sec-fetch-mode"
+    )
     sec_fetch_size: str = Field(
         default="same-site", serialization_alias="sec-fetch-site"
     )
@@ -51,7 +57,9 @@ class AxiomCookies(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     auth_refresh_token: AxiomCookie = Field(..., alias="auth-refresh-token")
-    auth_access_token: Optional[AxiomCookie] = Field(None, alias="auth-access-token")
+    auth_access_token: Optional[AxiomCookie] = Field(
+        None, alias="auth-access-token"
+    )
 
     @model_validator(mode="after")
     def set_refresh_token_expiry(self) -> "AxiomCookies":
@@ -86,7 +94,8 @@ class AxiomCookies(BaseModel):
 
 class AxiomAgentData(BaseModel):
     agent_name: str = Field(
-        default="unnamed agent", description="Agent num (for example axiom_api_agent_1)"
+        default="unnamed agent",
+        description="Agent num (for example axiom_api_agent_1)",
     )
     headers: AxiomHeaders = Field(...)
     cookies: AxiomCookies = Field(...)
@@ -107,7 +116,9 @@ class AxiomAgentData(BaseModel):
             cookies=AxiomCookies(
                 auth_refresh_token=AxiomCookie(cookie=auth_refresh_token),
                 auth_access_token=(
-                    AxiomCookie(cookie=auth_access_token) if auth_access_token else None
+                    AxiomCookie(cookie=auth_access_token)
+                    if auth_access_token
+                    else None
                 ),
             ),
             proxy=proxy,

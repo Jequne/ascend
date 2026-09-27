@@ -4,7 +4,9 @@ from .domain import PairEvent, TokenFeedBase
 
 
 def prepare_base(new_pairs_data: PairEvent) -> TokenFeedBase:
-    blockchain: Literal["sol", "bsc"] = "bsc" if "bnb" in new_pairs_data.room else "sol"
+    blockchain: Literal["sol", "bsc"] = (
+        "bsc" if "bnb" in new_pairs_data.room else "sol"
+    )
 
     token_feed_base = TokenFeedBase(
         blockchain=blockchain,

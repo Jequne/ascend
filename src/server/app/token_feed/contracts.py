@@ -18,7 +18,9 @@ class HistoryProvider(Protocol):
 
 class PairSource(Protocol):
     def set_callback(self, callback: Callable[[PairEvent], None]) -> None: ...
-    def remove_callback(self, callback: Callable[[PairEvent], None]) -> None: ...
+    def remove_callback(
+        self, callback: Callable[[PairEvent], None]
+    ) -> None: ...
 
 
 class FeedPreparer(Protocol):
