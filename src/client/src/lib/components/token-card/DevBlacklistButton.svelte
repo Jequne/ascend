@@ -5,21 +5,17 @@
     import { hasRelevantIndicator } from "$lib/utils/tokenDisplay";
     import { Database } from "@lucide/svelte";
 
-    export let feed: TokenFeed;
+    let { feed }: { feed: TokenFeed } = $props();
 
-    let devWalletBlacklisted = false;
-
-    $: visible = hasRelevantIndicator(feed) && Boolean(feed.dev_wallet);
-    $: if (visible) {
-        devWalletBlacklisted = isDevWalletBlacklisted();
-    }
-
-    function isDevWalletBlacklisted(): boolean {
-        const devWallet = feed.dev_wallet.trim().toLowerCase();
-        return normalizeBlacklistEntries(filtersStore.blacklist).some(
-            (entry) => entry.toLowerCase() === devWallet,
-        );
-    }
+    const visible = $derived(
+        hasRelevantIndicator(feed) && Boolean(feed.dev_wallet.trim()),
+    );
+    const devWalletBlacklisted = $derived(
+        normalizeBlacklistEntries(filtersStore.blacklist).some(
+            (entry) =>
+                entry.toLowerCase() === feed.dev_wallet.trim().toLowerCase(),
+        ),
+    );
 
     function toggleDevWalletBlacklist(): void {
         const devWallet = feed.dev_wallet.trim();
@@ -36,7 +32,6 @@
                   (entry) => entry.toLowerCase() !== normalizedDevWallet,
               )
             : [...blacklist, devWallet];
-        devWalletBlacklisted = !isBlacklisted;
     }
 </script>
 

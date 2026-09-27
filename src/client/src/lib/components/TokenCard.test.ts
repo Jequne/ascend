@@ -284,20 +284,72 @@ describe("TokenCard", () => {
         );
     });
 
-    it("toggles the developer wallet blacklist", async () => {
-        render(TokenCard, { feed: createTokenFeed() });
+    it.each(["Dev Migrations", "Dev Funding", "last tokens"])(
+        "toggles the developer wallet blacklist for %s without opening the token",
+        async (indicator) => {
+            render(TokenCard, {
+                feed: createTokenFeed({
+                    indicators: [indicator],
+                    funding_wallet: "funding-wallet",
+                }),
+            });
 
-        const button = screen.getByRole("button", {
+            const button = screen.getByRole("button", {
+                name: "Add developer wallet to blacklist",
+            });
+            await fireEvent.click(button);
+
+            expect(filtersStore.blacklist).toContain("dev-wallet");
+            expect(
+                screen.getByRole("button", {
+                    name: "Remove developer wallet from blacklist",
+                }),
+            ).toHaveAttribute("aria-pressed", "true");
+            expect(filtersStore.blacklist).not.toContain("funding-wallet");
+            expect(openUrl).not.toHaveBeenCalled();
+            expect(invoke).not.toHaveBeenCalled();
+
+            await fireEvent.click(button);
+            expect(filtersStore.blacklist).not.toContain("dev-wallet");
+            expect(button).toHaveAttribute("aria-pressed", "false");
+        },
+    );
+
+    it("updates blacklist buttons on cards from the same developer", async () => {
+        render(TokenCard, { feed: createTokenFeed() });
+        render(TokenCard, {
+            feed: createTokenFeed({
+                clientKey: "funding-pair:1",
+                indicators: ["Dev Funding"],
+            }),
+        });
+
+        const buttons = screen.getAllByRole("button", {
             name: "Add developer wallet to blacklist",
         });
-        await fireEvent.click(button);
+        const firstButton = buttons[0];
+        if (!firstButton)
+            throw new Error("Expected a developer blacklist button");
+        await fireEvent.click(firstButton);
+        expect(buttons[1]).toHaveAttribute("aria-pressed", "true");
 
-        expect(filtersStore.blacklist).toContain("dev-wallet");
-        expect(
-            screen.getByRole("button", {
-                name: "Remove developer wallet from blacklist",
+        filtersStore.blacklist = [];
+        await tick();
+        for (const button of buttons) {
+            expect(button).toHaveAttribute("aria-pressed", "false");
+        }
+    });
+
+    it("hides the blacklist button when the developer wallet is blank", () => {
+        render(TokenCard, {
+            feed: createTokenFeed({
+                indicators: ["Dev Funding"],
+                dev_wallet: " ",
             }),
-        ).toHaveAttribute("aria-pressed", "true");
+        });
+        expect(
+            screen.queryByTestId("developer-blacklist-button"),
+        ).not.toBeInTheDocument();
     });
 
     it("edits and immediately persists a developer label on the card", async () => {

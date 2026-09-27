@@ -35,6 +35,7 @@ export function timeAgo(dateString: string, now = Date.now()): string {
 export function hasRelevantIndicator(feed: TokenFeed): boolean {
     return (
         hasIndicator(feed, "dev migrations") ||
+        hasIndicator(feed, "dev funding") ||
         hasIndicator(feed, "last tokens")
     );
 }

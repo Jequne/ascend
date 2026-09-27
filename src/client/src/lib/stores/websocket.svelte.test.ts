@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/svelte";
+import TokenCard from "$lib/components/TokenCard.svelte";
 import {
     createLastDeployedToken,
     createTokenFeed,
@@ -90,6 +92,87 @@ afterEach(() => {
 });
 
 describe("WebSocketStore realtime pipeline", () => {
+    it.each(["new_tab", "current_axiom_tab"] as const)(
+        "blocks future developer tokens after blacklisting a funding card in %s mode",
+        async (autoOpenMode) => {
+            filtersStore.autoOpenMode = autoOpenMode;
+            const dispatch = vi.fn<AutoOpenDispatcher["dispatch"]>();
+            const play = vi
+                .fn<AudioNotificationPlayer["play"]>()
+                .mockResolvedValue(undefined);
+            const { store, sockets } = createHarness({ dispatch }, { play });
+            store.connect();
+            const socket = sockets[0];
+            socket?.open();
+            const fundingPayload = createPayload({
+                migrated_tokens_count: 0,
+                last_deployed_tokens: null,
+                funding_wallet: "funding-wallet",
+                funding_migrated_tokens_count: 1,
+                funding_all_tokens_count: 2,
+                funding_deployed_tokens: [createLastDeployedToken()],
+            });
+            socket?.receive(tokenMessage(fundingPayload));
+            const feed = store.tokenFeeds[0];
+            expect(feed?.indicators).toEqual(["Dev Funding"]);
+            if (!feed) throw new Error("Expected an accepted funding token");
+            render(TokenCard, { feed });
+
+            socket?.receive(
+                tokenMessage({
+                    pair_address: "pending-pair",
+                    last_deployed_tokens: null,
+                    migrated_tokens_count: 0,
+                }),
+            );
+            const button = screen.getByRole("button", {
+                name: "Add developer wallet to blacklist",
+            });
+            await fireEvent.click(button);
+            expect(filtersStore.blacklist).toEqual([fundingPayload.dev_wallet]);
+
+            socket?.receive(
+                tokenMessage({
+                    ...fundingPayload,
+                    pair_address: "pending-pair",
+                }),
+            );
+            socket?.receive(
+                tokenMessage({
+                    ...fundingPayload,
+                    pair_address: "blocked-funding-pair",
+                }),
+            );
+            socket?.receive(
+                tokenMessage({ pair_address: "blocked-migration-pair" }),
+            );
+            expect(dispatch).toHaveBeenCalledOnce();
+            expect(play).toHaveBeenCalledOnce();
+            expect(store.tokenFeeds).toHaveLength(1);
+
+            socket?.receive(
+                tokenMessage({
+                    ...fundingPayload,
+                    pair_address: "other-dev-pair",
+                    dev_wallet: "other-creator",
+                }),
+            );
+            expect(dispatch).toHaveBeenCalledTimes(2);
+
+            await fireEvent.click(button);
+            socket?.receive(
+                tokenMessage({
+                    ...fundingPayload,
+                    pair_address: "unblocked-pair",
+                }),
+            );
+            expect(dispatch).toHaveBeenCalledTimes(3);
+            expect(play).toHaveBeenCalledTimes(3);
+            expect(store.tokenFeeds).toHaveLength(3);
+            store.disconnect();
+        },
+    );
+
     it("accepts a token after developer and funding updates arrive in either order", () => {
         const dispatch = vi.fn<AutoOpenDispatcher["dispatch"]>();
         const { store, sockets } = createHarness({ dispatch });
