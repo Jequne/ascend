@@ -337,25 +337,43 @@ class FeedEnrichment:
         yield preview
         if not recent_tokens:
             return
-        try:
-            last_deployed_tokens = await self._enrich_history_tokens(
-                recent_tokens,
-                dev_wallet,
-                base_feed.blockchain,
-                require_verified_fees=False,
+
+        async def enrich_one(
+            index: int, token: HistoryToken
+        ) -> tuple[int, DeployedToken | None]:
+            return index, await self._enrich_history_token(
+                token, dev_wallet, base_feed.blockchain, False
             )
+
+        tasks = [
+            asyncio.create_task(enrich_one(index, token))
+            for index, token in enumerate(recent_tokens)
+        ]
+        last_deployed_tokens = list(preview.last_deployed_tokens or [])
+        try:
+            for completed in asyncio.as_completed(tasks):
+                index, enriched = await completed
+                if (
+                    enriched is not None
+                    and enriched != last_deployed_tokens[index]
+                ):
+                    last_deployed_tokens[index] = enriched
+                    yield replace(
+                        preview,
+                        last_deployed_tokens=list(last_deployed_tokens),
+                    )
         except Exception:
             logger.warning(
                 "Developer history enrichment failed", exc_info=True
             )
             return
-        verified = replace(
-            preview,
-            last_deployed_tokens=last_deployed_tokens,
-            migrated_tokens_count=dev_tokens.counts.migrated_count,
-            all_tokens_count=dev_tokens.counts.total_count,
-        )
-        yield verified
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        verified = replace(preview, last_deployed_tokens=last_deployed_tokens)
         detailed = await self._add_history_details(last_deployed_tokens)
         if detailed != last_deployed_tokens:
             yield replace(verified, last_deployed_tokens=detailed)

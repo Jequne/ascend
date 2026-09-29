@@ -6,7 +6,7 @@ from ..collector import TokenFeedCollector
 from ..domain import Counts, History, PairDetails
 from ..enrichment import FeedEnrichment
 from .test_collector import PairSource
-from .test_funding_history import FakeClient, _message
+from .test_funding_history import FakeClient, _message, _token
 
 
 class DelayedDetails(FakeClient):
@@ -96,4 +96,80 @@ async def test_developer_events_share_history_and_fees():
         assert provider.requests.count(("fees", False)) == 1
     finally:
         await asyncio.gather(*(stream.aclose() for stream in streams))
+        await enrichment.stop()
+
+
+@pytest.mark.asyncio
+async def test_developer_fees_arrive_per_token_without_waiting_for_slow_fee():
+    class StaggeredFees(FakeClient):
+        def __init__(self) -> None:
+            super().__init__()
+            self.slow_fee = asyncio.Event()
+            self.fee_pairs: list[str] = []
+            self.history = [
+                _token("current-pair", "current-token", 0),
+                _token("fast-pair", "fast-token", 1),
+                _token("slow-pair", "slow-token", 2),
+            ]
+
+        async def dev_tokens_v3(
+            self, dev_address: str, *, background: bool = False
+        ):
+            return History(
+                Counts(total_count=3, migrated_count=1), self.history
+            )
+
+        async def token_info(
+            self, pair_address: str, *, background: bool = False
+        ):
+            self.fee_pairs.append(pair_address)
+            if pair_address == "slow-pair":
+                await self.slow_fee.wait()
+            return await super().token_info(
+                pair_address, background=background
+            )
+
+        async def pair_info(
+            self, pair_address: str, *, background: bool = False
+        ):
+            return None
+
+    provider = StaggeredFees()
+    enrichment = FeedEnrichment(provider)
+    stream = enrichment.developer_updates(
+        _message(), await enrichment.prepare_token_feed(_message())
+    )
+    try:
+        preview = await asyncio.wait_for(anext(stream), 1)
+        partial = await asyncio.wait_for(anext(stream), 1)
+        assert preview.last_deployed_tokens is not None
+        assert partial.last_deployed_tokens is not None
+        assert [
+            token.total_pair_fees_paid
+            for token in preview.last_deployed_tokens
+        ] == [
+            None,
+            None,
+        ]
+        assert [
+            token.total_pair_fees_paid
+            for token in partial.last_deployed_tokens
+        ] == [
+            2,
+            None,
+        ]
+        assert provider.fee_pairs == ["fast-pair", "slow-pair"]
+        provider.slow_fee.set()
+        complete = await asyncio.wait_for(anext(stream), 1)
+        assert complete.last_deployed_tokens is not None
+        assert [
+            token.total_pair_fees_paid
+            for token in complete.last_deployed_tokens
+        ] == [
+            2,
+            2,
+        ]
+    finally:
+        provider.slow_fee.set()
+        await stream.aclose()
         await enrichment.stop()
