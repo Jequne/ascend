@@ -1,14 +1,63 @@
 import asyncio
 import time
 import unittest
+from contextlib import AbstractContextManager, nullcontext
 
 from third_party_apis.axiom_trade_api.request_pacer import (
     AxiomRequestPacer,
     background_axiom_request,
+    discovery_axiom_request,
 )
 
 
 class AxiomRequestPacerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_discovery_jumps_fee_backlog_without_starving_work(
+        self,
+    ) -> None:
+        pacer = AxiomRequestPacer(interval_seconds=0, max_concurrency=1)
+        await pacer.wait_turn()
+        order: list[str] = []
+
+        async def start(name: str, priority: str) -> None:
+            context: AbstractContextManager[None]
+            if priority == "discovery":
+                context = discovery_axiom_request()
+            elif priority == "background":
+                context = background_axiom_request()
+            else:
+                context = nullcontext()
+            with context:
+                await pacer.wait_turn()
+            try:
+                order.append(name)
+            finally:
+                pacer.release_turn()
+
+        tasks = [
+            asyncio.create_task(start(f"fee-{index}", "foreground"))
+            for index in range(12)
+        ]
+        tasks += [
+            asyncio.create_task(start(f"new-{index}", "discovery"))
+            for index in range(12)
+        ]
+        tasks.append(asyncio.create_task(start("details", "background")))
+        try:
+            await asyncio.sleep(0)
+            pacer.release_turn()
+            await asyncio.gather(*tasks)
+            self.assertLessEqual(order.index("new-0"), 2)
+            self.assertLessEqual(order.index("fee-0"), 2)
+            self.assertLessEqual(order.index("details"), 10)
+            self.assertEqual(
+                set(order),
+                {f"fee-{i}" for i in range(12)}
+                | {f"new-{i}" for i in range(12)}
+                | {"details"},
+            )
+        finally:
+            await pacer.close()
+
     async def test_prioritizes_new_tokens_and_spaces_http_starts(self) -> None:
         pacer = AxiomRequestPacer(interval_seconds=0.04)
         order: list[tuple[str, float]] = []

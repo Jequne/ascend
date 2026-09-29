@@ -22,6 +22,26 @@ def _agent(number: int, proxy: str) -> AxiomAgentData:
 
 
 class AgentSelectorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_proxy_credentials_do_not_create_extra_ip_routes(
+        self,
+    ) -> None:
+        selector = AgentSelector()
+        selector.add_agents(
+            [
+                _agent(1, "socks5://one:secret@proxy:1080"),
+                _agent(2, "socks5://two:secret@proxy:1080"),
+            ]
+        )
+        try:
+            self.assertEqual(selector.route_count, 1)
+            selected = selector.acquire_agent()
+            assert selected is not None
+            self.assertEqual(
+                selector.route_key(selected), "socks5://proxy:1080"
+            )
+        finally:
+            await self._close_selector(selector)
+
     async def test_concurrent_reservations_are_balanced_by_proxy(self) -> None:
         selector = AgentSelector()
         selector.add_agents(
@@ -158,6 +178,44 @@ class AgentSelectorTests(unittest.IsolatedAsyncioTestCase):
 
 
 class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_burst_uses_two_routes_with_per_route_spacing(
+        self,
+    ) -> None:
+        client = AxiomTradeClient(
+            [_agent(1, "socks5://first"), _agent(2, "socks5://second")]
+        )
+        starts: dict[str, list[float]] = {}
+
+        async def endpoint(session_and_agent, **kwargs):
+            route = client._agent_selector.route_key(session_and_agent)
+            starts.setdefault(route, []).append(
+                asyncio.get_running_loop().time()
+            )
+            return "ok"
+
+        try:
+            self.assertAlmostEqual(
+                client._request_pacer.interval_seconds, 0.05
+            )
+            results = await asyncio.gather(
+                *[client._call_with_random_agent(endpoint) for _ in range(8)]
+            )
+            self.assertEqual(results, ["ok"] * 8)
+            self.assertEqual(
+                set(starts), {"socks5://first", "socks5://second"}
+            )
+            for route_starts in starts.values():
+                self.assertTrue(
+                    all(
+                        later - earlier >= 0.09
+                        for earlier, later in zip(
+                            route_starts, route_starts[1:]
+                        )
+                    )
+                )
+        finally:
+            await client.close()
+
     async def test_queued_requests_reselect_route_after_429(self) -> None:
         client = AxiomTradeClient(
             [_agent(1, "socks5://first"), _agent(2, "socks5://second")]
@@ -225,6 +283,7 @@ class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
             ):
                 selector.mark_rate_limited(selected, retry_after=0)
                 selector.mark_rate_limited(selected, retry_after=0)
+                self.assertAlmostEqual(selector.next_available_delay(), 0.4)
                 selector.mark_dispatched(selected)
                 self.assertAlmostEqual(selector.next_available_delay(), 0.4)
                 self.assertIsNone(selector.acquire_agent())
@@ -234,31 +293,41 @@ class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
         finally:
             await AgentSelectorTests._close_selector(selector)
 
-    async def test_shared_http_concurrency_limit_under_burst(self) -> None:
+    async def test_route_concurrency_limit_under_burst(self) -> None:
         client = AxiomTradeClient([_agent(1, "socks5://proxy-1")])
         client._request_pacer = AxiomRequestPacer(
             interval_seconds=0, max_concurrency=15
         )
-        in_flight = 0
-        peak = 0
+        started = asyncio.Event()
+        release = asyncio.Event()
+        calls = 0
 
         async def endpoint(session_and_agent, **kwargs):
-            nonlocal in_flight, peak
-            in_flight += 1
-            peak = max(peak, in_flight)
-            await asyncio.sleep(0.01)
-            in_flight -= 1
+            nonlocal calls
+            calls += 1
+            if calls == 8:
+                started.set()
+            await release.wait()
             return "ok"
 
+        tasks = [
+            asyncio.create_task(client._call_with_random_agent(endpoint))
+            for _ in range(9)
+        ]
         try:
-            results = await asyncio.gather(
-                *[client._call_with_random_agent(endpoint) for _ in range(20)]
-            )
+            await asyncio.wait_for(started.wait(), 2)
+            self.assertEqual(calls, 8)
+            self.assertIsNone(client._agent_selector.acquire_agent())
+            release.set()
+            results = await asyncio.wait_for(asyncio.gather(*tasks), 2)
         finally:
+            release.set()
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
             await client.close()
 
-        self.assertEqual(results, ["ok"] * 20)
-        self.assertEqual(peak, 15)
+        self.assertEqual(results, ["ok"] * 9)
 
     async def test_single_route_waits_for_retry_after_before_retry(
         self,

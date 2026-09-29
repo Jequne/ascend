@@ -2,6 +2,7 @@ import logging
 import random
 import time
 from collections.abc import Sequence
+from urllib.parse import urlsplit
 
 from curl_cffi import AsyncSession
 from curl_cffi.requests import Response
@@ -10,6 +11,8 @@ from .models import AxiomAgentData
 
 logger = logging.getLogger(__name__)
 SessionAndAgent = tuple[AsyncSession, AxiomAgentData]
+MIN_ROUTE_INTERVAL_SECONDS = 0.1
+MAX_ROUTE_CONCURRENCY = 8
 
 
 class AgentSelector:
@@ -45,7 +48,17 @@ class AgentSelector:
     ) -> str:
         agent = session_and_agent[1]
         # Agents without an explicit proxy still share the server's public IP.
-        return agent.proxy or "__direct__"
+        if not agent.proxy:
+            return "__direct__"
+        parsed = urlsplit(agent.proxy)
+        if parsed.hostname:
+            try:
+                port = parsed.port
+            except ValueError:
+                return agent.proxy
+            suffix = f":{port}" if port is not None else ""
+            return f"{parsed.scheme}://{parsed.hostname}{suffix}"
+        return agent.proxy
 
     @property
     def route_count(self) -> int:
@@ -66,16 +79,22 @@ class AgentSelector:
         excluded_routes = excluded_routes or set()
         now = time.monotonic()
 
-        # Group agents by proxy once and count all requests on each route.
-        available_by_route: dict[str, list[SessionAndAgent]] = {}
+        # Group agents by egress route, then count all its in-flight requests.
+        agents_by_route: dict[str, list[SessionAndAgent]] = {}
         route_loads: dict[str, int] = {}
         for session_and_agent in self._agents_and_sessions:
             route = self.route_key(session_and_agent)
             agent_load = self._in_flight[id(session_and_agent[1])]
             route_loads[route] = route_loads.get(route, 0) + agent_load
-            if route in excluded_routes or self._ready_at(route) > now:
-                continue
-            available_by_route.setdefault(route, []).append(session_and_agent)
+            agents_by_route.setdefault(route, []).append(session_and_agent)
+
+        available_by_route = {
+            route: agents
+            for route, agents in agents_by_route.items()
+            if route not in excluded_routes
+            and self._ready_at(route) <= now
+            and route_loads[route] < MAX_ROUTE_CONCURRENCY
+        }
 
         if not available_by_route:
             return None
@@ -124,24 +143,34 @@ class AgentSelector:
         cooldown = retry_after if retry_after is not None else 0.5
         # Keep spacing subsequent starts after a limit, even after cooldown.
         self._route_intervals[route] = min(
-            5.0, max(0.2, self._route_intervals.get(route, 0.1) * 2)
+            5.0,
+            max(
+                MIN_ROUTE_INTERVAL_SECONDS * 2,
+                self._route_intervals.get(route, MIN_ROUTE_INTERVAL_SECONDS)
+                * 2,
+            ),
         )
+        now = time.monotonic()
         self._rate_limited_until[route] = max(
-            self._rate_limited_until.get(route, 0.0),
-            time.monotonic() + cooldown,
+            self._rate_limited_until.get(route, 0.0), now + cooldown
+        )
+        self._next_start[route] = max(
+            self._next_start.get(route, 0.0),
+            now + self._route_intervals[route],
         )
 
     def mark_dispatched(self, selected: SessionAndAgent) -> None:
         route = self.route_key(selected)
         self._next_start[route] = time.monotonic() + self._route_intervals.get(
-            route, 0.0
+            route, MIN_ROUTE_INTERVAL_SECONDS
         )
 
     def mark_success(self, selected: SessionAndAgent) -> None:
         route = self.route_key(selected)
         if route in self._route_intervals:
             self._route_intervals[route] = max(
-                0.1, self._route_intervals[route] * 0.9
+                MIN_ROUTE_INTERVAL_SECONDS,
+                self._route_intervals[route] * 0.9,
             )
 
     def mark_unavailable(

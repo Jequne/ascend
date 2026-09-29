@@ -31,3 +31,4 @@ ADR (Architecture Decision Record) хранит контекст и причин
 - [0004. Управление зависимостями backend через uv](0004-backend-uv.md)
 - [0005. Показатели token feed перед дополнительными данными](0005-feed-metrics-before-details.md)
 - [0006. Независимая доставка WebSocket-событий клиентам](0006-independent-websocket-delivery.md)
+- [0007. Очереди показателей и ограничение запросов по маршруту Axiom](0007-axiom-route-pacing.md)

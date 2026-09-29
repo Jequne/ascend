@@ -40,7 +40,10 @@ from .models import (
     Token,
     TokenInfoResponse,
 )
-from .request_pacer import background_axiom_request
+from .request_pacer import (
+    background_axiom_request,
+    discovery_axiom_request,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -59,6 +62,7 @@ __all__ = [
     "PairChartV2Params",
     "PairChartV2Response",
     "background_axiom_request",
+    "discovery_axiom_request",
     "AxiomHTTPStatusError",
     "AxiomRequestError",
     "AxiomWebSocketError",

@@ -10,14 +10,16 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from itertools import chain
 
-FOREGROUND = 0
-BACKGROUND = 1
+DISCOVERY = 0
+FOREGROUND = 1
+BACKGROUND = 2
 
 _request_priority: ContextVar[int] = ContextVar(
     "axiom_request_priority", default=FOREGROUND
 )
 logger = logging.getLogger(__name__)
 MAX_FOREGROUND_BURST = 10
+MAX_VERIFICATION_BURST = 2
 
 
 @dataclass(slots=True)
@@ -35,6 +37,15 @@ def background_axiom_request() -> Generator[None, None, None]:
         _request_priority.reset(token)
 
 
+@contextmanager
+def discovery_axiom_request() -> Generator[None, None, None]:
+    token = _request_priority.set(DISCOVERY)
+    try:
+        yield
+    finally:
+        _request_priority.reset(token)
+
+
 class AxiomRequestPacer:
     def __init__(
         self, interval_seconds: float = 0.1, max_concurrency: int = 50
@@ -45,6 +56,7 @@ class AxiomRequestPacer:
             )
         self.interval_seconds = interval_seconds
         self.max_concurrency = max_concurrency
+        self._discovery: deque[PendingRequest] = deque()
         self._foreground: deque[PendingRequest] = deque()
         self._background: deque[PendingRequest] = deque()
         self._worker: asyncio.Task[None] | None = None
@@ -52,6 +64,7 @@ class AxiomRequestPacer:
         self._active = 0
         self._slot_released = asyncio.Event()
         self._foreground_streak = 0
+        self._verification_streak = 0
 
     async def wait_turn(self) -> None:
         queued_at = time.monotonic()
@@ -59,9 +72,11 @@ class AxiomRequestPacer:
         future: asyncio.Future[None] = (
             asyncio.get_running_loop().create_future()
         )
-        queue = (
-            self._background if priority == BACKGROUND else self._foreground
-        )
+        queue = {
+            DISCOVERY: self._discovery,
+            FOREGROUND: self._foreground,
+            BACKGROUND: self._background,
+        }[priority]
         queue.append(PendingRequest(queued_at, future))
         if self._worker is None or self._worker.done():
             self._worker = asyncio.create_task(self._release_waiters())
@@ -81,7 +96,7 @@ class AxiomRequestPacer:
             raise
 
     async def _release_waiters(self) -> None:
-        while self._foreground or self._background:
+        while self._discovery or self._foreground or self._background:
             if self._active >= self.max_concurrency:
                 self._slot_released.clear()
                 await self._slot_released.wait()
@@ -98,18 +113,28 @@ class AxiomRequestPacer:
 
     def _next_request(self) -> PendingRequest | None:
         # Each queue is FIFO; cancelled entries never consume a turn.
-        for queue in (self._foreground, self._background):
+        for queue in (self._discovery, self._foreground, self._background):
             while queue and queue[0].ready.cancelled():
                 queue.popleft()
 
         if self._background and (
-            not self._foreground
+            not self._discovery
+            and not self._foreground
             or self._foreground_streak >= MAX_FOREGROUND_BURST
         ):
             self._foreground_streak = 0
+            self._verification_streak = 0
             return self._background.popleft()
+        if self._discovery and (
+            not self._foreground
+            or self._verification_streak >= MAX_VERIFICATION_BURST
+        ):
+            self._foreground_streak += 1
+            self._verification_streak = 0
+            return self._discovery.popleft()
         if self._foreground:
             self._foreground_streak += 1
+            self._verification_streak += 1
             return self._foreground.popleft()
         return None
 
@@ -121,7 +146,9 @@ class AxiomRequestPacer:
         """Return active waiters and age of the oldest queued HTTP request."""
         queued_at = [
             request.queued_at
-            for request in chain(self._foreground, self._background)
+            for request in chain(
+                self._discovery, self._foreground, self._background
+            )
             if not request.ready.cancelled()
         ]
         if not queued_at:
@@ -132,7 +159,7 @@ class AxiomRequestPacer:
         if self._worker is not None and not self._worker.done():
             self._worker.cancel()
             await asyncio.gather(self._worker, return_exceptions=True)
-        for queue in (self._foreground, self._background):
+        for queue in (self._discovery, self._foreground, self._background):
             for request in queue:
                 if not request.ready.done():
                     request.ready.cancel()

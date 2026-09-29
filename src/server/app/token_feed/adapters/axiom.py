@@ -59,7 +59,11 @@ class AxiomFeedAdapter:
     async def dev_tokens_v3(
         self, dev_address: str, *, background: bool = False
     ) -> History | None:
-        with axiom.background_axiom_request() if background else nullcontext():
+        with (
+            axiom.background_axiom_request()
+            if background
+            else axiom.discovery_axiom_request()
+        ):
             result = await self._client.dev_tokens_v3(dev_address)
         if result is None:
             return None
@@ -84,7 +88,11 @@ class AxiomFeedAdapter:
     async def pair_info(
         self, pair_address: str, *, background: bool = False
     ) -> PairDetails | None:
-        with axiom.background_axiom_request() if background else nullcontext():
+        with (
+            axiom.background_axiom_request()
+            if background
+            else axiom.discovery_axiom_request()
+        ):
             result = await self._client.pair_info(pair_address)
         if result is None:
             return None

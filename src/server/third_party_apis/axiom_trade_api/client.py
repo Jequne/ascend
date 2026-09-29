@@ -4,7 +4,11 @@ import time
 from collections import Counter
 from typing import Any, Awaitable, Callable, List, Literal, Optional, TypeVar
 
-from .agent_selector import AgentSelector, SessionAndAgent
+from .agent_selector import (
+    MIN_ROUTE_INTERVAL_SECONDS,
+    AgentSelector,
+    SessionAndAgent,
+)
 from .auth import AuthManager
 from .endpoints import AxiomTradeEndpoints, AxiomTradeWebsocket
 from .endpoints.exceptions import (
@@ -24,6 +28,7 @@ from .request_pacer import AxiomRequestPacer
 
 logger = logging.getLogger(__name__)
 ResponseModelT = TypeVar("ResponseModelT")
+MAX_AGGREGATE_ROUTES = 4
 
 
 class AxiomTradeClient:
@@ -34,6 +39,7 @@ class AxiomTradeClient:
         self._auth_manager = AuthManager()
         self._agent_selector = AgentSelector()
         self._request_pacer = AxiomRequestPacer()
+        self._route_released = asyncio.Event()
         self._http_attempts: Counter[str] = Counter()
         self._http_rate_limits: Counter[str] = Counter()
         self._endpoints = AxiomTradeEndpoints(self._auth_manager)
@@ -46,6 +52,13 @@ class AxiomTradeClient:
 
     def add_agents(self, agents: List[AxiomAgentData]) -> None:
         self._agent_selector.add_agents(agents)
+        if agents:
+            routes = min(
+                self._agent_selector.route_count, MAX_AGGREGATE_ROUTES
+            )
+            self._request_pacer.interval_seconds = (
+                MIN_ROUTE_INTERVAL_SECONDS / routes
+            )
 
     def connect_websocket(
         self,
@@ -189,6 +202,7 @@ class AxiomTradeClient:
             finally:
                 self._agent_selector.release_agent(session_and_agent)
                 self._request_pacer.release_turn()
+                self._route_released.set()
 
         raise RuntimeError("unreachable")
 
@@ -216,7 +230,19 @@ class AxiomTradeClient:
                     raise last_error
                 raise TimeoutError("No Axiom route became available")
             delay = self._agent_selector.next_available_delay()
-            await asyncio.sleep(min(max(delay, 0.01), remaining))
+            if delay > 0:
+                await asyncio.sleep(min(delay, remaining))
+            else:
+                # A route with free capacity may appear as soon as a request
+                # finishes. Avoid churning through pacer slots while full.
+                self._route_released.clear()
+                try:
+                    await asyncio.wait_for(
+                        self._route_released.wait(),
+                        timeout=min(remaining, 0.5),
+                    )
+                except asyncio.TimeoutError:
+                    pass
 
     async def pair_chart_v2(
         self, pair_address: str, chart_from: int, chart_to: int
