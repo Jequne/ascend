@@ -12,7 +12,7 @@ from .models import AxiomAgentData
 logger = logging.getLogger(__name__)
 SessionAndAgent = tuple[AsyncSession, AxiomAgentData]
 MIN_ROUTE_INTERVAL_SECONDS = 0.1
-MAX_ROUTE_CONCURRENCY = 8
+MAX_ROUTE_CONCURRENCY = 3
 
 
 class AgentSelector:

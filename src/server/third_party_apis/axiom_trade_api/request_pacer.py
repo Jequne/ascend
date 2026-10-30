@@ -48,7 +48,7 @@ def discovery_axiom_request() -> Generator[None, None, None]:
 
 class AxiomRequestPacer:
     def __init__(
-        self, interval_seconds: float = 0.1, max_concurrency: int = 50
+        self, interval_seconds: float = 0.1, max_concurrency: int = 3
     ) -> None:
         if interval_seconds < 0 or max_concurrency < 1:
             raise ValueError(
