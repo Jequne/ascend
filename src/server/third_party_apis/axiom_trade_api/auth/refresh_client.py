@@ -25,7 +25,7 @@ class AuthRefreshClient:
 
         request_kwargs: dict[str, Any] = {
             "url": url,
-            "headers": agent_data.headers.model_dump(by_alias=True),
+            "headers": agent_data.headers.request_headers,
             "cookies": agent_data.cookies.get_cookies_for_request(),
             "timeout": 15,
         }
@@ -40,7 +40,7 @@ class AuthRefreshClient:
         try:
             response = await session.post(
                 **request_kwargs,
-                impersonate="chrome136",
+                impersonate="chrome",
             )
         except Exception as exc:
             raise AxiomRefreshTokenError(

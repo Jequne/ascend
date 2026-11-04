@@ -90,10 +90,10 @@ class AxiomTradeEndpoints:
         try:
             return await session.get(
                 url=url,
-                headers=agent_data.headers.model_dump(by_alias=True),
+                headers=agent_data.headers.request_headers,
                 cookies=agent_data.cookies.get_cookies_for_request(),
                 timeout=15,
-                impersonate="chrome136",
+                impersonate="chrome",
                 proxy=agent_data.proxy,
             )
 

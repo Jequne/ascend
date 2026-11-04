@@ -116,7 +116,7 @@ class AxiomTradeWebsocket:
                 headers=agent_data.headers.headers_for_wss,
                 cookies=agent_data.cookies.get_cookies_for_request(),
                 timeout=15,
-                impersonate="chrome136",
+                impersonate="chrome",
                 proxy=agent_data.proxy,
             )
 

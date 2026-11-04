@@ -14,7 +14,7 @@ class AxiomHttpRequestContext(TypedDict, total=False):
 class AxiomHeaders(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
-    user_agent: str = Field(..., alias="User-Agent")
+    user_agent: Optional[str] = Field(None, alias="User-Agent")
     accept: str = "application/json, text/plain, */*"
     accept_language: str = Field(
         default="en,es-CL;q=0.9,es-419;q=0.8,es;q=0.7,fr;q=0.6",
@@ -32,18 +32,27 @@ class AxiomHeaders(BaseModel):
     sec_fetch_mode: str = Field(
         default="cors", serialization_alias="sec-fetch-mode"
     )
-    sec_fetch_size: str = Field(
+    sec_fetch_site: str = Field(
         default="same-site", serialization_alias="sec-fetch-site"
     )
 
     @property
-    def headers_for_wss(self) -> dict:
-        return {
-            "User-Agent": self.user_agent,
+    def request_headers(self) -> dict[str, str]:
+        headers = self.model_dump(by_alias=True)
+        if not self.user_agent or not self.user_agent.strip():
+            headers.pop("User-Agent", None)
+        return headers
+
+    @property
+    def headers_for_wss(self) -> dict[str, str]:
+        headers = {
             "Cache-Control": "no-cache",
             "Pragma": "no-cache",
             "Accept-Language": "en,es-CL;q=0.9,es-419;q=0.8,es;q=0.7,fr;q=0.6",
         }
+        if self.user_agent and self.user_agent.strip():
+            headers["User-Agent"] = self.user_agent
+        return headers
 
 
 class AxiomCookie(BaseModel):
@@ -126,7 +135,7 @@ class AxiomAgentData(BaseModel):
 
     def get_http_request_context(self) -> AxiomHttpRequestContext:
         context: AxiomHttpRequestContext = {
-            "headers": self.headers.model_dump(by_alias=True),
+            "headers": self.headers.request_headers,
             "cookies": self.cookies.get_cookies_for_request(),
         }
 
