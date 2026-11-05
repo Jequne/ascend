@@ -93,6 +93,12 @@ class HistoryToken:
     created_at: datetime
     is_migrated: bool
     ath_mcap_in_usd: float | None
+    total_pair_fees_paid: float | None = None
+    dex_paid: bool = False
+    website: str | None = None
+    telegram: str | None = None
+    discord: str | None = None
+    twitter: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +111,7 @@ class Counts:
 class History:
     counts: Counts
     tokens: list[HistoryToken]
+    funding_wallet: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

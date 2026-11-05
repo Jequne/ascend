@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from ..auth import AuthManager
 from ..models import (
     AxiomAgentData,
+    DevTokensResponse,
     DevTokensV3Response,
     PairChartV2Params,
     PairChartV2Response,
@@ -186,13 +187,30 @@ class AxiomTradeEndpoints:
         session_and_agent: tuple[AsyncSession, AxiomAgentData],
         dev_address: str,
     ) -> DevTokensV3Response:
-        url = "https://sol-api1.axiom.trade" + AxiomTradeApiUrls.DEV_TOKENS + dev_address
+        url = self._base_url + AxiomTradeApiUrls.DEV_TOKENS_V5 + dev_address
 
         return await self.__get_response_model(
             session_and_agent=session_and_agent,
             url=url,
             response_model=DevTokensV3Response,
             endpoint_name="dev_tokens_v5",
+        )
+
+    async def dev_tokens(
+        self,
+        session_and_agent: tuple[AsyncSession, AxiomAgentData],
+        dev_address: str,
+    ) -> DevTokensResponse:
+        url = (
+            "https://sol-api1.axiom.trade"
+            + AxiomTradeApiUrls.DEV_TOKENS
+            + dev_address
+        )
+        return await self.__get_response_model(
+            session_and_agent=session_and_agent,
+            url=url,
+            response_model=DevTokensResponse,
+            endpoint_name="dev_tokens",
         )
 
     async def token_info(

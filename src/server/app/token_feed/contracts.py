@@ -5,6 +5,10 @@ from .domain import History, PairDetails, PairEvent, TokenFeedBase, TokenFees
 
 
 class HistoryProvider(Protocol):
+    async def dev_tokens(
+        self, dev_address: str, *, background: bool = False
+    ) -> History | None: ...
+
     async def dev_tokens_v3(
         self, dev_address: str, *, background: bool = False
     ) -> History | None: ...

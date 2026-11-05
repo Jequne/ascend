@@ -21,6 +21,7 @@ from .endpoints.exceptions import (
 )
 from .models import (
     AxiomAgentData,
+    DevTokensResponse,
     DevTokensV3Response,
     PairChartV2Params,
     PairChartV2Response,
@@ -366,6 +367,13 @@ class AxiomTradeClient:
     ) -> Optional[DevTokensV3Response]:
         return await self._call_with_random_agent(
             self._endpoints.dev_tokens_v3, dev_address=dev_address
+        )
+
+    async def dev_tokens(
+        self, dev_address: str
+    ) -> Optional[DevTokensResponse]:
+        return await self._call_with_random_agent(
+            self._endpoints.dev_tokens, dev_address=dev_address
         )
 
     async def token_info(

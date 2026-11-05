@@ -1,5 +1,6 @@
 """Models for REST API endpoints"""
 
+from .dev_tokens import DevTokensResponse
 from .dev_tokens_v3 import DevTokensV3Response, Token
 from .pair_chart_v2 import PairChartV2Params, PairChartV2Response
 from .pair_info import PairInfoResponse
@@ -12,4 +13,5 @@ __all__ = [
     "PairInfoResponse",
     "TokenInfoResponse",
     "DevTokensV3Response",
+    "DevTokensResponse",
 ]

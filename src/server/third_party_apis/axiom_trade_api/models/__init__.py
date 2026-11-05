@@ -2,6 +2,7 @@
 
 from .auth import AxiomAgentData
 from .endpoints import (
+    DevTokensResponse,
     DevTokensV3Response,
     PairChartV2Params,
     PairChartV2Response,
@@ -21,6 +22,7 @@ __all__ = [
     "AxiomAgentData",
     "NewPairsRoomMessage",
     "DevTokensV3Response",
+    "DevTokensResponse",
     "PairChartV2Response",
     "PairChartV2Params",
     "Token",

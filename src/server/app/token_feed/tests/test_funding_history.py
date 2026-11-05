@@ -1,5 +1,6 @@
 import asyncio
 import unittest
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 from app.token_feed.domain import (
@@ -88,6 +89,8 @@ class FakeClient:
         self.funding_address = funding_address
         self.fees = fees
         self.requested_wallets: list[str] = []
+        self.pair_info_calls = 0
+        self.token_info_calls = 0
         self.history = [
             _token("current-pair", "current-token", 0),
             _token("previous-pair", "previous-token", 1),
@@ -105,7 +108,30 @@ class FakeClient:
             ),
         )
 
+    async def dev_tokens(self, dev_address: str, *, background: bool = False):
+        self.requested_wallets.append(dev_address)
+        tokens = (
+            self.history
+            if dev_address == "developer"
+            else [
+                self.history[0],
+                replace(
+                    self.history[1],
+                    total_pair_fees_paid=self.fees,
+                    website="https://example.com",
+                ),
+            ]
+        )
+        return History(
+            tokens=tokens,
+            counts=Counts(total_count=2, migrated_count=1),
+            funding_wallet=self.funding_address
+            if dev_address == "developer"
+            else None,
+        )
+
     async def pair_info(self, pair_address: str, *, background: bool = False):
+        self.pair_info_calls += 1
         if pair_address == "current-pair":
             return PairDetails(funding_wallet=self.funding_address)
         return PairDetails(
@@ -117,6 +143,7 @@ class FakeClient:
         )
 
     async def token_info(self, pair_address: str, *, background: bool = False):
+        self.token_info_calls += 1
         return TokenFees(total_pair_fees_paid=self.fees, dex_paid=False)
 
 
@@ -210,7 +237,7 @@ class FundingEnrichmentTests(unittest.IsolatedAsyncioTestCase):
         feed = await self.enrichment.prepare_funding_update(
             _message(), initial
         )
-        self.assertEqual(fake.requested_wallets, [FUNDING_WALLET])
+        self.assertEqual(fake.requested_wallets, ["developer", FUNDING_WALLET])
         assert feed is not None and feed.funding_deployed_tokens is not None
         self.assertEqual(feed.funding_wallet, FUNDING_WALLET)
         self.assertEqual(len(feed.funding_deployed_tokens), 1)
@@ -223,6 +250,8 @@ class FundingEnrichmentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(feed.funding_migrated_tokens_count, 1)
         self.assertEqual(feed.funding_all_tokens_count, 2)
         self.assertEqual(feed.migrated_tokens_count, 0)
+        self.assertEqual(fake.pair_info_calls, 0)
+        self.assertEqual(fake.token_info_calls, 0)
 
     async def test_invalid_funder_does_not_cancel_developer_feed(self) -> None:
         fake = FakeClient(funding_address="invalid")
@@ -231,7 +260,7 @@ class FundingEnrichmentTests(unittest.IsolatedAsyncioTestCase):
         feed = await self.enrichment.prepare_funding_update(
             _message(), initial
         )
-        self.assertEqual(fake.requested_wallets, [])
+        self.assertEqual(fake.requested_wallets, ["developer"])
         self.assertIsNone(feed)
 
     async def test_invalid_fees_are_not_treated_as_zero(self) -> None:
@@ -260,7 +289,7 @@ class FundingEnrichmentTests(unittest.IsolatedAsyncioTestCase):
 
         from unittest.mock import patch
 
-        patcher = patch.object(fake, "dev_tokens_v3", developer_history)
+        patcher = patch.object(fake, "dev_tokens", developer_history)
         patcher.start()
         self.addCleanup(patcher.stop)
         initial = await self.enrichment.prepare_token_feed(_message())
@@ -295,27 +324,27 @@ class FundingEnrichmentTests(unittest.IsolatedAsyncioTestCase):
                 self.started = asyncio.Event()
                 self.release = asyncio.Event()
 
-            async def dev_tokens_v3(
+            async def dev_tokens(
                 self, dev_address: str, *, background: bool = False
             ):
                 if dev_address == FUNDING_WALLET:
                     self.started.set()
                     await self.release.wait()
-                return await super().dev_tokens_v3(dev_address)
+                return await super().dev_tokens(dev_address)
 
         fake = SlowClient()
         self.enrichment = FeedEnrichment(fake)
         first = asyncio.create_task(
-            self.enrichment._get_cached_funding_tokens(FUNDING_WALLET)
+            self.enrichment._get_cached_dev_tokens(FUNDING_WALLET)
         )
         await fake.started.wait()
         second = asyncio.create_task(
-            self.enrichment._get_cached_funding_tokens(FUNDING_WALLET)
+            self.enrichment._get_cached_dev_tokens(FUNDING_WALLET)
         )
         await asyncio.sleep(0)
         fake.release.set()
         await asyncio.gather(first, second)
-        await self.enrichment._get_cached_funding_tokens(FUNDING_WALLET)
+        await self.enrichment._get_cached_dev_tokens(FUNDING_WALLET)
         self.assertEqual(fake.requested_wallets, [FUNDING_WALLET])
 
     async def test_concurrent_tokens_share_previous_pair_enrichment(
@@ -357,22 +386,23 @@ class FundingEnrichmentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(first.funding_deployed_tokens), 1)
         self.assertEqual(len(second.funding_deployed_tokens), 1)
         self.assertEqual(fake.requested_wallets.count(FUNDING_WALLET), 1)
-        self.assertEqual(fake.previous_pair_info_calls, 1)
-        self.assertEqual(fake.previous_token_info_calls, 1)
+        self.assertEqual(fake.previous_pair_info_calls, 0)
+        self.assertEqual(fake.previous_token_info_calls, 0)
 
-    async def test_failed_enrichment_is_retried_on_later_update(self) -> None:
+    async def test_failed_funding_history_is_retried(self) -> None:
         class RecoveringClient(FakeClient):
             def __init__(self):
                 super().__init__()
-                self.token_info_calls = 0
+                self.funding_history_calls = 0
 
-            async def token_info(
-                self, pair_address: str, *, background: bool = False
+            async def dev_tokens(
+                self, dev_address: str, *, background: bool = False
             ):
-                self.token_info_calls += 1
-                if self.token_info_calls == 1:
+                if dev_address == FUNDING_WALLET:
+                    self.funding_history_calls += 1
+                if self.funding_history_calls == 1:
                     raise RuntimeError("temporary Axiom failure")
-                return await super().token_info(pair_address)
+                return await super().dev_tokens(dev_address)
 
         fake = RecoveringClient()
         self.enrichment = FeedEnrichment(fake)
@@ -389,9 +419,9 @@ class FundingEnrichmentTests(unittest.IsolatedAsyncioTestCase):
             recovered is not None
             and recovered.funding_deployed_tokens is not None
         )
-        self.assertEqual(unavailable.funding_deployed_tokens, [])
+        self.assertIsNone(unavailable.funding_deployed_tokens)
         self.assertEqual(len(recovered.funding_deployed_tokens), 1)
-        self.assertEqual(fake.token_info_calls, 2)
+        self.assertEqual(fake.funding_history_calls, 2)
 
 
 if __name__ == "__main__":

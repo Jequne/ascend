@@ -157,23 +157,21 @@ async def test_isolated_caches_and_cancelled_waiter_preserve_request() -> None:
             self.started = asyncio.Event()
             self.release = asyncio.Event()
 
-        async def dev_tokens_v3(
+        async def dev_tokens(
             self, dev_address: str, *, background: bool = False
         ):
             self.started.set()
             await self.release.wait()
-            return await super().dev_tokens_v3(
-                dev_address, background=background
-            )
+            return await super().dev_tokens(dev_address, background=background)
 
     one, two = ControlledClient(), ControlledClient()
     first, second = FeedEnrichment(one), FeedEnrichment(two)
-    a = asyncio.create_task(first._get_cached_funding_tokens("wallet"))
+    a = asyncio.create_task(first._get_cached_dev_tokens("wallet"))
     await one.started.wait()
     a.cancel()
     await asyncio.gather(a, return_exceptions=True)
-    b = asyncio.create_task(first._get_cached_funding_tokens("wallet"))
-    c = asyncio.create_task(second._get_cached_funding_tokens("wallet"))
+    b = asyncio.create_task(first._get_cached_dev_tokens("wallet"))
+    c = asyncio.create_task(second._get_cached_dev_tokens("wallet"))
     await two.started.wait()
     one.release.set()
     two.release.set()
@@ -192,26 +190,23 @@ async def test_cache_reuses_success_and_refreshes_after_expiry() -> None:
     enrichment = FeedEnrichment(provider)
     try:
         with patch.object(
-            provider, "dev_tokens_v3", AsyncMock(return_value=result)
+            provider, "dev_tokens", AsyncMock(return_value=result)
         ) as request:
             with patch(
                 "app.token_feed.enrichment.time.monotonic", return_value=100
             ):
                 assert (
-                    await enrichment._get_cached_funding_tokens("wallet")
-                    == result
+                    await enrichment._get_cached_dev_tokens("wallet") == result
                 )
                 assert (
-                    await enrichment._get_cached_funding_tokens("wallet")
-                    == result
+                    await enrichment._get_cached_dev_tokens("wallet") == result
                 )
                 request.assert_awaited_once()
             with patch(
                 "app.token_feed.enrichment.time.monotonic", return_value=104
             ):
                 assert (
-                    await enrichment._get_cached_funding_tokens("wallet")
-                    == result
+                    await enrichment._get_cached_dev_tokens("wallet") == result
                 )
                 assert request.await_count == 2
     finally:
@@ -229,20 +224,17 @@ async def test_cache_retries_empty_or_failed_response(
     try:
         with patch.object(
             provider,
-            "dev_tokens_v3",
+            "dev_tokens",
             AsyncMock(side_effect=[first_response, result]),
         ) as request:
             if isinstance(first_response, RuntimeError):
                 with pytest.raises(RuntimeError, match="upstream"):
-                    await enrichment._get_cached_funding_tokens("wallet")
+                    await enrichment._get_cached_dev_tokens("wallet")
             else:
                 assert (
-                    await enrichment._get_cached_funding_tokens("wallet")
-                    is None
+                    await enrichment._get_cached_dev_tokens("wallet") is None
                 )
-            assert (
-                await enrichment._get_cached_funding_tokens("wallet") == result
-            )
+            assert await enrichment._get_cached_dev_tokens("wallet") == result
             assert request.await_count == 2
     finally:
         await enrichment.stop()
@@ -256,11 +248,11 @@ async def test_full_cache_evicts_completed_requests(
     provider = FakeClient()
     enrichment = FeedEnrichment(provider)
     try:
-        await enrichment._get_cached_funding_tokens("first")
-        await enrichment._get_cached_funding_tokens("second")
-        await enrichment._get_cached_funding_tokens("second")
+        await enrichment._get_cached_dev_tokens("first")
+        await enrichment._get_cached_dev_tokens("second")
+        await enrichment._get_cached_dev_tokens("second")
         assert provider.requested_wallets == ["first", "second"]
-        await enrichment._get_cached_funding_tokens("first")
+        await enrichment._get_cached_dev_tokens("first")
         assert provider.requested_wallets == ["first", "second", "first"]
     finally:
         await enrichment.stop()
@@ -287,19 +279,17 @@ async def test_full_cache_keeps_shared_active_request(
 
     try:
         with patch.object(
-            provider, "dev_tokens_v3", AsyncMock(side_effect=load_history)
+            provider, "dev_tokens", AsyncMock(side_effect=load_history)
         ) as request:
             for wallet in ("first", "second"):
                 tasks.append(
                     asyncio.create_task(
-                        enrichment._get_cached_funding_tokens(wallet)
+                        enrichment._get_cached_dev_tokens(wallet)
                     )
                 )
                 assert await asyncio.wait_for(started.get(), 1) == wallet
             tasks.append(
-                asyncio.create_task(
-                    enrichment._get_cached_funding_tokens("first")
-                )
+                asyncio.create_task(enrichment._get_cached_dev_tokens("first"))
             )
             await asyncio.sleep(0)
             release.set()
