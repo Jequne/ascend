@@ -51,6 +51,9 @@ class AxiomFeedAdapter:
                 twitter=data.twitter,
                 telegram=data.telegram,
                 discord=data.discord,
+                is_mayhem=data.protocol_details.is_mayhem is True
+                if data.protocol_details is not None
+                else False,
             ),
         )
         if self._callback is not None:

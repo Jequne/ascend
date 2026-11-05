@@ -80,6 +80,7 @@ class PairData:
     twitter: str | None = None
     telegram: str | None = None
     discord: str | None = None
+    is_mayhem: bool = False
 
 
 @dataclass(frozen=True, slots=True)

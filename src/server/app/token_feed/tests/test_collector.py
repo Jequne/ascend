@@ -1,10 +1,14 @@
 import asyncio
 from collections.abc import AsyncGenerator, Callable
 from dataclasses import replace
-from unittest.mock import AsyncMock, patch
+from typing import Any
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from third_party_apis import axiom_trade_api as axiom
+
+from ..adapters.axiom import AxiomFeedAdapter
 from ..collector import TokenFeedCollector
 from ..developer_history import select_developer_tokens
 from ..domain import Counts, History, PairEvent, TokenFeedBase
@@ -43,6 +47,43 @@ class ControlledUpdates(FeedEnrichment):
     ) -> AsyncGenerator[TokenFeedBase, None]:
         await self.funding_release.wait()
         yield replace(base, funding_wallet="funding-wallet")
+
+
+@pytest.mark.asyncio
+async def test_mayhem_new_pair_is_not_queued_or_enriched() -> None:
+    adapter = AxiomFeedAdapter(Mock())
+    collector = TokenFeedCollector(adapter, ControlledUpdates())
+    await collector.start()
+    try:
+        payload: dict[str, Any] = {
+            "room": "new_pairs",
+            "content": {
+                "pair_address": "pair",
+                "token_address": "token",
+                "token_name": "Token",
+                "token_ticker": "TOK",
+                "protocol": "Pump",
+                "deployer_address": "developer",
+                "created_at": "2026-11-06T00:00:00Z",
+                "updated_at": "2026-11-06T00:00:00Z",
+                "open_trading": "2026-11-06T00:00:00Z",
+                "protocol_details": {"isMayhem": True, "creatorFeeBps": 100},
+            },
+        }
+        mayhem = axiom.NewPairsRoomMessage.model_validate(payload)
+        assert mayhem.content.protocol_details is not None
+        assert mayhem.content.protocol_details.is_mayhem is True
+        adapter._on_pair(mayhem)
+        await asyncio.sleep(0)
+        assert collector.tokens_feed.empty()
+        assert all(task.done() for task in collector._tasks)
+
+        payload["content"]["protocol_details"] = {"isMayhem": False}
+        adapter._on_pair(axiom.NewPairsRoomMessage.model_validate(payload))
+        normal = await asyncio.wait_for(collector.tokens_feed.get(), 1)
+        assert normal.pair_address == "pair"
+    finally:
+        await collector.stop()
 
 
 @pytest.mark.asyncio

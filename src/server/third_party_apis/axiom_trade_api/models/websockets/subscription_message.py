@@ -19,6 +19,12 @@ class Extra(BaseModel):
     migrated_from: str = Field(..., alias="migratedFrom")
 
 
+class ProtocolDetails(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    is_mayhem: bool | None = Field(default=None, alias="isMayhem")
+
+
 class NewPairsRoomContent(BaseModel):
     model_config = ConfigDict(extra="allow", populate_by_name=True)
 
@@ -37,7 +43,7 @@ class NewPairsRoomContent(BaseModel):
     token_decimals: Optional[int] = None
     pair_sol_account: Optional[str] = None
     pair_token_account: Optional[str] = None
-    protocol_details: Optional[Dict[str, Any]] = None
+    protocol_details: ProtocolDetails | None = None
     website: Optional[str] = None
     twitter: Optional[str] = None
     telegram: Optional[str] = None

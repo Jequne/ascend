@@ -40,6 +40,8 @@ class TokenFeedCollector:
             self._spawn(self.collect_token_feed_data(event))
 
     async def collect_token_feed_data(self, event: PairEvent) -> None:
+        if event.content.is_mayhem:
+            return
         base = await self._preparer.prepare_token_feed(event)
         await self.tokens_feed.put(base)
         logger.info("%s", format_token_log(base))
