@@ -2,7 +2,10 @@ import asyncio
 import unittest
 from unittest.mock import patch
 
-from third_party_apis.axiom_trade_api.agent_selector import AgentSelector
+from third_party_apis.axiom_trade_api.agent_selector import (
+    MAX_ROUTE_CONCURRENCY,
+    AgentSelector,
+)
 from third_party_apis.axiom_trade_api.client import AxiomTradeClient
 from third_party_apis.axiom_trade_api.endpoints.exceptions import (
     AxiomHTTPStatusError,
@@ -22,6 +25,29 @@ def _agent(number: int, proxy: str) -> AxiomAgentData:
 
 
 class AgentSelectorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_round_robin_stays_even_as_routes_cool_down(self) -> None:
+        selector = AgentSelector()
+        selector.add_agents(
+            [_agent(number, f"http://proxy-{number}") for number in range(8)]
+        )
+        counts = {f"agent-{number}": 0 for number in range(8)}
+        clock = [0.0]
+        try:
+            with patch(
+                "third_party_apis.axiom_trade_api.agent_selector.time.monotonic",
+                side_effect=lambda: clock[0],
+            ):
+                for _ in range(800):
+                    selected = selector.acquire_agent()
+                    if selected is not None:
+                        counts[selected[1].agent_name] += 1
+                        selector.mark_dispatched(selected)
+                        selector.release_agent(selected)
+                    clock[0] += 0.025
+            self.assertEqual(set(counts.values()), {100})
+        finally:
+            await self._close_selector(selector)
+
     async def test_proxy_credentials_do_not_create_extra_ip_routes(
         self,
     ) -> None:
@@ -305,7 +331,7 @@ class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
         async def endpoint(session_and_agent, **kwargs):
             nonlocal calls
             calls += 1
-            if calls == 8:
+            if calls == MAX_ROUTE_CONCURRENCY:
                 started.set()
             await release.wait()
             return "ok"
@@ -316,7 +342,7 @@ class AxiomTradeClientRetryTests(unittest.IsolatedAsyncioTestCase):
         ]
         try:
             await asyncio.wait_for(started.wait(), 2)
-            self.assertEqual(calls, 8)
+            self.assertEqual(calls, MAX_ROUTE_CONCURRENCY)
             self.assertIsNone(client._agent_selector.acquire_agent())
             release.set()
             results = await asyncio.wait_for(asyncio.gather(*tasks), 2)

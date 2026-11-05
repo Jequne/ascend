@@ -58,6 +58,7 @@ class Runtime:
 
     async def start(self) -> None:
         try:
+            await self.client.exclude_unavailable_routes()
             await self.feed.start()
             self.prices.start()
             self.client.connect_websocket()

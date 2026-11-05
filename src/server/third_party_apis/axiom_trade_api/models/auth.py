@@ -98,6 +98,14 @@ class AxiomCookies(BaseModel):
             cookie_name = field_info.alias or field_name
             cookies[cookie_name] = cookie_obj.cookie
 
+        for name, cookie_obj in (self.model_extra or {}).items():
+            if (
+                (name == "cf_clearance" or name.startswith("__cf_"))
+                and isinstance(cookie_obj, AxiomCookie)
+                and cookie_obj.cookie
+            ):
+                cookies[name] = cookie_obj.cookie
+
         return cookies
 
 

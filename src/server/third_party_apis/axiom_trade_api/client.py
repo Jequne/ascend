@@ -4,12 +4,15 @@ import time
 from collections import Counter
 from typing import Any, Awaitable, Callable, List, Literal, Optional, TypeVar
 
+from curl_cffi import AsyncSession
+
 from .agent_selector import (
     MIN_ROUTE_INTERVAL_SECONDS,
     AgentSelector,
     SessionAndAgent,
 )
 from .auth import AuthManager
+from .auth.exceptions import AxiomRefreshTokenError
 from .endpoints import AxiomTradeEndpoints, AxiomTradeWebsocket
 from .endpoints.exceptions import (
     AxiomHTTPStatusError,
@@ -25,6 +28,7 @@ from .models import (
     TokenInfoResponse,
 )
 from .request_pacer import AxiomRequestPacer
+from .urls import AxiomTradeApiUrls
 
 logger = logging.getLogger(__name__)
 ResponseModelT = TypeVar("ResponseModelT")
@@ -41,6 +45,7 @@ class AxiomTradeClient:
         self._request_pacer = AxiomRequestPacer()
         self._route_released = asyncio.Event()
         self._http_attempts: Counter[str] = Counter()
+        self._agent_http_attempts: Counter[str] = Counter()
         self._http_rate_limits: Counter[str] = Counter()
         self._endpoints = AxiomTradeEndpoints(self._auth_manager)
         self._wsocket = AxiomTradeWebsocket(
@@ -59,6 +64,72 @@ class AxiomTradeClient:
             self._request_pacer.interval_seconds = (
                 MIN_ROUTE_INTERVAL_SECONDS / routes
             )
+
+    @staticmethod
+    async def _probe_public_route(agent: AxiomAgentData) -> int | None:
+        try:
+            async with AsyncSession() as session:
+                response = await session.get(
+                    url=AxiomTradeApiUrls.SERVER_TIME_URL,
+                    timeout=15,
+                    impersonate="chrome136",
+                    proxy=agent.proxy,
+                )
+                return response.status_code
+        except Exception:
+            return None
+
+    async def exclude_unavailable_routes(self) -> dict[str, int | None]:
+        """Skip routes whose public Axiom endpoint returns 404."""
+        routes: dict[str, AxiomAgentData] = {}
+        for (
+            session_and_agent
+        ) in self._agent_selector.get_agents_and_sessions():
+            route = self._agent_selector.route_key(session_and_agent)
+            routes.setdefault(route, session_and_agent[1])
+        if not routes:
+            return {}
+
+        statuses = await asyncio.gather(
+            *(self._probe_public_route(agent) for agent in routes.values())
+        )
+        results = {
+            agent.agent_name: status
+            for agent, status in zip(routes.values(), statuses)
+        }
+        if 200 not in statuses:
+            logger.warning(
+                "No Axiom route passed the public endpoint check; "
+                "keeping routes available"
+            )
+            return results
+
+        bad_routes = {
+            route
+            for (route, _), status in zip(routes.items(), statuses)
+            if status == 404
+        }
+        self._agent_selector.disable_routes(bad_routes)
+        if bad_routes:
+            logger.warning(
+                "Excluded Axiom routes with public endpoint 404: %s",
+                [routes[route].agent_name for route in bad_routes],
+            )
+        return results
+
+    async def _exclude_failed_route(
+        self, session_and_agent: SessionAndAgent
+    ) -> bool:
+        if await self._probe_public_route(session_and_agent[1]) != 404:
+            return False
+        route = self._agent_selector.route_key(session_and_agent)
+        if not self._agent_selector.disable_routes({route}):
+            return False
+        logger.warning(
+            "Excluded Axiom route after public endpoint 404: %s",
+            session_and_agent[1].agent_name,
+        )
+        return True
 
     def connect_websocket(
         self,
@@ -135,9 +206,12 @@ class AxiomTradeClient:
         endpoint_name = endpoint_method.__name__
         excluded_routes: set[str] = set()
         retry_deadline = time.monotonic() + 120.0
-        last_retry_error: AxiomHTTPStatusError | AxiomRequestError | None = (
-            None
-        )
+        last_retry_error: (
+            AxiomHTTPStatusError
+            | AxiomRequestError
+            | AxiomRefreshTokenError
+            | None
+        ) = None
 
         for attempt in range(max_attempts):
             session_and_agent = await self._acquire_paced_agent(
@@ -145,6 +219,8 @@ class AxiomTradeClient:
             )
             try:
                 self._http_attempts[endpoint_name] += 1
+                agent_name = session_and_agent[1].agent_name
+                self._agent_http_attempts[agent_name] += 1
                 request_count = sum(self._http_attempts.values())
                 if request_count % 25 == 0:
                     pending, oldest_age = self._request_pacer.queue_stats()
@@ -152,12 +228,13 @@ class AxiomTradeClient:
                     logger.debug(
                         "Axiom HTTP diagnostics: attempts=%s 429=%s "
                         "rate_limited=%.1f%% "
-                        "pending=%s oldest_wait=%.3fs",
+                        "pending=%s oldest_wait=%.3fs agents=%s",
                         dict(self._http_attempts),
                         dict(self._http_rate_limits),
                         rate_limited_count / request_count * 100,
                         pending,
                         oldest_age,
+                        dict(self._agent_http_attempts),
                     )
                 self._agent_selector.mark_dispatched(session_and_agent)
                 response = await endpoint_method(
@@ -167,6 +244,16 @@ class AxiomTradeClient:
                 self._agent_selector.mark_success(session_and_agent)
                 return response
             except AxiomHTTPStatusError as exc:
+                if exc.status_code == 404 and await self._exclude_failed_route(
+                    session_and_agent
+                ):
+                    last_retry_error = exc
+                    if attempt == max_attempts - 1:
+                        raise
+                    excluded_routes.add(
+                        self._agent_selector.route_key(session_and_agent)
+                    )
+                    continue
                 if exc.status_code != 429:
                     raise
 
@@ -199,6 +286,18 @@ class AxiomTradeClient:
                     "%s request failed; retrying via another proxy route",
                     session_and_agent[1].agent_name,
                 )
+            except AxiomRefreshTokenError as exc:
+                if (
+                    exc.status_code != 404
+                    or not await self._exclude_failed_route(session_and_agent)
+                ):
+                    raise
+                last_retry_error = exc
+                if attempt == max_attempts - 1:
+                    raise
+                excluded_routes.add(
+                    self._agent_selector.route_key(session_and_agent)
+                )
             finally:
                 self._agent_selector.release_agent(session_and_agent)
                 self._request_pacer.release_turn()
@@ -210,7 +309,12 @@ class AxiomTradeClient:
         self,
         excluded_routes: set[str],
         deadline: float,
-        last_error: AxiomHTTPStatusError | AxiomRequestError | None,
+        last_error: (
+            AxiomHTTPStatusError
+            | AxiomRequestError
+            | AxiomRefreshTokenError
+            | None
+        ),
     ) -> SessionAndAgent:
         while True:
             # Select at dispatch time: queued work must see fresh cooldowns.

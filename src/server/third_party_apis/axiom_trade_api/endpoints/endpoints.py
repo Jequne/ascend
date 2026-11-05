@@ -93,7 +93,7 @@ class AxiomTradeEndpoints:
                 headers=agent_data.headers.request_headers,
                 cookies=agent_data.cookies.get_cookies_for_request(),
                 timeout=15,
-                impersonate="chrome",
+                impersonate="chrome136",
                 proxy=agent_data.proxy,
             )
 
@@ -186,7 +186,7 @@ class AxiomTradeEndpoints:
         session_and_agent: tuple[AsyncSession, AxiomAgentData],
         dev_address: str,
     ) -> DevTokensV3Response:
-        url = self._base_url + AxiomTradeApiUrls.DEV_TOKENS_V5 + dev_address
+        url = "https://sol-api1.axiom.trade" + AxiomTradeApiUrls.DEV_TOKENS + dev_address
 
         return await self.__get_response_model(
             session_and_agent=session_and_agent,
@@ -227,7 +227,7 @@ class AxiomTradeEndpoints:
         self,
         session_and_agent: tuple[AsyncSession, AxiomAgentData],
     ) -> Response:
-        url = "https://api.axiom.trade/wo/server-time"
+        url = AxiomTradeApiUrls.SERVER_TIME_URL
 
         return await self.__get_request(
             session_and_agent=session_and_agent,

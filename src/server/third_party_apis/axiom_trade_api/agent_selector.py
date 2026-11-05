@@ -25,6 +25,7 @@ class AgentSelector:
         self._next_start: dict[str, float] = {}
         self._route_cursor = 0
         self._agent_cursors: dict[str, int] = {}
+        self._disabled_routes: set[str] = set()
 
     def add_agents(self, agents: Sequence[AxiomAgentData]) -> None:
         for agent in agents:
@@ -70,6 +71,16 @@ class AgentSelector:
             }
         )
 
+    def disable_routes(self, routes: set[str]) -> bool:
+        all_routes = {
+            self.route_key(session_and_agent)
+            for session_and_agent in self._agents_and_sessions
+        }
+        if all_routes <= self._disabled_routes | routes:
+            return False
+        self._disabled_routes.update(routes)
+        return True
+
     def acquire_agent(
         self,
         excluded_routes: set[str] | None = None,
@@ -92,6 +103,7 @@ class AgentSelector:
             route: agents
             for route, agents in agents_by_route.items()
             if route not in excluded_routes
+            and route not in self._disabled_routes
             and self._ready_at(route) <= now
             and route_loads[route] < MAX_ROUTE_CONCURRENCY
         }
@@ -108,8 +120,15 @@ class AgentSelector:
             for route in available_by_route
             if route_loads[route] == minimum_route_load
         ]
-        route = least_busy_routes[self._route_cursor % len(least_busy_routes)]
-        self._route_cursor += 1
+        route_order = list(agents_by_route)
+        eligible_routes = set(least_busy_routes)
+        for offset in range(len(route_order)):
+            index = (self._route_cursor + offset) % len(route_order)
+            candidate = route_order[index]
+            if candidate in eligible_routes:
+                route = candidate
+                self._route_cursor = (index + 1) % len(route_order)
+                break
         route_agents = available_by_route[route]
         minimum_agent_load = min(
             self._in_flight[id(agent)] for _, agent in route_agents
@@ -194,6 +213,7 @@ class AgentSelector:
         routes = {
             self.route_key(session_and_agent)
             for session_and_agent in self._agents_and_sessions
+            if self.route_key(session_and_agent) not in self._disabled_routes
         }
         waits = [
             max(0.0, self._ready_at(route) - now)
@@ -211,13 +231,21 @@ class AgentSelector:
     def random_websocket_agent(self) -> SessionAndAgent:
         self.require_agents()
 
+        available_agents = [
+            session_and_agent
+            for session_and_agent in self._agents_and_sessions
+            if self.route_key(session_and_agent) not in self._disabled_routes
+        ]
+        if not available_agents:
+            raise RuntimeError("No healthy Axiom routes available")
+
         has_any_proxy = any(
             agent_and_session[1].proxy
-            for agent_and_session in self._agents_and_sessions
+            for agent_and_session in available_agents
         )
         socks5_agents = [
             agent_and_session
-            for agent_and_session in self._agents_and_sessions
+            for agent_and_session in available_agents
             if agent_and_session[1].proxy
             and agent_and_session[1].proxy.startswith("socks5")
         ]
@@ -234,7 +262,7 @@ class AgentSelector:
         else:
             logger.info("No proxy configured; using all agents")
 
-        return random.choice(self._agents_and_sessions)
+        return random.choice(available_agents)
 
     def get_agents_and_sessions(
         self,

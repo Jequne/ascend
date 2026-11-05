@@ -38,6 +38,9 @@ flowchart LR
 - `app/token_images` содержит provider contract и adapter фиксированного CDN.
 - `third_party_apis` содержит независимый Axiom SDK, который не импортирует
   backend и получает credentials от вызывающей стороны.
+- В конфигурации Axiom `headers.User-Agent` необязателен. Непустое значение
+  передаётся в HTTP и WebSocket запросы; отсутствующее или пустое не передаётся,
+  чтобы `curl-cffi` добавил заголовок профиля `impersonate="chrome136"`.
 - `migrations` хранит версионируемую схему Alembic.
 
 Backend использует uv: `pyproject.toml` объявляет зависимости и группу `dev`,

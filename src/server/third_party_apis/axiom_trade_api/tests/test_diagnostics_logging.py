@@ -35,5 +35,6 @@ async def test_http_diagnostics_are_only_visible_at_debug(
         if visible:
             assert diagnostics[0].levelno == logging.DEBUG
             assert "'endpoint': 25" in diagnostics[0].getMessage()
+            assert "'agent-1': 1" in diagnostics[0].getMessage()
     finally:
         await client.close()

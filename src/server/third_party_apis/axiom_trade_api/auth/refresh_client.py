@@ -40,22 +40,19 @@ class AuthRefreshClient:
         try:
             response = await session.post(
                 **request_kwargs,
-                impersonate="chrome",
+                impersonate="chrome136",
             )
         except Exception as exc:
             raise AxiomRefreshTokenError(
                 f"{agent_data.agent_name}: refresh request failed"
             ) from exc
 
-        self._save_cf_cookies_for_agent(
-            axiom_agent=agent_data,
-            session=session,
-        )
-
         if response.status_code != 200:
             raise AxiomRefreshTokenError(
                 f"{agent_data.agent_name}: "
-                f"refresh failed with status {response.status_code}"
+                f"refresh failed with status {response.status_code} "
+                f"on {self._base_url}",
+                status_code=response.status_code,
             )
 
         auth_access_token = response.cookies.get("auth-access-token")
@@ -66,6 +63,17 @@ class AuthRefreshClient:
                 "response does not contain auth-access-token cookie"
             )
 
+        new_refresh_token = response.cookies.get("auth-refresh-token")
+        if new_refresh_token:
+            agent_data.cookies.auth_refresh_token = AxiomCookie(
+                cookie=new_refresh_token
+            )
+
+        self._save_cf_cookies_for_agent(
+            axiom_agent=agent_data,
+            session=session,
+        )
+
         logger.info(
             "%s access token refreshed",
             agent_data.agent_name,
@@ -73,20 +81,18 @@ class AuthRefreshClient:
 
         return auth_access_token
 
-    def _get_cookies_from_session(self, session: AsyncSession) -> dict:
-        cookies = session.cookies.get_dict()
-        return cookies
-
     def _save_cf_cookies_for_agent(
         self, axiom_agent: AxiomAgentData, session: AsyncSession
     ) -> None:
-        cf_cookies: dict = self._get_cookies_from_session(session)
-
-        axiom_agent_cookies = axiom_agent.cookies
+        cf_cookies = {
+            key: value
+            for key, value in session.cookies.get_dict().items()
+            if key == "cf_clearance" or key.startswith("__cf_")
+        }
         for key, value in cf_cookies.items():
-            cookie = AxiomCookie(cookie=value)
-            setattr(axiom_agent_cookies, "key", cookie)
+            setattr(axiom_agent.cookies, key, AxiomCookie(cookie=value))
 
-        logger.info(
-            "✅ cf cookies for %s saved in state", axiom_agent.agent_name
-        )
+        if cf_cookies:
+            logger.debug(
+                "Cloudflare cookies updated for %s", axiom_agent.agent_name
+            )

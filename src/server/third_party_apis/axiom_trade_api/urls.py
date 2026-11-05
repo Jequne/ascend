@@ -19,6 +19,7 @@ class AxiomWssUrls:
 
 
 class AxiomTradeApiUrls:
+    SERVER_TIME_URL = "https://api.axiom.trade/wo/server-time"
     LOGIN_STEP1 = "/login-password-v2"
     LOGIN_STEP2 = "/login-otp"
     LOGOUT = "/auth/logout"
@@ -31,5 +32,6 @@ class AxiomTradeApiUrls:
     DEV_TOKENS_V3 = "/dev-tokens-v3?devAddress="
     DEV_TOKENS_V4 = "/dev-tokens-v4?devAddress="
     DEV_TOKENS_V5 = "/dev-tokens-v5?devAddress="
+    DEV_TOKENS = "/dev-tokens?devAddress="
     TOKEN_INFO = "/token-info-v2?pairAddress="
     PAIR_INFO = "/pair-info?pairAddress="
